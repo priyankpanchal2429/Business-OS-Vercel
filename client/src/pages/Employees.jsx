@@ -1,0 +1,551 @@
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, User, Trash2, Edit2 } from 'lucide-react';
+import Card from '../components/Card';
+import { ToastContainer } from '../components/Toast.jsx';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal.jsx';
+
+const Employees = () => {
+    const [employees, setEmployees] = useState([]);
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [toasts, setToasts] = useState([]);
+    const [editingEmployee, setEditingEmployee] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, employee: null });
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const addToast = (message, type = 'success') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+    };
+
+    const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
+
+    const [newEmployee, setNewEmployee] = useState({
+        name: '', role: '', salary: '', email: '',
+        image: null, category: '', contact: '',
+        birthday: '', age: '', address: '', status: 'Active',
+        emergencyName: '', emergencyPhone: '',
+        shiftStart: '', shiftEnd: '', breakTime: 60, perShiftAmount: '', payType: 'Fixed'
+    });
+
+    // Reusable Calculation Helper
+    const getSalaryDetails = (emp) => {
+        if (!emp.shiftStart || !emp.shiftEnd) {
+            // Fallback for legacy data or incomplete forms
+            return {
+                duration: '-', billable: '-', rate: '0.00',
+                perShift: Number(emp.salary || emp.perShiftAmount || 0).toLocaleString('en-IN')
+            };
+        }
+
+        const [StartH, StartM] = emp.shiftStart.split(':').map(Number);
+        const [EndH, EndM] = emp.shiftEnd.split(':').map(Number);
+
+        let start = new Date(2000, 0, 1, StartH, StartM);
+        let end = new Date(2000, 0, 1, EndH, EndM);
+
+        if (end < start) {
+            end.setDate(end.getDate() + 1); // Overnight logic
+        }
+
+        const diffMs = end - start;
+        const totalMins = Math.floor(diffMs / 60000);
+
+        const breakMins = Number(emp.breakTime) || 0;
+        const billableMins = Math.max(0, totalMins - breakMins);
+
+        // Rate Calc
+        const baseAmount = Number(emp.perShiftAmount || emp.salary) || 0;
+        const rate = billableMins > 0 ? (baseAmount / (billableMins / 60)) : 0;
+
+        const formatH_M = (mins) => `${Math.floor(mins / 60)}h ${mins % 60}m`;
+        const formatTime = (timeStr) => {
+            const [h, m] = timeStr.split(':');
+            const d = new Date(2000, 0, 1, h, m);
+            return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        };
+
+        return {
+            duration: formatH_M(totalMins),
+            billable: formatH_M(billableMins),
+            rate: rate.toFixed(2),
+            perShift: baseAmount.toLocaleString('en-IN'),
+            shiftDisplay: `${formatTime(emp.shiftStart)} - ${formatTime(emp.shiftEnd)}`
+        };
+    };
+
+    const formStats = getSalaryDetails(newEmployee);
+
+    useEffect(() => {
+        fetchEmployees();
+    }, []);
+
+    const fetchEmployees = async () => {
+        try {
+            const res = await fetch('/api/employees');
+            const data = await res.json();
+            setEmployees(data);
+        } catch (err) {
+            console.error("Failed to fetch employees", err);
+        }
+    };
+
+    const handleAddEmployee = async (e) => {
+        e.preventDefault();
+        const isEditing = editingEmployee !== null;
+
+        try {
+            const url = isEditing ? `/api/employees/${editingEmployee.id}` : '/api/employees';
+            const method = isEditing ? 'PATCH' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newEmployee)
+            });
+
+            if (res.ok) {
+                setShowAddForm(false);
+                setEditingEmployee(null);
+                setNewEmployee({
+                    name: '', role: '', salary: '', email: '',
+                    image: null, category: '', contact: '',
+                    birthday: '', age: '', address: '', status: 'Active',
+                    emergencyName: '', emergencyPhone: '',
+                    shiftStart: '', shiftEnd: '', breakTime: 60, perShiftAmount: '', payType: 'Fixed'
+                });
+                fetchEmployees();
+                addToast(isEditing ? "Profile updated successfully." : "Profile created successfully.", "success");
+            } else {
+                addToast(isEditing ? "Failed to update profile. Please check the inputs and try again." : "Failed to create profile. Please check the inputs and try again.", "error");
+            }
+        } catch (err) {
+            console.error("Failed to save employee", err);
+            addToast("An error occurred while connecting to the server.", "error");
+        }
+    };
+
+    const openNewEmployeeForm = () => {
+        setEditingEmployee(null);
+        setNewEmployee({
+            name: '', role: '', salary: '', email: '',
+            image: null, category: '', contact: '',
+            birthday: '', age: '', address: '', status: 'Active',
+            emergencyName: '', emergencyPhone: '',
+            shiftStart: '', shiftEnd: '', breakTime: 60, perShiftAmount: '', payType: 'Fixed'
+        });
+        setShowAddForm(true);
+    };
+
+    const openEditForm = (employee) => {
+        setEditingEmployee(employee);
+        setNewEmployee({
+            ...employee,
+            age: employee.birthday ? Math.floor((new Date() - new Date(employee.birthday).getTime()) / 3.15576e+10) : ''
+        });
+        setShowAddForm(true);
+    };
+
+    const handleDeleteClick = (employee) => {
+        setDeleteConfirm({ isOpen: true, employee });
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteConfirm.employee) return;
+
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/employees/${deleteConfirm.employee.id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                setDeleteConfirm({ isOpen: false, employee: null });
+                fetchEmployees();
+                addToast('Employee deleted permanently.', 'success');
+            } else {
+                const error = await res.json();
+                if (res.status === 409) {
+                    addToast(error.details || 'Cannot delete employee with payroll history.', 'error');
+                } else {
+                    addToast('Failed to delete. Please try again.', 'error');
+                }
+            }
+        } catch (err) {
+            console.error('Delete failed:', err);
+            addToast('An error occurred while deleting.', 'error');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <div>
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+            <DeleteConfirmationModal
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ isOpen: false, employee: null })}
+                onConfirm={handleDeleteConfirm}
+                employeeName={deleteConfirm.employee?.name || ''}
+                isDeleting={isDeleting}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                <div>
+                    <h1 style={{ marginBottom: 0 }}>Employees</h1>
+                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Manage your team members.</p>
+                </div>
+                <button
+                    onClick={openNewEmployeeForm}
+                    style={{
+                        background: 'var(--color-accent)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 16px',
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                    }}>
+                    <Plus size={18} /> Add Employee
+                </button>
+            </div>
+
+            {/* Add Employee Form Modal */}
+            {showAddForm && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <Card style={{ width: 700, maxHeight: '90vh', overflowY: 'auto', padding: 'var(--spacing-xl)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                            <h2 style={{ margin: 0 }}>{editingEmployee ? 'Edit Employee Profile' : 'New Employee Profile'}</h2>
+                            <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-secondary)' }}>&times;</button>
+                        </div>
+
+                        <form onSubmit={handleAddEmployee} style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
+
+                            {/* Image Upload */}
+                            <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                                <div style={{
+                                    width: 80, height: 80, borderRadius: 'var(--radius-md)',
+                                    background: 'var(--color-background-subtle)',
+                                    backgroundImage: newEmployee.image ? `url(${newEmployee.image})` : 'none',
+                                    backgroundSize: 'cover', backgroundPosition: 'center',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    border: '1px dashed var(--color-border)', cursor: 'pointer', position: 'relative'
+                                }}>
+                                    {!newEmployee.image && <User size={24} color="var(--color-text-secondary)" />}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => setNewEmployee({ ...newEmployee, image: reader.result });
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                    />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 500, marginBottom: 4 }}>Profile Photo</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Click to upload. JPG/PNG.</div>
+                                </div>
+                            </div>
+
+                            {/* Section 1: Basic Info */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Full Name <span style={{ color: 'red' }}>*</span></label>
+                                    <input required value={newEmployee.name} onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} style={inputStyle} placeholder="e.g. Rahul Sharma" />
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Job Role / Title <span style={{ color: 'red' }}>*</span></label>
+                                    <input required value={newEmployee.role} onChange={e => setNewEmployee({ ...newEmployee, role: e.target.value })} style={inputStyle} placeholder="e.g. Machine Operator" />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Category</label>
+                                    <select value={newEmployee.category} onChange={e => setNewEmployee({ ...newEmployee, category: e.target.value })} style={inputStyle}>
+                                        <option value="">Select Category</option>
+                                        <option value="Mixer Machine">Mixer Machine</option>
+                                        <option value="Pellet Machine">Pellet Machine</option>
+                                        <option value="Ribbon Mixer">Ribbon Mixer</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                        <option value="Office Staff">Office Staff</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Status</label>
+                                    <select value={newEmployee.status} onChange={e => setNewEmployee({ ...newEmployee, status: e.target.value })} style={inputStyle}>
+                                        <option value="Active">Active (Working)</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Section 2: Personal Details */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Contact Number <span style={{ color: 'red' }}>*</span></label>
+                                    <input
+                                        type="tel" required
+                                        pattern="[0-9]{10}"
+                                        title="10 digit mobile number"
+                                        placeholder="9876543210"
+                                        value={newEmployee.contact}
+                                        onChange={e => setNewEmployee({ ...newEmployee, contact: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                        style={inputStyle}
+                                    />
+                                    {newEmployee.contact && newEmployee.contact.length !== 10 && <div style={errorStyle}>Must be 10 digits</div>}
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Birthday</label>
+                                    <input
+                                        type="date"
+                                        value={newEmployee.birthday}
+                                        onChange={e => {
+                                            const bday = e.target.value;
+                                            // Calculate Age
+                                            const age = bday ? Math.floor((new Date() - new Date(bday).getTime()) / 3.15576e+10) : '';
+                                            setNewEmployee({ ...newEmployee, birthday: bday, age: age });
+                                        }}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Age</label>
+                                    <input readOnly value={newEmployee.age} style={{ ...inputStyle, background: 'var(--color-background-subtle)', cursor: 'not-allowed' }} placeholder="Auto" />
+                                </div>
+                            </div>
+
+                            <div style={formGroupStyle}>
+                                <label style={labelStyle}>Address</label>
+                                <textarea
+                                    value={newEmployee.address}
+                                    onChange={e => setNewEmployee({ ...newEmployee, address: e.target.value })}
+                                    style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }}
+                                    placeholder="Enter full residential address..."
+                                />
+                            </div>
+
+                            {/* Section 3: Salary & Shift Rules */}
+                            <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-background-subtle)', borderRadius: 'var(--radius-md)' }}>
+                                <h4 style={{ margin: '0 0 var(--spacing-sm) 0' }}>Salary & Shift Rules</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Shift Start</label>
+                                        <input type="time" required value={newEmployee.shiftStart} onChange={e => setNewEmployee({ ...newEmployee, shiftStart: e.target.value })} style={inputStyle} />
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Shift End</label>
+                                        <input type="time" required value={newEmployee.shiftEnd} onChange={e => setNewEmployee({ ...newEmployee, shiftEnd: e.target.value })} style={inputStyle} />
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Break (Mins)</label>
+                                        <input type="number" required value={newEmployee.breakTime} onChange={e => setNewEmployee({ ...newEmployee, breakTime: e.target.value })} style={inputStyle} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'white', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Total Duration</label>
+                                        <div style={{ fontWeight: 600 }}>{formStats.duration}</div>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Billable Hours</label>
+                                        <div style={{ fontWeight: 600 }}>{formStats.billable}</div>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>Per Hour Rate</label>
+                                        <div style={{ fontWeight: 600, color: 'var(--color-accent)' }}>₹{formStats.rate}</div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Per Shift Amount (₹)</label>
+                                        <input required type="number" value={newEmployee.perShiftAmount} onChange={e => setNewEmployee({ ...newEmployee, perShiftAmount: e.target.value })} style={inputStyle} placeholder="500" />
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Pay Type</label>
+                                        <select value={newEmployee.payType} onChange={e => setNewEmployee({ ...newEmployee, payType: e.target.value })} style={inputStyle}>
+                                            <option value="Fixed">Fixed per Shift</option>
+                                            <option value="Hourly">Hourly Based</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 4: Emergency Contact */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--color-background-subtle)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ gridColumn: '1/-1', fontWeight: 600, fontSize: '0.9rem' }}>Emergency Contact</div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Contact Name</label>
+                                    <input value={newEmployee.emergencyName} onChange={e => setNewEmployee({ ...newEmployee, emergencyName: e.target.value })} style={inputStyle} placeholder="Relative Name" />
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>Contact Number</label>
+                                    <input type="tel" value={newEmployee.emergencyPhone} onChange={e => setNewEmployee({ ...newEmployee, emergencyPhone: e.target.value })} style={inputStyle} placeholder="Emergency Phone" />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end', marginTop: 'var(--spacing-sm)' }}>
+                                <button type="button" onClick={() => setShowAddForm(false)} style={{ padding: '10px 24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                                <button
+                                    type="submit"
+                                    style={{
+                                        padding: '10px 24px',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: 'none',
+                                        background: 'var(--color-accent)',
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={e => e.currentTarget.style.filter = 'brightness(1.1)'}
+                                    onMouseOut={e => e.currentTarget.style.filter = 'none'}
+                                >
+                                    {editingEmployee ? 'Save Changes' : 'Create Profile'}
+                                </button>
+                            </div>
+                        </form>
+                    </Card>
+                </div>
+            )}
+
+            <Card className="table-container" style={{ padding: 0, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
+                    <thead style={{ background: 'var(--color-background-subtle)', borderBottom: '1px solid var(--color-border)' }}>
+                        <tr>
+                            <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</th>
+                            <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Role</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Salary & Pay Rules</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {employees.length === 0 ? (
+                            <tr><td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>No employees yet. Add one to start.</td></tr>
+                        ) : (
+                            employees.map(emp => {
+                                const details = getSalaryDetails(emp);
+                                return (
+                                    <tr key={emp.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', fontWeight: 500, textAlign: 'left' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                <div style={{ width: 60, height: 60, borderRadius: '8px', background: 'var(--color-background-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)', backgroundImage: emp.image ? `url(${emp.image})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', overflow: 'hidden' }}>
+                                                    {!emp.image && <User size={18} />}
+                                                </div>
+                                                {emp.name}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'left' }}>{emp.role}</td>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60px' }}>
+                                                {emp.shiftStart ? (
+                                                    <>
+                                                        <div style={{ fontWeight: 600 }}>₹{details.perShift}/day</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                                                            {details.shiftDisplay}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                                                            rate: ₹{details.rate}/hr
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div>₹{details.perShift} <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>(Legacy)</span></div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                                            <span style={{
+                                                padding: '4px 12px',
+                                                borderRadius: 20,
+                                                background: emp.status === 'Active' ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)',
+                                                color: emp.status === 'Active' ? 'var(--color-success)' : 'var(--color-error)',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 500,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                height: '24px' // Consistent height
+                                            }}>
+                                                {emp.status || 'Active'}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', minHeight: '60px' }}>
+                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={() => openEditForm(emp)}
+                                                    title="Edit"
+                                                    style={{
+                                                        border: 'none',
+                                                        background: 'transparent',
+                                                        color: 'var(--color-accent)',
+                                                        padding: '12px',
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        transition: 'background 0.2s',
+                                                        minWidth: '44px',
+                                                        minHeight: '44px'
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 122, 255, 0.1)'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <Edit2 size={18} />
+                                                </button>
+
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => handleDeleteClick(emp)}
+                                                    title="Delete"
+                                                    style={{
+                                                        border: 'none',
+                                                        background: 'transparent',
+                                                        color: 'var(--color-error)',
+                                                        padding: '12px',
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        transition: 'background 0.2s',
+                                                        minWidth: '44px',
+                                                        minHeight: '44px'
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 59, 48, 0.1)'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </Card>
+        </div>
+    );
+};
+
+// Styles
+const formGroupStyle = { display: 'flex', flexDirection: 'column', gap: 6 };
+const labelStyle = { fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-secondary)' };
+const inputStyle = { padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '0.95rem' };
+const errorStyle = { color: 'var(--color-error)', fontSize: '0.8rem', marginTop: 4 };
+
+export default Employees;

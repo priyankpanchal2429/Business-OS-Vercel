@@ -1,0 +1,556 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Plus, Save, User, Zap, RotateCcw, AlertCircle } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+
+const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isPaid, prefilledDate, onSave }) => {
+    const { addToast } = useToast();
+    const [entries, setEntries] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({}); // Track field-level errors
+    const firstErrorRef = useRef(null);
+
+    // Clear validation errors and entries when modal opens/closes
+    useEffect(() => {
+        if (isOpen && employee) {
+            setValidationErrors({});
+            fetchTimesheet();
+        } else {
+            setEntries([]);
+            setValidationErrors({});
+        }
+    }, [isOpen, employee, periodStart, periodEnd]);
+
+    // Auto-add entry with prefilled date when specified
+    useEffect(() => {
+        if (isOpen && prefilledDate && entries.length === 0) {
+            const newEntry = {
+                id: `ts-new-${Date.now()}`,
+                employeeId: employee.id,
+                date: prefilledDate,
+                clockIn: '',
+                clockOut: '',
+                breakMinutes: 0,
+                status: 'new'
+            };
+            setEntries([newEntry]);
+        }
+    }, [isOpen, prefilledDate]);
+
+    const fetchTimesheet = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/timesheet/${employee.id}/${periodStart}/${periodEnd}`);
+            const data = await res.json();
+            // Normalize data: map shiftStart/shiftEnd to clockIn/clockOut
+            const normalizedEntries = data
+                .filter(e => e.status === 'active' || e.status === 'edited')
+                .map(e => ({
+                    ...e,
+                    clockIn: e.clockIn || e.shiftStart || '',
+                    clockOut: e.clockOut || e.shiftEnd || '',
+                    breakMinutes: e.breakMinutes || 0
+                }));
+            setEntries(normalizedEntries.length > 0 ? normalizedEntries : []);
+        } catch (err) {
+            console.error('Failed to fetch timesheet:', err);
+            setEntries([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFieldChange = (index, field, value) => {
+        const updated = [...entries];
+        updated[index][field] = value;
+        setEntries(updated);
+
+        // Clear validation error for this field when user starts typing
+        if (validationErrors[`${index}-${field}`]) {
+            const newErrors = { ...validationErrors };
+            delete newErrors[`${index}-${field}`];
+            setValidationErrors(newErrors);
+        }
+    };
+
+    const addNewDay = () => {
+        const newEntry = {
+            id: `ts-new-${Date.now()}`,
+            employeeId: employee.id,
+            date: '',
+            clockIn: '',
+            clockOut: '',
+            breakMinutes: 0,
+            notes: '',
+            status: 'new'
+        };
+        setEntries([...entries, newEntry]);
+    };
+
+    const deleteDay = (index) => {
+        const updated = entries.filter((_, i) => i !== index);
+        setEntries(updated);
+        // Clear any validation errors for removed entry
+        const newErrors = { ...validationErrors };
+        Object.keys(newErrors).forEach(key => {
+            if (key.startsWith(`${index}-`)) {
+                delete newErrors[key];
+            }
+        });
+        setValidationErrors(newErrors);
+    };
+
+    const autofillShift = (index) => {
+        if (!employee.shiftStart || !employee.shiftEnd) {
+            alert('Employee has no default shift times set');
+            return;
+        }
+
+        const updated = [...entries];
+        updated[index].clockIn = employee.shiftStart;
+        updated[index].clockOut = employee.shiftEnd;
+        updated[index].breakMinutes = employee.breakTime || 60;
+        setEntries(updated);
+
+        // Clear validation errors for this row
+        const newErrors = { ...validationErrors };
+        delete newErrors[`${index}-clockIn`];
+        delete newErrors[`${index}-clockOut`];
+        setValidationErrors(newErrors);
+    };
+
+    const resetTime = (index) => {
+        const updated = [...entries];
+        updated[index].clockIn = '';
+        updated[index].clockOut = '';
+        updated[index].breakMinutes = 0;
+        setEntries(updated);
+    };
+
+    // Helper: Check if a date is Sunday
+    const isSunday = (dateStr) => {
+        if (!dateStr) return false;
+        const date = new Date(dateStr + 'T00:00:00');
+        return date.getDay() === 0;
+    };
+
+    const validateEntries = () => {
+        const errors = {};
+        let firstErrorKey = null;
+
+        entries.forEach((entry, index) => {
+            // Skip validation for Sunday entries (closed days)
+            if (isSunday(entry.date)) {
+                return;
+            }
+
+            // Validate date (required for all entries)
+            const date = (entry.date || '').trim();
+            if (!date) {
+                errors[`${index}-date`] = 'Date is required';
+                if (!firstErrorKey) firstErrorKey = `${index}-date`;
+            }
+
+            // Relaxed validation: Allow empty Clock In/Out to support resetting/clearing time
+            // Previous strict checks removed.
+        });
+
+        return { errors, firstErrorKey, isValid: Object.keys(errors).length === 0 };
+    };
+
+    const handleSave = async () => {
+        // Validate entries
+        const { errors, firstErrorKey, isValid } = validateEntries();
+
+        if (!isValid) {
+            setValidationErrors(errors);
+            // Focus first error field
+            setTimeout(() => {
+                if (firstErrorRef.current) {
+                    firstErrorRef.current.focus();
+                    firstErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+            return;
+        }
+
+        // Clear any previous errors
+        setValidationErrors({});
+        setSaving(true);
+
+        try {
+            const res = await fetch('/api/timesheet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employeeId: employee.id,
+                    periodStart,
+                    periodEnd,
+                    entries: entries.map(e => ({
+                        ...e,
+                        // Send both formats for backend compatibility
+                        shiftStart: e.clockIn,
+                        shiftEnd: e.clockOut
+                    })),
+                    isPostPaymentAdjustment: isPaid
+                })
+            });
+
+            const result = await res.json();
+
+            if (result.success) {
+                // Dispatch event to refresh attendance card
+                window.dispatchEvent(new CustomEvent('timesheetUpdated'));
+
+                addToast('Timesheet saved successfully', 'success');
+                onSave(result);
+                onClose();
+            } else if (result.errors) {
+                // Handle server-side field-level errors
+                const serverErrors = {};
+                result.errors.forEach((err, index) => {
+                    if (err.field) {
+                        serverErrors[`${index}-${err.field}`] = err.message;
+                    }
+                });
+                setValidationErrors(serverErrors);
+            }
+        } catch (err) {
+            console.error('Failed to save timesheet:', err);
+            alert('Failed to save timesheet. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Helper to get error border style
+    const getInputStyle = (index, field, baseStyle) => {
+        const hasError = validationErrors[`${index}-${field}`];
+        return {
+            ...baseStyle,
+            borderColor: hasError ? 'var(--color-error)' : 'var(--color-border)',
+            boxShadow: hasError ? '0 0 0 2px rgba(255, 59, 48, 0.2)' : 'none'
+        };
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            backdropFilter: 'blur(2px)'
+        }}>
+            <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                width: '90%',
+                maxWidth: '900px',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.2)'
+            }}>
+                {/* Header */}
+                <div style={{
+                    padding: '24px',
+                    borderBottom: '1px solid var(--color-border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: '8px',
+                            background: 'var(--color-background-subtle)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--color-text-secondary)',
+                            backgroundImage: employee?.image ? `url(${employee.image})` : 'none',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            overflow: 'hidden'
+                        }}>
+                            {!employee?.image && <User size={24} />}
+                        </div>
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{employee?.name} - Manual Timesheet</h2>
+                            <p style={{ margin: '4px 0 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+                                Period: {periodStart} to {periodEnd}
+                                {isPaid && <span style={{
+                                    marginLeft: 8,
+                                    padding: '2px 8px',
+                                    background: 'rgba(52, 199, 89, 0.1)',
+                                    color: 'var(--color-success)',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem'
+                                }}>PAID</span>}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '8px'
+                    }}>
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Timesheet Table */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                            Loading timesheet...
+                        </div>
+                    ) : (
+                        <>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: 'var(--color-background-subtle)', borderBottom: '1px solid var(--color-border)' }}>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '140px' }}>Date</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock In</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock Out</th>
+                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '100px' }}>Break (mins)</th>
+                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '100px' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {entries.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                                No timesheet entries yet. Click "Add Day" to start.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        entries.map((entry, idx) => (
+                                            <tr key={entry.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                <td style={{ padding: '12px' }}>
+                                                    <input
+                                                        ref={validationErrors[`${idx}-date`] ? firstErrorRef : null}
+                                                        type="date"
+                                                        value={entry.date}
+                                                        onChange={(e) => handleFieldChange(idx, 'date', e.target.value)}
+                                                        style={getInputStyle(idx, 'date', {
+                                                            padding: '6px 10px',
+                                                            border: '1px solid',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            fontSize: '0.9rem',
+                                                            width: '100%',
+                                                            marginBottom: entry.date ? '4px' : '0'
+                                                        })}
+                                                    />
+                                                    {validationErrors[`${idx}-date`] && (
+                                                        <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                            {validationErrors[`${idx}-date`]}
+                                                        </div>
+                                                    )}
+                                                    {entry.date && (
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                                            {(() => {
+                                                                const date = new Date(entry.date + 'T00:00:00');
+                                                                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
+                                                                const formattedDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                                                                const isSunday = dayOfWeek === 'Sun';
+
+                                                                return (
+                                                                    <span style={{ color: isSunday ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>
+                                                                        {formattedDate} — {dayOfWeek}{isSunday ? ' (Closed)' : ''}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px' }}>
+                                                    <input
+                                                        ref={validationErrors[`${idx}-clockIn`] && !validationErrors[`${idx}-date`] ? firstErrorRef : null}
+                                                        type="time"
+                                                        value={entry.clockIn || ''}
+                                                        onChange={(e) => handleFieldChange(idx, 'clockIn', e.target.value)}
+                                                        style={getInputStyle(idx, 'clockIn', {
+                                                            padding: '6px 10px',
+                                                            border: '1px solid',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            fontSize: '0.9rem',
+                                                            width: '100%'
+                                                        })}
+                                                    />
+                                                    {validationErrors[`${idx}-clockIn`] && (
+                                                        <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                            {validationErrors[`${idx}-clockIn`]}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px' }}>
+                                                    <input
+                                                        ref={validationErrors[`${idx}-clockOut`] && !validationErrors[`${idx}-date`] && !validationErrors[`${idx}-clockIn`] ? firstErrorRef : null}
+                                                        type="time"
+                                                        value={entry.clockOut || ''}
+                                                        onChange={(e) => handleFieldChange(idx, 'clockOut', e.target.value)}
+                                                        style={getInputStyle(idx, 'clockOut', {
+                                                            padding: '6px 10px',
+                                                            border: '1px solid',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            fontSize: '0.9rem',
+                                                            width: '100%'
+                                                        })}
+                                                    />
+                                                    {validationErrors[`${idx}-clockOut`] && (
+                                                        <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                            {validationErrors[`${idx}-clockOut`]}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                    <input
+                                                        type="number"
+                                                        value={entry.breakMinutes}
+                                                        onChange={(e) => handleFieldChange(idx, 'breakMinutes', e.target.value)}
+                                                        min="0"
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            border: '1px solid var(--color-border)',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            fontSize: '0.9rem',
+                                                            width: '80px',
+                                                            textAlign: 'center'
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                        {/* Autofill Shift Time */}
+                                                        <button
+                                                            onClick={() => autofillShift(idx)}
+                                                            title="Autofill Shift Time"
+                                                            style={{
+                                                                border: 'none',
+                                                                background: 'transparent',
+                                                                color: 'var(--color-accent)',
+                                                                cursor: 'pointer',
+                                                                padding: '8px',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                transition: 'background 0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 122, 255, 0.1)'}
+                                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        >
+                                                            <Zap size={16} />
+                                                        </button>
+
+                                                        {/* Reset Time */}
+                                                        <button
+                                                            onClick={() => resetTime(idx)}
+                                                            title="Reset Time"
+                                                            style={{
+                                                                border: 'none',
+                                                                background: 'transparent',
+                                                                color: 'var(--color-text-secondary)',
+                                                                cursor: 'pointer',
+                                                                padding: '8px',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                transition: 'background 0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)'}
+                                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        >
+                                                            <RotateCcw size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+
+                            {/* Add Day Button */}
+                            <button
+                                onClick={addNewDay}
+                                style={{
+                                    marginTop: '16px',
+                                    padding: '10px 20px',
+                                    border: '1px dashed var(--color-border)',
+                                    background: 'white',
+                                    borderRadius: 'var(--radius-md)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    color: 'var(--color-text-secondary)',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 500
+                                }}
+                            >
+                                <Plus size={16} />
+                                Add Day
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    padding: '20px 24px',
+                    borderTop: '1px solid var(--color-border)',
+                    background: 'var(--color-background-subtle)',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    gap: '12px'
+                }}>
+                    <button
+                        onClick={onClose}
+                        disabled={saving}
+                        style={{
+                            padding: '10px 24px',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--color-border)',
+                            background: 'white',
+                            cursor: saving ? 'not-allowed' : 'pointer',
+                            fontWeight: 500,
+                            opacity: saving ? 0.5 : 1
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving || entries.length === 0}
+                        style={{
+                            padding: '10px 24px',
+                            borderRadius: 'var(--radius-md)',
+                            border: 'none',
+                            background: entries.length === 0 ? 'rgba(0, 122, 255, 0.3)' : 'var(--color-accent)',
+                            color: 'white',
+                            fontWeight: 600,
+                            cursor: saving || entries.length === 0 ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            opacity: saving ? 0.5 : 1
+                        }}
+                    >
+                        <Save size={16} />
+                        {saving ? 'Saving...' : 'Save Timesheet'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default TimesheetModal;

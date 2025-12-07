@@ -1,0 +1,69 @@
+import React from 'react';
+import Card from '../components/Card';
+import { TrendingUp, AlertCircle, CheckCircle2, DollarSign } from 'lucide-react';
+
+const Dashboard = () => {
+    // Mock Data for UI Visualization
+    const metrics = [
+        { label: "Total Inventory Value", value: "₹ 1,24,500", icon: <DollarSign size={20} color="var(--color-success)" />, change: "+12% this month" },
+        { label: "Low Stock Items", value: "4 Items", icon: <AlertCircle size={20} color="var(--color-error)" />, change: "Requires attention" },
+        { label: "Active Vendors", value: "12", icon: <CheckCircle2 size={20} color="var(--color-accent)" />, change: "All systems go" },
+        { label: "Next Payday", value: "5 Days", icon: <TrendingUp size={20} color="var(--color-warning)" />, change: "Dec 10, 2025" },
+    ];
+
+    return (
+        <div>
+            <h1>Dashboard</h1>
+            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xl)' }}>
+                Welcome back, Priyank. Here's what's happening today.
+            </p>
+
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: 'var(--spacing-lg)',
+                marginBottom: 'var(--spacing-2xl)'
+            }}>
+                {metrics.map((metric, index) => (
+                    <Card key={index} title={metric.label}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-xs)' }}>
+                            <span style={{ fontSize: '1.75rem', fontWeight: 600 }}>{metric.value}</span>
+                            <div style={{ padding: 8, borderRadius: '50%', background: 'var(--color-background-subtle)' }}>
+                                {metric.icon}
+                            </div>
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                            {metric.change}
+                        </div>
+                    </Card>
+                ))}
+            </div>
+
+            <h2 style={{ fontSize: '1.25rem' }}>System Health</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-lg)' }}>
+                <Card title="Server Status">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0' }}>
+                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--color-success)', boxShadow: '0 0 0 4px rgba(52, 199, 89, 0.2)' }}></div>
+                        <div>
+                            <p style={{ fontWeight: 600 }}>Main Remote Server: Online</p>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Last synced: Just now</p>
+                        </div>
+                    </div>
+                </Card>
+                <Card title="Security">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) 0' }}>
+                        <div style={{ padding: 6, background: 'rgba(0, 113, 227, 0.1)', borderRadius: 'var(--radius-sm)', color: 'var(--color-accent)' }}>
+                            <CheckCircle2 size={18} />
+                        </div>
+                        <div>
+                            <p style={{ fontWeight: 600 }}>IP Whitelist Active</p>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Current IP: ::1 (Authorized)</p>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        </div>
+    );
+};
+
+export default Dashboard;

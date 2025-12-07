@@ -1,0 +1,12 @@
+{
+  "inventory": [],
+  "vendors": [],
+  "employees": [
+    {
+      "id": 1765019548342,
+      "name": "Test User",
+      "test": true
+    }
+  ],
+  "payroll": []
+}
