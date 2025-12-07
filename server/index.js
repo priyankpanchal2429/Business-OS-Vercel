@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 const { authMiddleware } = require('./middleware/auth');
 
 const { performBackup } = require('./utils/backup');
@@ -27,6 +28,41 @@ app.use((req, res, next) => {
 
 // Access Control Middleware
 app.use(authMiddleware);
+
+// Configure multer for file uploads
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, UPLOADS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'));
+        }
+    }
+});
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Schedule Daily Backups (every 24 hours) - and run one on startup for safety
 setInterval(() => {
@@ -68,6 +104,7 @@ const writeData = (data) => {
 
 // --- ROUTES ---
 
+
 // Inventory
 app.get('/api/inventory', (req, res) => {
     const data = readData();
@@ -82,6 +119,54 @@ app.post('/api/inventory', (req, res) => {
     res.json(newItem);
 });
 
+app.patch('/api/inventory/:id', (req, res) => {
+    const data = readData();
+    const itemId = parseInt(req.params.id);
+    const index = data.inventory.findIndex(item => item.id === itemId);
+
+    if (index === -1) {
+        return res.status(404).json({ error: 'Item not found' });
+    }
+
+    data.inventory[index] = { ...data.inventory[index], ...req.body, id: itemId };
+    writeData(data);
+    res.json(data.inventory[index]);
+});
+
+app.delete('/api/inventory/:id', (req, res) => {
+    const data = readData();
+    const itemId = parseInt(req.params.id);
+    const index = data.inventory.findIndex(item => item.id === itemId);
+
+    if (index === -1) {
+        return res.status(404).json({ error: 'Item not found' });
+    }
+
+    data.inventory.splice(index, 1);
+    writeData(data);
+    res.json({ success: true, message: 'Item deleted' });
+});
+
+
+// Image Upload Endpoint
+app.post('/api/upload/image', upload.single('image'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const imageUrl = `/uploads/${req.file.filename}`;
+        res.json({
+            success: true,
+            imageUrl,
+            filename: req.file.filename
+        });
+    } catch (err) {
+        console.error('File upload error:', err);
+        res.status(500).json({ error: 'Failed to upload image' });
+    }
+});
+
 // Vendors
 app.get('/api/vendors', (req, res) => {
     const data = readData();
@@ -94,6 +179,34 @@ app.post('/api/vendors', (req, res) => {
     data.vendors.push(newVendor);
     writeData(data);
     res.json(newVendor);
+});
+
+app.patch('/api/vendors/:id', (req, res) => {
+    const data = readData();
+    const vendorId = parseInt(req.params.id);
+    const index = data.vendors.findIndex(vendor => vendor.id === vendorId);
+
+    if (index === -1) {
+        return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    data.vendors[index] = { ...data.vendors[index], ...req.body, id: vendorId };
+    writeData(data);
+    res.json(data.vendors[index]);
+});
+
+app.delete('/api/vendors/:id', (req, res) => {
+    const data = readData();
+    const vendorId = parseInt(req.params.id);
+    const index = data.vendors.findIndex(vendor => vendor.id === vendorId);
+
+    if (index === -1) {
+        return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    data.vendors.splice(index, 1);
+    writeData(data);
+    res.json({ success: true, message: 'Vendor deleted' });
 });
 
 // Employees
@@ -146,17 +259,29 @@ app.delete('/api/employees/:id', (req, res) => {
         return res.status(404).json({ error: 'Employee not found' });
     }
 
-    // Check for dependencies (payroll entries)
-    const hasPayrollEntries = data.payroll_entries && data.payroll_entries.some(entry => entry.employeeId === employeeId);
-    if (hasPayrollEntries) {
-        return res.status(409).json({
-            error: 'Cannot delete employee with existing payroll records',
-            details: 'This employee has payroll history. Archive instead or delete payroll records first.'
-        });
-    }
-
+    // Remove employee and cascade delete related records
     const deletedEmployee = data.employees[index];
     data.employees.splice(index, 1);
+
+    // Delete related records
+    if (data.payroll_entries) {
+        data.payroll_entries = data.payroll_entries.filter(entry => entry.employeeId !== employeeId);
+    }
+    if (data.payroll) {
+        data.payroll = data.payroll.filter(entry => entry.employeeId !== employeeId);
+    }
+    if (data.timesheet_entries) {
+        data.timesheet_entries = data.timesheet_entries.filter(entry => entry.employeeId !== employeeId);
+    }
+    if (data.deductions) {
+        data.deductions = data.deductions.filter(entry => entry.employeeId !== employeeId);
+    }
+    if (data.advance_salaries) {
+        data.advance_salaries = data.advance_salaries.filter(entry => entry.employeeId !== employeeId);
+    }
+    if (data.bonus_withdrawals) {
+        data.bonus_withdrawals = data.bonus_withdrawals.filter(entry => entry.employeeId !== employeeId);
+    }
 
     // Audit log
     if (!data.audit_logs) data.audit_logs = [];
@@ -226,6 +351,7 @@ app.post('/api/settings/bonus', (req, res) => {
     res.json(data.settings.bonus);
 });
 
+
 // Withdraw Bonus
 app.post('/api/bonus/withdraw', (req, res) => {
     const { employeeId, amount, date, notes } = req.body;
@@ -233,10 +359,42 @@ app.post('/api/bonus/withdraw', (req, res) => {
 
     if (!data.bonus_withdrawals) data.bonus_withdrawals = [];
 
+    // Validate that employee exists
+    const employee = data.employees.find(e => e.id === parseInt(employeeId));
+    if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Calculate current available balance
+    const settings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
+    const accruedDays = countWorkingDays(data, parseInt(employeeId), settings.startDate, settings.endDate);
+    const totalAccrued = accruedDays * settings.amountPerDay;
+
+    const totalWithdrawn = (data.bonus_withdrawals || [])
+        .filter(w => w.employeeId === parseInt(employeeId))
+        .reduce((sum, w) => sum + w.amount, 0);
+
+    const availableBalance = totalAccrued - totalWithdrawn;
+
+    // Validate withdrawal amount
+    const withdrawalAmount = parseFloat(amount);
+    if (withdrawalAmount <= 0) {
+        return res.status(400).json({ error: 'Withdrawal amount must be greater than 0' });
+    }
+
+    if (withdrawalAmount > availableBalance) {
+        return res.status(400).json({
+            error: 'Insufficient bonus balance',
+            details: `Available balance: ₹${availableBalance.toLocaleString('en-IN')}, Requested: ₹${withdrawalAmount.toLocaleString('en-IN')}`,
+            availableBalance,
+            requestedAmount: withdrawalAmount
+        });
+    }
+
     const withdrawal = {
         id: `bw-${Date.now()}`,
         employeeId: parseInt(employeeId),
-        amount: parseFloat(amount),
+        amount: withdrawalAmount,
         date: date || new Date().toISOString().split('T')[0],
         notes,
         createdAt: new Date().toISOString(),
@@ -252,11 +410,15 @@ app.post('/api/bonus/withdraw', (req, res) => {
         targetId: employeeId,
         actor: `${req.userRole} (${req.ip})`,
         timestamp: new Date().toISOString(),
-        details: `Withdrew Bonus: ₹${amount}`
+        details: `Withdrew Bonus: ₹${withdrawalAmount}`
     });
 
     writeData(data);
-    res.json({ success: true, withdrawal });
+    res.json({
+        success: true,
+        withdrawal,
+        newBalance: availableBalance - withdrawalAmount
+    });
 });
 
 // Get Bonus Stats (Calculated)
@@ -349,6 +511,7 @@ app.get('/api/payroll/period', (req, res) => {
             return {
                 ...entry,
                 employeeName: emp.name,
+                employeeImage: emp.image,
                 employeeRole: emp.role,
                 employeeId: emp.id
             };
@@ -358,6 +521,7 @@ app.get('/api/payroll/period', (req, res) => {
                 id: null,
                 employeeId: emp.id,
                 employeeName: emp.name,
+                employeeImage: emp.image,
                 employeeRole: emp.role,
                 periodStart: start,
                 periodEnd: end,
@@ -1483,7 +1647,7 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
     }
 
     // --- BONUS CALCULATION FOR PAYSLIP ---
-    const bonusSettings = data.settings.bonus || { startDate: '2024-01-01', endDate: '2024-12-31', amountPerDay: 35 };
+    const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
 
     // 1. Current Cycle Bonus (Informational)
     // Filter timesheet in this period
@@ -1504,6 +1668,7 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
     return {
         employeeId: parseInt(employeeId),
         employeeName: employee.name,
+        employeeImage: employee.image,
         employeeRole: employee.role,
         ...payrollEntry,
         advanceDeductions: advanceDeductions,

@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 
 const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isDeleting }) => {
-    const [confirmText, setConfirmText] = useState('');
-    const [error, setError] = useState('');
+    const [isConfirmed, setIsConfirmed] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            setConfirmText('');
-            setError('');
+            setIsConfirmed(false);
         }
     }, [isOpen]);
 
@@ -18,20 +16,17 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 onClose();
-            } else if (e.key === 'Enter' && confirmText === 'DELETE') {
+            } else if (e.key === 'Enter' && isConfirmed) {
                 handleConfirm();
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, confirmText]);
+    }, [isOpen, isConfirmed]);
 
     const handleConfirm = () => {
-        if (confirmText !== 'DELETE') {
-            setError('Please type DELETE to confirm');
-            return;
-        }
+        if (!isConfirmed) return;
         onConfirm();
     };
 
@@ -101,50 +96,37 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
                         This action cannot be undone. All data associated with this employee will be lost.
                     </p>
 
-                    {/* Type DELETE Confirmation */}
+                    {/* Simple Checkbox Confirmation */}
                     <div style={{ marginTop: '24px' }}>
                         <label style={{
-                            display: 'block',
-                            fontSize: '0.85rem',
-                            fontWeight: 500,
-                            color: 'var(--color-text-secondary)',
-                            marginBottom: '8px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '16px',
+                            background: 'var(--color-background-subtle)',
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                            userSelect: 'none'
                         }}>
-                            Type <code style={{
-                                background: 'var(--color-background-subtle)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontWeight: 600
-                            }}>DELETE</code> to confirm
-                        </label>
-                        <input
-                            type="text"
-                            value={confirmText}
-                            onChange={(e) => {
-                                setConfirmText(e.target.value);
-                                setError('');
-                            }}
-                            disabled={isDeleting}
-                            placeholder="Type DELETE here"
-                            autoFocus
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: `1px solid ${error ? 'var(--color-error)' : 'var(--color-border)'}`,
+                            <input
+                                type="checkbox"
+                                checked={isConfirmed}
+                                onChange={(e) => setIsConfirmed(e.target.checked)}
+                                disabled={isDeleting}
+                                style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                            <span style={{
                                 fontSize: '0.95rem',
-                                fontFamily: 'monospace'
-                            }}
-                        />
-                        {error && (
-                            <div style={{
-                                color: 'var(--color-error)',
-                                fontSize: '0.85rem',
-                                marginTop: '8px'
+                                fontWeight: 500,
+                                color: 'var(--color-text-primary)'
                             }}>
-                                {error}
-                            </div>
-                        )}
+                                I understand this action cannot be undone
+                            </span>
+                        </label>
                     </div>
                 </div>
 
@@ -167,15 +149,15 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={confirmText !== 'DELETE' || isDeleting}
+                        disabled={!isConfirmed || isDeleting}
                         style={{
                             padding: '10px 24px',
                             borderRadius: 'var(--radius-md)',
                             border: 'none',
-                            background: confirmText === 'DELETE' && !isDeleting ? 'var(--color-error)' : 'rgba(255, 59, 48, 0.3)',
+                            background: isConfirmed && !isDeleting ? 'var(--color-error)' : 'rgba(255, 59, 48, 0.3)',
                             color: 'white',
                             fontWeight: 600,
-                            cursor: confirmText === 'DELETE' && !isDeleting ? 'pointer' : 'not-allowed',
+                            cursor: isConfirmed && !isDeleting ? 'pointer' : 'not-allowed',
                             transition: 'all 0.2s'
                         }}
                     >

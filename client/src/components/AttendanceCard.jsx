@@ -73,17 +73,28 @@ const AttendanceCard = () => {
     const allEmployees = [...attendance.working, ...attendance.notWorking];
 
     return (
-        <Card title="Today's Attendance">
-            <div style={{ paddingTop: '8px' }}>
-                {/* Date */}
-                <div style={{
-                    fontSize: '0.9rem',
-                    color: 'var(--color-text-secondary)',
-                    marginBottom: '20px'
-                }}>
-                    {formattedDate}
+        <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                    <h3 style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', fontWeight: 500, margin: '0 0 4px 0' }}>Today's Attendance</h3>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>{formattedDate}</div>
                 </div>
 
+                {!attendance.isClosed && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', fontSize: '0.8rem', fontWeight: 500 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-success)' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
+                            Working: {attendance.summary.working}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-error)' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-error)' }} />
+                            Not Working: {attendance.summary.notWorking}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div style={{ paddingTop: '0px' }}>
                 {attendance.isClosed ? (
                     /* Sunday - Closed */
                     <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -105,46 +116,7 @@ const AttendanceCard = () => {
                 ) : (
                     /* Working Day - Employee Cards */
                     <>
-                        {/* Summary */}
-                        <div style={{
-                            display: 'flex',
-                            gap: '16px',
-                            marginBottom: '20px',
-                            padding: '12px',
-                            background: 'var(--color-background-subtle)',
-                            borderRadius: 'var(--radius-md)'
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}>
-                                <div style={{
-                                    width: '10px',
-                                    height: '10px',
-                                    borderRadius: '50%',
-                                    background: 'var(--color-success)'
-                                }} />
-                                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                                    Working: {attendance.summary.working}
-                                </span>
-                            </div>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}>
-                                <div style={{
-                                    width: '10px',
-                                    height: '10px',
-                                    borderRadius: '50%',
-                                    background: 'var(--color-error)'
-                                }} />
-                                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                                    Not Working: {attendance.summary.notWorking}
-                                </span>
-                            </div>
-                        </div>
+
 
                         {/* Employee Cards Grid */}
                         {allEmployees.length === 0 ? (
@@ -158,7 +130,7 @@ const AttendanceCard = () => {
                         ) : (
                             <div style={{
                                 display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(225px, 1fr))',
                                 gap: '16px'
                             }}>
                                 {allEmployees.map(emp => {
@@ -167,22 +139,18 @@ const AttendanceCard = () => {
                                     return (
                                         <div key={emp.employeeId} style={{
                                             background: 'white',
-                                            border: '1px solid var(--color-border)',
+                                            border: isWorking ? '1px solid var(--color-success)' : '1px solid var(--color-error)',
                                             borderRadius: 'var(--radius-md)',
-                                            padding: '16px',
+                                            padding: '8px',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '12px',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                            transition: 'box-shadow 0.2s'
-                                        }}
-                                            onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'}
-                                            onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'}
-                                        >
+                                            gap: '8px',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                        }}>
                                             {/* Profile Picture */}
                                             <div style={{
-                                                width: 60,
-                                                height: 60,
+                                                width: 40,
+                                                height: 40,
                                                 borderRadius: '8px',
                                                 background: 'var(--color-background-subtle)',
                                                 display: 'flex',
@@ -195,7 +163,7 @@ const AttendanceCard = () => {
                                                 overflow: 'hidden',
                                                 flexShrink: 0
                                             }}>
-                                                {!emp.employeeImage && <User size={24} />}
+                                                {!emp.employeeImage && <User size={20} />}
                                             </div>
 
                                             {/* Employee Info */}

@@ -14,7 +14,7 @@ import {
     Users,
     CreditCard,
     FileText,
-
+    Briefcase,
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -87,7 +87,7 @@ const Dashboard = () => {
     const getPaydayInfo = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const anchorDate = new Date('2025-12-06T00:00:00'); // Today (Saturday)
+        const anchorDate = new Date(2025, 11, 7); // Dec 7 2025 (Sunday)
 
         const diffTime = today - anchorDate;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -133,7 +133,7 @@ const Dashboard = () => {
             label: "Next Payday",
             value: paydayInfo.text,
             icon: <TrendingUp size={20} color={paydayInfo.text === "Today" ? "white" : "var(--color-warning)"} />,
-            change: "Bi-Weekly (Sat)",
+            change: "Bi-Weekly (Sun)",
             isPayday: paydayInfo.text === "Today"
         }
     ];
@@ -175,7 +175,7 @@ const Dashboard = () => {
                                     height: '150px',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    justifyContent: 'space-between',
+                                    justifyContent: 'center',
                                     ...(metric.isPayday ? {
                                         background: 'var(--color-accent)',
                                         borderColor: 'var(--color-accent)',
@@ -184,7 +184,7 @@ const Dashboard = () => {
                                 }}
                                 titleStyle={metric.isPayday ? { color: 'rgba(255, 255, 255, 0.9)' } : {}}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                     <span style={{ fontSize: '1.75rem', fontWeight: 600 }}>{metric.value}</span>
                                     <div style={{
                                         width: 40,
@@ -269,40 +269,57 @@ const Dashboard = () => {
                     <BankStatusCard daysUntilPayday={paydayInfo.daysUntil} />
 
                     {/* Bonus Stats Card */}
-                    <Card
-                        title="Bonus Program"
-                        style={{ background: 'linear-gradient(135deg, #FF9966, #FF5E62)', color: 'white' }}
-                        titleStyle={{ color: 'rgba(255, 255, 255, 0.9)' }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                    <Card title="Bonus Program" style={{ minHeight: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 'var(--spacing-md)' }}>
+
+                            {/* Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div>
+                                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Annual Bonus</h4>
+                                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                        Accrued Rewards
+                                    </p>
+                                </div>
+                                <div style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    background: 'rgba(255, 149, 0, 0.1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Briefcase size={16} color="var(--color-warning)" />
+                                </div>
+                            </div>
+
+                            {/* Main Amount (Prominent) */}
                             <div style={{
-                                width: 40,
-                                height: 40,
+                                padding: 0,
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                background: 'rgba(255,255,255,0.2)',
-                                color: 'white'
+                                justifyContent: 'space-between'
                             }}>
-                                <Briefcase size={24} />
+                                <div>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Total Balance
+                                    </span>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-success)' }}>
+                                        ₹{bonusStats.companyTotalBalance.toLocaleString('en-IN')}
+                                    </div>
+                                </div>
+                                <div style={{
+                                    padding: '4px 8px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    background: 'rgba(52, 199, 89, 0.1)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    color: 'var(--color-success)'
+                                }}>
+                                    Active
+                                </div>
                             </div>
-                            <span style={{
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                padding: '4px 8px',
-                                borderRadius: 'var(--radius-sm)',
-                                background: 'rgba(255,255,255,0.2)',
-                                color: 'white'
-                            }}>
-                                Active
-                            </span>
-                        </div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>
-                            ₹{bonusStats.companyTotalBalance.toLocaleString('en-IN')}
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.8)' }}>
-                            Total Accumulated Bonus
+
                         </div>
                     </Card>
 

@@ -3,15 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
-
+import Vendors from './pages/Vendors';
 import Employees from './pages/Employees';
 import Payroll from './pages/Payroll';
 import Payslip from './pages/Payslip';
 
 import { ToastProvider } from './context/ToastContext';
-
-// Placeholder Components (Views) - Will replace with actual pages
-const Vendors = () => <h1>Vendor Management</h1>;
 
 function App() {
     return (

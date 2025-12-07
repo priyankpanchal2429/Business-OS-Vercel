@@ -595,7 +595,7 @@ const Employees = () => {
                                                 )}
                                             </div>
                                         </td>
-                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600, color: 'var(--color-accent)' }}>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center', fontWeight: 600, color: 'var(--color-accent)' }}>
                                             ₹{(bonusStats.find(b => b.employeeId === emp.id)?.balance || 0).toLocaleString('en-IN')}
                                         </td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>

@@ -127,6 +127,16 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
         setEntries(updated);
     };
 
+    // Helper: Format date to DD-MMM-YYYY
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        const day = d.getDate().toString().padStart(2, '0');
+        const month = d.toLocaleString('en-US', { month: 'short' });
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`;
+    };
+
     // Helper: Check if a date is Sunday
     const isSunday = (dateStr) => {
         if (!dateStr) return false;
@@ -202,7 +212,6 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                 // Dispatch event to refresh attendance card
                 window.dispatchEvent(new CustomEvent('timesheetUpdated'));
 
-                addToast('Timesheet saved successfully', 'success');
                 onSave(result);
                 onClose();
             } else if (result.errors) {
@@ -287,7 +296,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                         <div>
                             <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{employee?.name} - Manual Timesheet</h2>
                             <p style={{ margin: '4px 0 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                                Period: {periodStart} to {periodEnd}
+                                Period: {formatDate(periodStart)} to {formatDate(periodEnd)}
                                 {isPaid && <span style={{
                                     marginLeft: 8,
                                     padding: '2px 8px',
@@ -320,6 +329,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                     <tr style={{ background: 'var(--color-background-subtle)', borderBottom: '1px solid var(--color-border)' }}>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '60px' }}>Day</th>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '140px' }}>Date</th>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock In</th>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock Out</th>
@@ -330,13 +340,31 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                 <tbody>
                                     {entries.length === 0 ? (
                                         <tr>
-                                            <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                            <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                                                 No timesheet entries yet. Click "Add Day" to start.
                                             </td>
                                         </tr>
                                     ) : (
                                         entries.map((entry, idx) => (
                                             <tr key={entry.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                                                    <div style={{
+                                                        fontSize: '0.9rem',
+                                                        fontWeight: 500,
+                                                        color: (() => {
+                                                            if (!entry.date) return 'var(--color-text-secondary)';
+                                                            const date = new Date(entry.date + 'T00:00:00');
+                                                            const day = date.getDay();
+                                                            return day === 0 ? 'var(--color-error)' : 'var(--color-text-primary)';
+                                                        })()
+                                                    }}>
+                                                        {(() => {
+                                                            if (!entry.date) return '-';
+                                                            const date = new Date(entry.date + 'T00:00:00');
+                                                            return date.toLocaleDateString('en-US', { weekday: 'short' });
+                                                        })()}
+                                                    </div>
+                                                </td>
                                                 <td style={{ padding: '12px' }}>
                                                     <input
                                                         ref={validationErrors[`${idx}-date`] ? firstErrorRef : null}
@@ -348,29 +376,13 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                                             border: '1px solid',
                                                             borderRadius: 'var(--radius-sm)',
                                                             fontSize: '0.9rem',
-                                                            width: '100%',
+                                                            width: '125px',
                                                             marginBottom: entry.date ? '4px' : '0'
                                                         })}
                                                     />
                                                     {validationErrors[`${idx}-date`] && (
                                                         <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
                                                             {validationErrors[`${idx}-date`]}
-                                                        </div>
-                                                    )}
-                                                    {entry.date && (
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                                            {(() => {
-                                                                const date = new Date(entry.date + 'T00:00:00');
-                                                                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
-                                                                const formattedDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                                                                const isSunday = dayOfWeek === 'Sun';
-
-                                                                return (
-                                                                    <span style={{ color: isSunday ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>
-                                                                        {formattedDate} — {dayOfWeek}{isSunday ? ' (Closed)' : ''}
-                                                                    </span>
-                                                                );
-                                                            })()}
                                                         </div>
                                                     )}
                                                 </td>

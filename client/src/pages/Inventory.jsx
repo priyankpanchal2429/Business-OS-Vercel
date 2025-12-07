@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, Filter } from 'lucide-react';
 import Card from '../components/Card';
+import InventoryModal from '../components/InventoryModal';
 
 const Inventory = () => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
 
-    useEffect(() => {
+    const fetchItems = () => {
+        setLoading(true);
         fetch('/api/inventory')
             .then(res => res.json())
             .then(data => {
@@ -17,6 +21,10 @@ const Inventory = () => {
                 console.error("Failed to fetch inventory", err);
                 setLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchItems();
     }, []);
 
     return (
@@ -26,17 +34,24 @@ const Inventory = () => {
                     <h1 style={{ marginBottom: 0 }}>Inventory</h1>
                     <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Manage your stock and assets.</p>
                 </div>
-                <button style={{
-                    background: 'var(--color-accent)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontWeight: 500
-                }}>
+                <button
+                    onClick={() => {
+                        setSelectedItem(null);
+                        setIsModalOpen(true);
+                    }}
+                    style={{
+                        background: 'var(--color-accent)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 16px',
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                    }}
+                >
                     <Plus size={18} /> Add New Item
                 </button>
             </div>
@@ -104,6 +119,13 @@ const Inventory = () => {
                     </tbody>
                 </table>
             </Card>
+
+            <InventoryModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                item={selectedItem}
+                onSave={fetchItems}
+            />
         </div>
     );
 };

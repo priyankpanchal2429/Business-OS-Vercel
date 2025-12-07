@@ -22,23 +22,39 @@ const Payroll = () => {
     const [isBonusSettingsOpen, setIsBonusSettingsOpen] = useState(false);
     const [toasts, setToasts] = useState([]);
 
+    // Helper to format date as YYYY-MM-DD in local time
+    const toLocalISOString = (d) => {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    };
+
+    // Helper to parse YYYY-MM-DD to Local Midnight Date
+    const parseLocalDate = (dateStr) => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    };
+
     // Period Logic (Default: Current Bi-Weekly Cycle)
-    // Anchor: Dec 6 2025. Cycle is 14 days.
+    // Anchor: Dec 8 2025 (Monday). Cycle is 14 days.
     const [currentPeriod, setCurrentPeriod] = useState(() => {
         const today = new Date();
-        const anchor = new Date('2025-12-06');
-        const diffTime = today - anchor;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const currentCycleStartDiff = diffDays >= 0 ? diffDays % 14 : 14 + (diffDays % 14);
+        today.setHours(0, 0, 0, 0); // Normalize to midnight
+        const anchor = new Date(2025, 11, 8); // Dec 8 2025
+
+        const diffTime = today.getTime() - anchor.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        // Handle negative modulo correctly for past dates
+        let cycleDiff = diffDays % 14;
+        if (cycleDiff < 0) cycleDiff += 14;
 
         const start = new Date(today);
-        start.setDate(today.getDate() - currentCycleStartDiff);
+        start.setDate(today.getDate() - cycleDiff);
         const end = new Date(start);
-        end.setDate(start.getDate() + 13);
+        end.setDate(start.getDate() + 13); // End on Sunday
 
         return {
-            start: start.toISOString().split('T')[0],
-            end: end.toISOString().split('T')[0]
+            start: toLocalISOString(start),
+            end: toLocalISOString(end)
         };
     });
 
@@ -112,15 +128,15 @@ const Payroll = () => {
     };
 
     const changePeriod = (direction) => {
-        const newStart = new Date(currentPeriod.start);
+        const newStart = parseLocalDate(currentPeriod.start);
         newStart.setDate(newStart.getDate() + (direction * 14));
 
         const newEnd = new Date(newStart);
-        newEnd.setDate(newStart.getDate() + 13);
+        newEnd.setDate(newStart.getDate() + 13); // End on Sunday
 
         setCurrentPeriod({
-            start: newStart.toISOString().split('T')[0],
-            end: newEnd.toISOString().split('T')[0]
+            start: toLocalISOString(newStart),
+            end: toLocalISOString(newEnd)
         });
     };
 
@@ -270,10 +286,22 @@ const Payroll = () => {
 
                     <button
                         onClick={() => setIsBonusSettingsOpen(true)}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'var(--color-accent)';
+                            e.currentTarget.style.borderColor = 'var(--color-accent)';
+                            e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'white';
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        }}
                         style={{
                             display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
                             background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500
+                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500,
+                            height: '68px',
+                            transition: 'all 0.2s ease'
                         }}
                     >
                         <Settings size={18} /> Bonus Settings
@@ -364,10 +392,10 @@ const Payroll = () => {
                                 />
                             </th>
                             <th style={thStyle}>Employee</th>
-                            <th style={{ ...thStyle, textAlign: 'right' }}>Gross Pay</th>
-                            <th style={{ ...thStyle, textAlign: 'right' }}>Advance Salary</th>
-                            <th style={{ ...thStyle, textAlign: 'right' }}>Deductions</th>
-                            <th style={{ ...thStyle, textAlign: 'right' }}>Net Pay</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Gross Pay</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Advance Salary</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Deductions</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Net Pay</th>
                             <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>
                             <th style={{ ...thStyle, textAlign: 'center' }}>Action</th>
                         </tr>
@@ -411,12 +439,12 @@ const Payroll = () => {
                                             </div>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'right', verticalAlign: 'middle' }}>₹{Number(item.grossPay).toLocaleString('en-IN')}</td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'right', verticalAlign: 'middle', color: item.advanceDeductions > 0 ? 'var(--color-error)' : 'inherit' }}>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle' }}>₹{Number(item.grossPay).toLocaleString('en-IN')}</td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle', color: item.advanceDeductions > 0 ? 'var(--color-error)' : 'inherit' }}>
                                         {item.advanceDeductions > 0 ? `-₹${Number(item.advanceDeductions).toLocaleString('en-IN')}` : '-'}
                                     </td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'right', verticalAlign: 'middle' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                                             <span style={{ color: 'var(--color-error)' }}>
                                                 {/* Show other deductions (exclusive of advance) */}
                                                 -₹{(Number(item.deductions) - (Number(item.advanceDeductions) || 0)).toLocaleString('en-IN')}
@@ -438,11 +466,11 @@ const Payroll = () => {
                                             </button>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 600 }}>₹{Number(item.netPay).toLocaleString('en-IN')}</td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 600 }}>₹{Number(item.netPay).toLocaleString('en-IN')}</td>
+                                    <td style={{ padding: '12px 4px 12px 32px', textAlign: 'center' }}>
                                         <StatusPill status={item.status} paidAt={item.paidAt} isAdjusted={item.isAdjusted} />
                                     </td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                    <td style={{ padding: '12px 16px 12px 12px', textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                                             {/* Timesheet Button */}
                                             <button
