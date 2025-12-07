@@ -790,142 +790,6 @@
       "actor": "admin (127.0.0.1)",
       "timestamp": "2025-12-07T04:48:12.082Z",
       "details": "Recalculated: Gross ₹597.1428571428571, Net ₹447.1428571428571, 2 days"
-    },
-    {
-      "id": "1765092308501-log",
-      "action": "PAYROLL_MARK_PAID",
-      "targetId": "17650215586375276",
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:25:08.501Z",
-      "details": "Marked employee 1765019652147 as Paid"
-    },
-    {
-      "id": "1765092336465-log",
-      "action": "PAYROLL_MARK_UNPAID",
-      "targetId": "17650215586375276",
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:25:36.465Z",
-      "details": "Reversed payment for employee 1765019652147"
-    },
-    {
-      "id": "1765092365899-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:26:05.899Z",
-      "details": "Updated 2 timesheet entries"
-    },
-    {
-      "id": "1765092365899-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:26:05.899Z",
-      "details": "Recalculated: Gross ₹977.1428571428571, Net ₹827.1428571428571, 2 days"
-    },
-    {
-      "id": "1765092383500-log",
-      "action": "ADVANCE_SALARY_ISSUED",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:26:23.500Z",
-      "details": "Issued advance: ₹400, deducted in period 2025-12-05"
-    },
-    {
-      "id": "1765092401334-log",
-      "action": "PAYROLL_MARK_PAID",
-      "targetId": "17650215586375276",
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:26:41.334Z",
-      "details": "Marked employee 1765019652147 as Paid"
-    },
-    {
-      "id": "1765092413792-log",
-      "action": "PAYROLL_MARK_UNPAID",
-      "targetId": "17650215586375276",
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:26:53.792Z",
-      "details": "Reversed payment for employee 1765019652147"
-    },
-    {
-      "id": "1765092511443-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765046582144,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:28:31.443Z",
-      "details": "Updated 1 timesheet entries"
-    },
-    {
-      "id": "1765092511443-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765046582144,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:28:31.443Z",
-      "details": "Recalculated: Gross ₹0, Net ₹0, 1 days"
-    },
-    {
-      "id": "1765093130082-log",
-      "action": "EMPLOYEE_UPDATE",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T07:38:50.082Z",
-      "details": "Employee profile updated"
-    },
-    {
-      "id": "1765097305165-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T08:48:25.165Z",
-      "details": "Updated 2 timesheet entries"
-    },
-    {
-      "id": "1765097305165-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T08:48:25.165Z",
-      "details": "Recalculated: Gross ₹977.1428571428571, Net ₹427.1428571428571, 2 days"
-    },
-    {
-      "id": "1765098211610-log",
-      "action": "SETTINGS_UPDATE",
-      "targetId": "BONUS",
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T09:03:31.610Z",
-      "details": "Updated Bonus: ₹35/day, 2024-04-11 to 2025-12-08"
-    },
-    {
-      "id": "1765098244099-log",
-      "action": "BONUS_WITHDRAWAL",
-      "targetId": 1765019652147,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T09:04:04.099Z",
-      "details": "Withdrew Bonus: ₹35"
-    },
-    {
-      "id": "1765098285107-log",
-      "action": "SETTINGS_UPDATE",
-      "targetId": "BONUS",
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T09:04:45.107Z",
-      "details": "Updated Bonus: ₹40/day, 2024-04-11 to 2025-12-08"
-    },
-    {
-      "id": "1765098313572-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765046582144,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T09:05:13.572Z",
-      "details": "Updated 3 timesheet entries"
-    },
-    {
-      "id": "1765098313573-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765046582144,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-07T09:05:13.572Z",
-      "details": "Recalculated: Gross ₹1800, Net ₹1800, 3 days"
     }
   ],
   "payroll_entries": [
@@ -934,15 +798,15 @@
       "employeeId": 1765019652147,
       "periodStart": "2025-12-05",
       "periodEnd": "2025-12-18",
-      "grossPay": 977.1428571428571,
-      "deductions": 550,
-      "netPay": 427.1428571428571,
+      "grossPay": 597.1428571428571,
+      "deductions": 150,
+      "netPay": 447.1428571428571,
       "status": "Unpaid",
       "paidAt": null,
       "paymentDetails": "Bank Transfer",
-      "totalBillableMinutes": 1170,
+      "totalBillableMinutes": 645,
       "workingDays": 2,
-      "advanceDeductions": 550,
+      "advanceDeductions": 150,
       "overtimePay": 130.28571428571428,
       "totalOvertimeMinutes": 120
     },
@@ -951,17 +815,14 @@
       "employeeId": 1765046582144,
       "periodStart": "2025-12-05",
       "periodEnd": "2025-12-18",
-      "grossPay": 1800,
+      "grossPay": 600,
       "deductions": 0,
-      "netPay": 1800,
-      "totalBillableMinutes": 1440,
-      "workingDays": 3,
+      "netPay": 600,
+      "totalBillableMinutes": 480,
+      "workingDays": 1,
       "status": "Unpaid",
       "paidAt": null,
-      "isAdjusted": false,
-      "advanceDeductions": 0,
-      "overtimePay": 0,
-      "totalOvertimeMinutes": 0
+      "isAdjusted": false
     }
   ],
   "timesheet_entries": [
@@ -969,15 +830,15 @@
       "id": "ts-new-1765023576257",
       "employeeId": 1765019652147,
       "date": "2025-12-06",
-      "shiftStart": "08:15",
-      "shiftEnd": "18:00",
-      "clockIn": "08:15",
-      "clockOut": "18:00",
-      "breakMinutes": 60,
-      "totalMinutes": 585,
-      "billableMinutes": 525,
+      "shiftStart": "",
+      "shiftEnd": "",
+      "clockIn": "",
+      "clockOut": "",
+      "breakMinutes": 0,
+      "totalMinutes": 0,
+      "billableMinutes": 0,
       "status": "active",
-      "modifiedAt": "2025-12-07T08:48:25.165Z",
+      "modifiedAt": "2025-12-07T04:48:12.082Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -992,7 +853,7 @@
       "totalMinutes": 705,
       "billableMinutes": 645,
       "status": "active",
-      "modifiedAt": "2025-12-07T08:48:25.165Z",
+      "modifiedAt": "2025-12-07T04:48:12.082Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -1007,37 +868,7 @@
       "totalMinutes": 540,
       "billableMinutes": 480,
       "status": "active",
-      "modifiedAt": "2025-12-07T09:05:13.572Z",
-      "modifiedBy": "admin (127.0.0.1)"
-    },
-    {
-      "id": "ts-new-1765098303158",
-      "employeeId": 1765046582144,
-      "date": "2025-12-06",
-      "shiftStart": "08:30",
-      "shiftEnd": "17:30",
-      "clockIn": "08:30",
-      "clockOut": "17:30",
-      "breakMinutes": 60,
-      "totalMinutes": 540,
-      "billableMinutes": 480,
-      "status": "active",
-      "modifiedAt": "2025-12-07T09:05:13.572Z",
-      "modifiedBy": "admin (127.0.0.1)"
-    },
-    {
-      "id": "ts-new-1765098309508",
-      "employeeId": 1765046582144,
-      "date": "2025-12-05",
-      "shiftStart": "08:30",
-      "shiftEnd": "17:30",
-      "clockIn": "08:30",
-      "clockOut": "17:30",
-      "breakMinutes": 60,
-      "totalMinutes": 540,
-      "billableMinutes": 480,
-      "status": "active",
-      "modifiedAt": "2025-12-07T09:05:13.572Z",
+      "modifiedAt": "2025-12-06T19:25:42.998Z",
       "modifiedBy": "admin (127.0.0.1)"
     }
   ],
@@ -1053,17 +884,6 @@
       "createdAt": "2025-12-06T19:55:03.345Z",
       "createdBy": "admin (127.0.0.1)",
       "deductedInPeriod": "2025-12-20"
-    },
-    {
-      "id": "adv-1765092383500",
-      "employeeId": 1765019652147,
-      "amount": 400,
-      "dateIssued": "2025-12-07",
-      "reason": "",
-      "status": "pending",
-      "createdAt": "2025-12-07T07:26:23.500Z",
-      "createdBy": "admin (127.0.0.1)",
-      "deductedInPeriod": "2025-12-05"
     }
   ],
   "deductions": [
@@ -1079,37 +899,6 @@
       "createdAt": "2025-12-06T19:55:03.345Z",
       "createdBy": "admin (127.0.0.1)",
       "linkedAdvanceId": "adv-1765050903345"
-    },
-    {
-      "id": "ded-adv-1765092383500",
-      "employeeId": 1765019652147,
-      "periodStart": "2025-12-05",
-      "periodEnd": "2025-12-18",
-      "type": "advance",
-      "description": "Advance Salary - 2025-12-07",
-      "amount": 400,
-      "status": "active",
-      "createdAt": "2025-12-07T07:26:23.500Z",
-      "createdBy": "admin (127.0.0.1)",
-      "linkedAdvanceId": "adv-1765092383500"
     }
-  ],
-  "bonus_withdrawals": [
-    {
-      "id": "bw-1765098244099",
-      "employeeId": 1765019652147,
-      "amount": 35,
-      "date": "2025-12-07",
-      "notes": "",
-      "createdAt": "2025-12-07T09:04:04.099Z",
-      "createdBy": "admin (127.0.0.1)"
-    }
-  ],
-  "settings": {
-    "bonus": {
-      "startDate": "2024-04-11",
-      "endDate": "2025-12-08",
-      "amountPerDay": 40
-    }
-  }
+  ]
 }

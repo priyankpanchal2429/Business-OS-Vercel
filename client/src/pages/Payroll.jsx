@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User } from 'lucide-react';
+import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User, Settings } from 'lucide-react';
 import Card from '../components/Card';
 import TimesheetModal from '../components/TimesheetModal';
 import DeductionsModal from '../components/DeductionsModal';
 import AdvanceSalaryModal from '../components/AdvanceSalaryModal';
+import BonusSettingsModal from '../components/BonusSettingsModal';
 import { ToastContainer } from '../components/Toast.jsx';
 
 const Payroll = () => {
@@ -18,6 +19,7 @@ const Payroll = () => {
     const [timesheetModal, setTimesheetModal] = useState({ isOpen: false, employee: null, item: null });
     const [deductionsModal, setDeductionsModal] = useState({ isOpen: false, employee: null, item: null });
     const [advanceModal, setAdvanceModal] = useState({ isOpen: false, employee: null });
+    const [isBonusSettingsOpen, setIsBonusSettingsOpen] = useState(false);
     const [toasts, setToasts] = useState([]);
 
     // Period Logic (Default: Current Bi-Weekly Cycle)
@@ -255,14 +257,27 @@ const Payroll = () => {
                             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                                 {formatDate(currentPeriod.start)} – {formatDate(currentPeriod.end)}
                             </div>
+
                         </div>
+
+                        {/* Navigation Buttons */}
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <button onClick={() => changePeriod(-1)} style={navButtonStyle}><ChevronLeft size={18} /></button>
+                            <button onClick={() => changePeriod(1)} style={navButtonStyle}><ChevronRight size={18} /></button>
+                        </div>
+
                     </div>
 
-                    {/* Navigation Buttons */}
-                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                        <button onClick={() => changePeriod(-1)} style={navButtonStyle}><ChevronLeft size={18} /></button>
-                        <button onClick={() => changePeriod(1)} style={navButtonStyle}><ChevronRight size={18} /></button>
-                    </div>
+                    <button
+                        onClick={() => setIsBonusSettingsOpen(true)}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
+                            background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500
+                        }}
+                    >
+                        <Settings size={18} /> Bonus Settings
+                    </button>
                 </div>
             </div>
 
@@ -547,6 +562,12 @@ const Payroll = () => {
                 employee={advanceModal.employee}
                 currentPeriod={currentPeriod}
                 onSave={handleAdvanceSave}
+            />
+
+            {/* Bonus Settings Modal */}
+            <BonusSettingsModal
+                isOpen={isBonusSettingsOpen}
+                onClose={() => setIsBonusSettingsOpen(false)}
             />
         </div>
     );

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Printer, Download, Share2, Moon } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Share2, Moon, TrendingUp } from 'lucide-react';
 
 const Payslip = () => {
     const { id } = useParams();
@@ -347,7 +347,53 @@ const Payslip = () => {
                     </div>
                 )}
 
-                {/* 3. Loan Summary Section */}
+
+
+                {/* 3. Annual Bonus Tracker Section (New) */}
+                {entry.details?.bonus && (
+                    <div style={{ marginBottom: '30px', border: '1px solid #e0efff', borderRadius: '8px', background: '#f0f7ff', padding: '16px' }}>
+                        <h3 style={{ fontSize: '0.95rem', color: '#0055ff', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ background: '#0055ff', color: 'white', padding: '4px', borderRadius: '4px', display: 'flex' }}><TrendingUp size={14} /></span>
+                            Annual Bonus Tracker
+                            <span style={{ fontSize: '0.75rem', color: '#666', fontWeight: 400, marginLeft: 'auto' }}>
+                                Period: {formatDate(entry.details.bonus.yearStart)} to {formatDate(entry.details.bonus.yearEnd)}
+                            </span>
+                        </h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                            <div>
+                                <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase' }}>This Period</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 600, color: '#333' }}>
+                                    {entry.details.bonus.currentCycleDays} Days
+
+                                </div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase' }}>Total Accrued (YTD)</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 600, color: '#333' }}>
+                                    ₹{Number(entry.details.bonus.ytdAccrued).toLocaleString('en-IN')}
+                                </div>
+
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase' }}>Unpaid Withdrawn</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 600, color: '#d32f2f' }}>
+                                    ₹{Number(entry.details.bonus.totalWithdrawn).toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase' }}>Net Balance</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0055ff' }}>
+                                    ₹{Number(entry.details.bonus.balance).toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>
+                            * Bonus is NOT included in Net Pay until withdrawn.
+                        </div>
+                    </div>
+                )}
+
+                {/* 4. Loan Summary Section */}
                 {(entry.details?.loans?.length > 0) ? (
                     <div style={{ marginBottom: '30px' }}>
                         <h3 style={{ fontSize: '0.95rem', color: '#444', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '12px' }}>

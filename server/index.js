@@ -50,10 +50,16 @@ const readData = () => {
             payroll_adjustments: [],
             deductions: [],
             advance_salaries: [],
+            bonus_withdrawals: [], // New: Track bonus withdrawals
+            settings: {}, // New: App settings
             audit_logs: []
         };
     }
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    // Ensure new fields exist
+    if (!data.bonus_withdrawals) data.bonus_withdrawals = [];
+    if (!data.settings) data.settings = {};
+    return data;
 };
 
 const writeData = (data) => {
@@ -181,6 +187,132 @@ app.post('/api/payroll', (req, res) => {
     writeData(data);
     res.json(newRecord);
 });
+
+// --- BONUS SYSTEM ---
+
+// Get Bonus Settings
+app.get('/api/settings/bonus', (req, res) => {
+    const data = readData();
+    const defaults = {
+        startDate: '2025-04-01',
+        endDate: '2026-03-31',
+        amountPerDay: 35
+    };
+    res.json(data.settings.bonus || defaults);
+});
+
+// Update Bonus Settings
+app.post('/api/settings/bonus', (req, res) => {
+    const data = readData();
+    const { startDate, endDate, amountPerDay } = req.body;
+
+    data.settings.bonus = {
+        startDate,
+        endDate,
+        amountPerDay: parseFloat(amountPerDay)
+    };
+
+    // Audit Log
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'SETTINGS_UPDATE',
+        targetId: 'BONUS',
+        actor: `${req.userRole} (${req.ip})`,
+        timestamp: new Date().toISOString(),
+        details: `Updated Bonus: ₹${amountPerDay}/day, ${startDate} to ${endDate}`
+    });
+
+    writeData(data);
+    res.json(data.settings.bonus);
+});
+
+// Withdraw Bonus
+app.post('/api/bonus/withdraw', (req, res) => {
+    const { employeeId, amount, date, notes } = req.body;
+    const data = readData();
+
+    if (!data.bonus_withdrawals) data.bonus_withdrawals = [];
+
+    const withdrawal = {
+        id: `bw-${Date.now()}`,
+        employeeId: parseInt(employeeId),
+        amount: parseFloat(amount),
+        date: date || new Date().toISOString().split('T')[0],
+        notes,
+        createdAt: new Date().toISOString(),
+        createdBy: `${req.userRole} (${req.ip})`
+    };
+
+    data.bonus_withdrawals.push(withdrawal);
+
+    // Audit Log
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'BONUS_WITHDRAWAL',
+        targetId: employeeId,
+        actor: `${req.userRole} (${req.ip})`,
+        timestamp: new Date().toISOString(),
+        details: `Withdrew Bonus: ₹${amount}`
+    });
+
+    writeData(data);
+    res.json({ success: true, withdrawal });
+});
+
+// Get Bonus Stats (Calculated)
+app.get('/api/bonus/stats', (req, res) => {
+    const data = readData();
+    const settings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
+    const employees = data.employees || [];
+
+    // Calculate for all employees
+    const stats = employees.map(emp => {
+        // Calculate Total Accrued
+        // Filter timesheet entries within Bonus Year and marked as present
+        const accruedDays = countWorkingDays(data, emp.id, settings.startDate, settings.endDate);
+        const totalAccrued = accruedDays * settings.amountPerDay;
+
+        // Calculate Total Withdrawn
+        const withdrawn = (data.bonus_withdrawals || [])
+            .filter(w => w.employeeId === emp.id)
+            .reduce((sum, w) => sum + w.amount, 0);
+
+        return {
+            employeeId: emp.id,
+            employeeName: emp.name,
+            accruedDays,
+            totalAccrued,
+            totalWithdrawn: withdrawn,
+            balance: totalAccrued - withdrawn
+        };
+    });
+
+    const companyTotal = stats.reduce((sum, s) => sum + s.balance, 0);
+
+    res.json({
+        settings,
+        companyTotalBalance: companyTotal,
+        employees: stats
+    });
+});
+
+// Helper: Count working days in a range
+function countWorkingDays(data, employeeId, startStr, endStr) {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    const now = new Date(); // Cap at today? Usually specificied end date is future.
+
+    // Cap calculation at Today if end date is in future? 
+    // Yes, bonus only accrues for days actually worked.
+    const effectiveEnd = end > now ? now : end;
+
+    return (data.timesheet_entries || []).filter(e => {
+        const d = new Date(e.date);
+        return e.employeeId === employeeId &&
+            d >= start && d <= effectiveEnd && // Within range
+            (e.clockIn || e.shiftStart) // Present
+    }).length;
+}
 
 // --- NEW PAYROLL SYSTEM ---
 
@@ -702,6 +834,23 @@ app.delete('/api/advance-salary/:id', (req, res) => {
 
     writeData(data);
     res.json({ success: true });
+});
+
+
+// Get Audit Logs
+app.get('/api/audit-logs', (req, res) => {
+    const { limit } = req.query;
+    const data = readData();
+    const logs = data.audit_logs || [];
+
+    // Sort by newest first
+    const sortedLogs = logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (limit) {
+        res.json(sortedLogs.slice(0, parseInt(limit)));
+    } else {
+        res.json(sortedLogs);
+    }
 });
 
 // --- ATTENDANCE TRACKING ---
@@ -1333,6 +1482,25 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         data.payroll_entries.push(payrollEntry);
     }
 
+    // --- BONUS CALCULATION FOR PAYSLIP ---
+    const bonusSettings = data.settings.bonus || { startDate: '2024-01-01', endDate: '2024-12-31', amountPerDay: 35 };
+
+    // 1. Current Cycle Bonus (Informational)
+    // Filter timesheet in this period
+    const currentCycleBonusDays = periodEntries.length; // Already filtered for this period above
+    const currentCycleBonusAmount = currentCycleBonusDays * bonusSettings.amountPerDay;
+
+    // 2. Year-to-Date Bonus
+    const ytdBonusDays = countWorkingDays(data, parseInt(employeeId), bonusSettings.startDate, bonusSettings.endDate);
+    const ytdBonusAccrued = ytdBonusDays * bonusSettings.amountPerDay;
+
+    // 3. Withdrawn
+    const totalWithdrawn = (data.bonus_withdrawals || [])
+        .filter(w => w.employeeId === parseInt(employeeId))
+        .reduce((sum, w) => sum + w.amount, 0);
+
+    const bonusBalance = ytdBonusAccrued - totalWithdrawn;
+
     return {
         employeeId: parseInt(employeeId),
         employeeName: employee.name,
@@ -1349,7 +1517,21 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         details: {
             timesheet: formattedTimesheet,
             advances: formattedAdvances,
-            loans: formattedLoans
+            timesheet: formattedTimesheet,
+            advances: formattedAdvances,
+            loans: formattedLoans,
+            // New Bonus Section Data
+            bonus: {
+                currentCycleDays: currentCycleBonusDays,
+                currentCycleAmount: currentCycleBonusAmount,
+                ytdDays: ytdBonusDays,
+                ytdAccrued: ytdBonusAccrued,
+                totalWithdrawn: totalWithdrawn,
+                balance: bonusBalance,
+                ratePerDay: bonusSettings.amountPerDay,
+                yearStart: bonusSettings.startDate,
+                yearEnd: bonusSettings.endDate
+            }
         }
     };
 }

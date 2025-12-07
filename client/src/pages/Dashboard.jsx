@@ -1,9 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import BankStatusCard from '../components/BankStatusCard';
 import AttendanceCard from '../components/AttendanceCard';
-import { TrendingUp, AlertCircle, CheckCircle2, Package, Store, Users, CreditCard, FileText } from 'lucide-react';
+
+
+import {
+    TrendingUp,
+    AlertCircle,
+    CheckCircle2,
+    Package,
+    Store,
+    Users,
+    CreditCard,
+    FileText,
+
+} from 'lucide-react';
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -14,10 +26,15 @@ const Dashboard = () => {
         serverStatus: 'Checking...',
         ipAddress: '',
     });
+    const [recentLogs, setRecentLogs] = useState([]);
+    const [bonusStats, setBonusStats] = useState({ companyTotalBalance: 0 });
+
+    const [loading, setLoading] = useState(true);
 
     React.useEffect(() => {
         const fetchData = async () => {
             try {
+                setLoading(true);
                 // Fetch Inventory
                 const invRes = await fetch('/api/inventory');
                 const invData = await invRes.json();
@@ -33,6 +50,18 @@ const Dashboard = () => {
                 const healthRes = await fetch('/api/health');
                 const healthData = await healthRes.json();
 
+                // Fetch Audit Logs
+                const logsRes = await fetch('/api/audit-logs?limit=5');
+                const logsData = await logsRes.json();
+                setRecentLogs(logsData);
+
+                // Fetch Bonus Stats
+                const bonusRes = await fetch('/api/bonus/stats');
+                if (bonusRes.ok) {
+                    const bonusData = await bonusRes.json();
+                    setBonusStats(bonusData);
+                }
+
                 setMetrics({
                     inventoryCount,
                     lowStockCount,
@@ -40,9 +69,11 @@ const Dashboard = () => {
                     serverStatus: healthData.status === 'ok' ? 'Online' : 'Offline',
                     ipAddress: healthData.ip || 'Unknown'
                 });
+                setLoading(false);
             } catch (err) {
                 console.error("Failed to fetch dashboard data", err);
                 setMetrics(prev => ({ ...prev, serverStatus: 'Offline' }));
+                setLoading(false);
             }
         };
 
@@ -109,10 +140,16 @@ const Dashboard = () => {
 
     return (
         <div>
-            <h1>Dashboard</h1>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xl)' }}>
-                Welcome back, Priyank. Here's what's happening today.
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                <div>
+                    <h1 style={{ marginBottom: 0 }}>Dashboard</h1>
+                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Overview of your business operations.</p>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+
+
+                </div>
+            </div>
 
             <div style={{
                 display: 'grid',
@@ -147,7 +184,7 @@ const Dashboard = () => {
                                 }}
                                 titleStyle={metric.isPayday ? { color: 'rgba(255, 255, 255, 0.9)' } : {}}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-xs)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
                                     <span style={{ fontSize: '1.75rem', fontWeight: 600 }}>{metric.value}</span>
                                     <div style={{
                                         width: 40,
@@ -231,6 +268,44 @@ const Dashboard = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
                     <BankStatusCard daysUntilPayday={paydayInfo.daysUntil} />
 
+                    {/* Bonus Stats Card */}
+                    <Card
+                        title="Bonus Program"
+                        style={{ background: 'linear-gradient(135deg, #FF9966, #FF5E62)', color: 'white' }}
+                        titleStyle={{ color: 'rgba(255, 255, 255, 0.9)' }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                            <div style={{
+                                width: 40,
+                                height: 40,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.2)',
+                                color: 'white'
+                            }}>
+                                <Briefcase size={24} />
+                            </div>
+                            <span style={{
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                padding: '4px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                background: 'rgba(255,255,255,0.2)',
+                                color: 'white'
+                            }}>
+                                Active
+                            </span>
+                        </div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>
+                            ₹{bonusStats.companyTotalBalance.toLocaleString('en-IN')}
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.8)' }}>
+                            Total Accumulated Bonus
+                        </div>
+                    </Card>
+
                     <Card title="System Health">
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             {/* Server Status Section */}
@@ -277,6 +352,7 @@ const Dashboard = () => {
                     </Card>
                 </div>
             </div>
+
         </div>
     );
 };

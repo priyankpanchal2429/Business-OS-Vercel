@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, User, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Phone, Mail, MapPin, Calendar, Clock, Download, Briefcase } from 'lucide-react';
 import Card from '../components/Card';
 import { ToastContainer } from '../components/Toast.jsx';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal.jsx';
+import BonusWithdrawalModal from '../components/BonusWithdrawalModal';
 
 const Employees = () => {
     const [employees, setEmployees] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [toasts, setToasts] = useState([]);
     const [editingEmployee, setEditingEmployee] = useState(null);
-    const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, employee: null });
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, employee: null });
+    const [bonusModal, setBonusModal] = useState({ isOpen: false, employee: null });
+    const [bonusStats, setBonusStats] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     const addToast = (message, type = 'success') => {
         const id = Date.now();
@@ -32,7 +35,6 @@ const Employees = () => {
     // Reusable Calculation Helper
     const getSalaryDetails = (emp) => {
         if (!emp.shiftStart || !emp.shiftEnd) {
-            // Fallback for legacy data or incomplete forms
             return {
                 duration: '-', billable: '-', rate: '0.00',
                 perShift: Number(emp.salary || emp.perShiftAmount || 0).toLocaleString('en-IN')
@@ -46,7 +48,7 @@ const Employees = () => {
         let end = new Date(2000, 0, 1, EndH, EndM);
 
         if (end < start) {
-            end.setDate(end.getDate() + 1); // Overnight logic
+            end.setDate(end.getDate() + 1);
         }
 
         const diffMs = end - start;
@@ -55,7 +57,6 @@ const Employees = () => {
         const breakMins = Number(emp.breakTime) || 0;
         const billableMins = Math.max(0, totalMins - breakMins);
 
-        // Rate Calc
         const baseAmount = Number(emp.perShiftAmount || emp.salary) || 0;
         const rate = billableMins > 0 ? (baseAmount / (billableMins / 60)) : 0;
 
@@ -86,6 +87,14 @@ const Employees = () => {
             const res = await fetch('/api/employees');
             const data = await res.json();
             setEmployees(data);
+
+            const bonusRes = await fetch('/api/bonus/stats');
+            if (bonusRes.ok) {
+                const bonusData = await bonusRes.json();
+                setBonusStats(bonusData.employees);
+            }
+
+            setLoading(false);
         } catch (err) {
             console.error("Failed to fetch employees", err);
         }
@@ -118,7 +127,7 @@ const Employees = () => {
                 fetchEmployees();
                 addToast(isEditing ? "Profile updated successfully." : "Profile created successfully.", "success");
             } else {
-                addToast(isEditing ? "Failed to update profile. Please check the inputs and try again." : "Failed to create profile. Please check the inputs and try again.", "error");
+                addToast(isEditing ? "Failed to update profile." : "Failed to create profile.", "error");
             }
         } catch (err) {
             console.error("Failed to save employee", err);
@@ -148,48 +157,176 @@ const Employees = () => {
     };
 
     const handleDeleteClick = (employee) => {
-        setDeleteConfirm({ isOpen: true, employee });
+        setDeleteModal({ isOpen: true, employee });
     };
 
     const handleDeleteConfirm = async () => {
-        if (!deleteConfirm.employee) return;
-
+        if (!deleteModal.employee) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/employees/${deleteConfirm.employee.id}`, {
-                method: 'DELETE'
-            });
-
+            const res = await fetch(`/api/employees/${deleteModal.employee.id}`, { method: 'DELETE' });
             if (res.ok) {
-                setDeleteConfirm({ isOpen: false, employee: null });
+                setDeleteModal({ isOpen: false, employee: null });
                 fetchEmployees();
                 addToast('Employee deleted permanently.', 'success');
             } else {
                 const error = await res.json();
-                if (res.status === 409) {
-                    addToast(error.details || 'Cannot delete employee with payroll history.', 'error');
-                } else {
-                    addToast('Failed to delete. Please try again.', 'error');
-                }
+                addToast(error.details || 'Cannot delete employee.', 'error');
             }
         } catch (err) {
-            console.error('Delete failed:', err);
             addToast('An error occurred while deleting.', 'error');
         } finally {
             setIsDeleting(false);
         }
     };
 
+    // Not used but kept for state
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const actionButtonStyle = {
+        border: 'none',
+        background: 'transparent',
+        color: 'var(--color-text-secondary)',
+        padding: '8px',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 'var(--radius-sm)',
+        transition: 'background 0.2s',
+        minWidth: '36px',
+        minHeight: '36px'
+    };
+
     return (
         <div>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             <DeleteConfirmationModal
-                isOpen={deleteConfirm.isOpen}
-                onClose={() => setDeleteConfirm({ isOpen: false, employee: null })}
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, employee: null })}
                 onConfirm={handleDeleteConfirm}
-                employeeName={deleteConfirm.employee?.name || ''}
+                employeeName={deleteModal.employee?.name || ''}
                 isDeleting={isDeleting}
             />
+
+            <BonusWithdrawalModal
+                isOpen={bonusModal.isOpen}
+                onClose={() => setBonusModal({ isOpen: false, employee: null })}
+                employee={bonusModal.employee}
+                onSave={fetchEmployees}
+            />
+
+            <style>{`
+                .employee-card-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: var(--spacing-lg);
+                    margin-top: var(--spacing-lg);
+                }
+                .employee-card {
+                    border: 1px solid var(--color-border);
+                    border-radius: var(--radius-md);
+                    padding: var(--spacing-md);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                    background: var(--color-background-card);
+                    box-shadow: var(--shadow-sm);
+                }
+                .employee-card .avatar {
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    background: var(--color-background-subtle);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--spacing-sm);
+                    overflow: hidden;
+                    border: 2px solid var(--color-border);
+                }
+                .employee-card .avatar img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .employee-card .name {
+                    font-weight: 600;
+                    font-size: 1.1rem;
+                    margin-bottom: 4px;
+                }
+                .employee-card .role {
+                    color: var(--color-text-secondary);
+                    font-size: 0.9rem;
+                    margin-bottom: var(--spacing-md);
+                }
+                .employee-card .details {
+                    width: 100%;
+                    text-align: left;
+                    font-size: 0.85rem;
+                    color: var(--color-text-secondary);
+                    margin-bottom: var(--spacing-md);
+                }
+                .employee-card .details div {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 6px;
+                }
+                .employee-card .details div svg {
+                    color: var(--color-text-tertiary);
+                }
+                .employee-card .status {
+                    padding: 4px 10px;
+                    border-radius: 20px;
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    margin-bottom: var(--spacing-md);
+                }
+                .employee-card .status.active {
+                    background: rgba(52, 199, 89, 0.1);
+                    color: var(--color-success);
+                }
+                .employee-card .status.inactive {
+                    background: rgba(255, 59, 48, 0.1);
+                    color: var(--color-error);
+                }
+                .employee-card .card-actions {
+                    display: flex;
+                    width: 100%;
+                    gap: 8px;
+                    margin-top: auto;
+                    padding-top: var(--spacing-md);
+                    border-top: 1px solid var(--color-border);
+                }
+                .employee-card .action-btn {
+                    flex: 1;
+                    padding: 8px 12px;
+                    border-radius: var(--radius-sm);
+                    border: 1px solid var(--color-border);
+                    background: var(--color-background-subtle);
+                    color: var(--color-text-secondary);
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                    transition: background 0.2s, border-color 0.2s;
+                }
+                .employee-card .action-btn:hover {
+                    background: var(--color-background-hover);
+                    border-color: var(--color-border-hover);
+                }
+                .employee-card .action-btn.edit {
+                    color: var(--color-accent);
+                }
+                .employee-card .action-btn.delete {
+                    color: var(--color-error);
+                }
+            `}</style>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
                 <div>
                     <h1 style={{ marginBottom: 0 }}>Employees</h1>
@@ -213,7 +350,6 @@ const Employees = () => {
                 </button>
             </div>
 
-            {/* Add Employee Form Modal */}
             {showAddForm && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <Card style={{ width: 700, maxHeight: '90vh', overflowY: 'auto', padding: 'var(--spacing-xl)' }}>
@@ -223,8 +359,6 @@ const Employees = () => {
                         </div>
 
                         <form onSubmit={handleAddEmployee} style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
-
-                            {/* Image Upload */}
                             <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
                                 <div style={{
                                     width: 80, height: 80, borderRadius: 'var(--radius-md)',
@@ -255,7 +389,6 @@ const Employees = () => {
                                 </div>
                             </div>
 
-                            {/* Section 1: Basic Info */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
                                 <div style={formGroupStyle}>
                                     <label style={labelStyle}>Full Name <span style={{ color: 'red' }}>*</span></label>
@@ -289,7 +422,6 @@ const Employees = () => {
                                 </div>
                             </div>
 
-                            {/* Section 2: Personal Details */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
                                 <div style={formGroupStyle}>
                                     <label style={labelStyle}>Contact Number <span style={{ color: 'red' }}>*</span></label>
@@ -311,7 +443,6 @@ const Employees = () => {
                                         value={newEmployee.birthday}
                                         onChange={e => {
                                             const bday = e.target.value;
-                                            // Calculate Age
                                             const age = bday ? Math.floor((new Date() - new Date(bday).getTime()) / 3.15576e+10) : '';
                                             setNewEmployee({ ...newEmployee, birthday: bday, age: age });
                                         }}
@@ -334,7 +465,6 @@ const Employees = () => {
                                 />
                             </div>
 
-                            {/* Section 3: Salary & Shift Rules */}
                             <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-background-subtle)', borderRadius: 'var(--radius-md)' }}>
                                 <h4 style={{ margin: '0 0 var(--spacing-sm) 0' }}>Salary & Shift Rules</h4>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
@@ -382,7 +512,6 @@ const Employees = () => {
                                 </div>
                             </div>
 
-                            {/* Section 4: Emergency Contact */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--color-background-subtle)', borderRadius: 'var(--radius-md)' }}>
                                 <div style={{ gridColumn: '1/-1', fontWeight: 600, fontSize: '0.9rem' }}>Emergency Contact</div>
                                 <div style={formGroupStyle}>
@@ -427,13 +556,14 @@ const Employees = () => {
                             <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</th>
                             <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Role</th>
                             <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Salary & Pay Rules</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bonus Balance</th>
                             <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
                             <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {employees.length === 0 ? (
-                            <tr><td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>No employees yet. Add one to start.</td></tr>
+                            <tr><td colSpan="6" style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>No employees yet. Add one to start.</td></tr>
                         ) : (
                             employees.map(emp => {
                                 const details = getSalaryDetails(emp);
@@ -465,6 +595,9 @@ const Employees = () => {
                                                 )}
                                             </div>
                                         </td>
+                                        <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600, color: 'var(--color-accent)' }}>
+                                            ₹{(bonusStats.find(b => b.employeeId === emp.id)?.balance || 0).toLocaleString('en-IN')}
+                                        </td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
                                             <span style={{
                                                 padding: '4px 12px',
@@ -475,55 +608,35 @@ const Employees = () => {
                                                 fontWeight: 500,
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
-                                                height: '24px' // Consistent height
+                                                height: '24px'
                                             }}>
                                                 {emp.status || 'Active'}
                                             </span>
                                         </td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', minHeight: '60px' }}>
-                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={() => setBonusModal({ isOpen: true, employee: emp })}
+                                                    title="Withdraw Bonus"
+                                                    style={{ ...actionButtonStyle, color: 'var(--color-primary)' }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 122, 255, 0.1)'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <Briefcase size={18} />
+                                                </button>
                                                 <button
                                                     onClick={() => openEditForm(emp)}
                                                     title="Edit"
-                                                    style={{
-                                                        border: 'none',
-                                                        background: 'transparent',
-                                                        color: 'var(--color-accent)',
-                                                        padding: '12px',
-                                                        cursor: 'pointer',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        borderRadius: 'var(--radius-sm)',
-                                                        transition: 'background 0.2s',
-                                                        minWidth: '44px',
-                                                        minHeight: '44px'
-                                                    }}
+                                                    style={{ ...actionButtonStyle, color: 'var(--color-accent)' }}
                                                     onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 122, 255, 0.1)'}
                                                     onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                                                 >
                                                     <Edit2 size={18} />
                                                 </button>
-
-                                                {/* Delete Button */}
                                                 <button
                                                     onClick={() => handleDeleteClick(emp)}
                                                     title="Delete"
-                                                    style={{
-                                                        border: 'none',
-                                                        background: 'transparent',
-                                                        color: 'var(--color-error)',
-                                                        padding: '12px',
-                                                        cursor: 'pointer',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        borderRadius: 'var(--radius-sm)',
-                                                        transition: 'background 0.2s',
-                                                        minWidth: '44px',
-                                                        minHeight: '44px'
-                                                    }}
+                                                    style={{ ...actionButtonStyle, color: 'var(--color-error)' }}
                                                     onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 59, 48, 0.1)'}
                                                     onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                                                 >
@@ -542,7 +655,6 @@ const Employees = () => {
     );
 };
 
-// Styles
 const formGroupStyle = { display: 'flex', flexDirection: 'column', gap: 6 };
 const labelStyle = { fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-secondary)' };
 const inputStyle = { padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '0.95rem' };
