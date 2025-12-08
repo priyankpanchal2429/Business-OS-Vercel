@@ -1697,15 +1697,24 @@ app.get('/api/payroll/:id', (req, res) => {
         return res.status(404).json({ error: 'Payroll entry not found' });
     }
 
+    // --- RECALCULATE IF UNPAID ---
+    // Ensure we stick to the latest calculation logic (e.g. Basic Salary fix)
+    if (entry.status !== 'Paid' && !entry.isFrozen) {
+        recalculatePayrollForPeriod(data, entry.employeeId, entry.periodStart, entry.periodEnd);
+    }
+
     // --- CHECK IF FROZEN (PAID) ---
     // If the payslip is frozen (paid), return the frozen snapshot data
     if (entry.isFrozen && entry.status === 'Paid') {
-        // Use frozen employee data
+        // Use frozen employee data but attempt to get live contact info for WhatsApp
+        const liveEmployee = data.employees.find(e => e.id === entry.employeeId);
+
         const response = {
             ...entry,
             employeeName: entry.frozenEmployeeName,
             employeeRole: entry.frozenEmployeeRole,
             employeeImage: entry.frozenEmployeeImage,
+            employeeContact: liveEmployee?.contact || null, // Use live contact
             perShiftAmount: entry.frozenPerShiftAmount,
             hourlyRate: entry.frozenHourlyRate,
             salary: entry.frozenSalary,
@@ -1728,6 +1737,7 @@ app.get('/api/payroll/:id', (req, res) => {
         entry.employeeRole = employee.role;
         entry.employeeImage = employee.image;
         entry.employeeId = employee.id;
+        entry.employeeContact = employee.contact;
         // Pass rate info for frontend Daily Earnings calculation
         entry.perShiftAmount = employee.perShiftAmount;
         entry.hourlyRate = employee.hourlyRate;
@@ -2099,12 +2109,15 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         totalOvertimeMinutes += e.overtimeMinutes;
     });
 
-    // Calculate gross pay
+    // Calculate total regular minutes (excluding OT) for Basic Salary calculation
+    const totalRegularMinutes = Math.max(0, totalBillableMinutes - totalOvertimeMinutes);
+
+    // Calculate gross pay (Basic Salary)
     // Option 1: Employee has perShiftAmount (per day rate)
     // Option 2: Employee has hourly rate
     // Option 3: Fall back to fixed salary
     let grossPay = 0;
-    const totalBillableHours = totalBillableMinutes / 60;
+    const totalRegularHours = totalRegularMinutes / 60; // Was totalBillableHours
     const workingDays = periodEntries.length;
     let hourlyRate = 0;
 
@@ -2121,10 +2134,11 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         const standardDailyHours = standardShiftRaw.billableMinutes / 60;
         hourlyRate = parseFloat(employee.perShiftAmount) / (standardDailyHours || 8); // Fallback to 8h
 
-        // Regular Pay Calculation (Same as before)
+        // Regular Pay Calculation (Same as before but using Regular Minutes)
         if (standardShiftRaw.billableMinutes > 0) {
             const expectedTotalMinutes = standardShiftRaw.billableMinutes * workingDays;
-            const ratio = totalBillableMinutes / expectedTotalMinutes;
+            // Use Regular Minutes for ratio to avoid counting OT in Basic Salary
+            const ratio = totalRegularMinutes / expectedTotalMinutes;
             const basePay = parseFloat(employee.perShiftAmount) * workingDays;
             grossPay = basePay * ratio;
         } else {
@@ -2132,7 +2146,8 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         }
     } else if (employee.hourlyRate) {
         hourlyRate = employee.hourlyRate;
-        grossPay = hourlyRate * totalBillableHours;
+        // Use Regular Hours for Basic Salary
+        grossPay = hourlyRate * totalRegularHours;
     } else {
         // Fixed salary - OT usually not applicable or rate is Salary / 30 / 8
         // Let's assume standard 8h day for rate
@@ -2140,8 +2155,11 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         grossPay = employee.salary || 0;
     }
 
-    // Add Overtime Pay
-    const overtimePay = (totalOvertimeMinutes / 60) * hourlyRate * 1.5;
+    // Round Basic Salary to nearest integer
+    grossPay = Math.round(grossPay);
+
+    // Add Overtime Pay (also rounded)
+    const overtimePay = Math.round((totalOvertimeMinutes / 60) * hourlyRate * 1.5);
     grossPay += overtimePay;
 
     // Get deductions for this period
@@ -2163,8 +2181,8 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
 
     console.log(`[DEBUG] Employee ${employeeId}: Advance Deductions: ${advanceDeductions}`);
 
-    // Calculate net pay
-    const netPay = Math.max(0, grossPay - totalDeductions);
+    // Calculate net pay (Rounded)
+    const netPay = Math.round(Math.max(0, grossPay - totalDeductions));
 
     // Find or create payroll entry
     if (!data.payroll_entries) data.payroll_entries = [];

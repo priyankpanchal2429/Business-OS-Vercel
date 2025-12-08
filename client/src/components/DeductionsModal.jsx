@@ -81,7 +81,7 @@ const DeductionsModal = ({ isOpen, onClose, employee, periodStart, periodEnd, gr
     };
 
     const totalDeductions = deductions.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0);
-    const netPay = (grossPay || 0) - totalDeductions;
+    const netPay = Math.round((grossPay || 0) - totalDeductions);
 
     if (!isOpen) return null;
 

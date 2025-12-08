@@ -2,13 +2,12 @@
   "inventory": [
     {
       "id": 1765125984316,
-      "name": "SKF UCP 207",
-      "category": "REM500",
-      "type": "Ball Bearing",
+      "name": "Test Laptop",
+      "category": "Electronics",
+      "type": "Product",
       "stock": 15,
       "price": 45000,
-      "description": "Shaft diameter: 35 mm",
-      "imageUrl": "https://cdn.skfmediahub.skf.com/api/public/0901d19680ae63de/png_highpreview/0901d19680ae63de_png_highpreview.png"
+      "description": ""
     }
   ],
   "vendors": [
@@ -2777,22 +2776,6 @@
       "actor": "admin (127.0.0.1)",
       "timestamp": "2025-12-08T22:26:14.872Z",
       "details": "Updated deductions: ₹986"
-    },
-    {
-      "id": "1765232904312-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-08T22:28:24.312Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765232904313-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-08T22:28:24.312Z",
-      "details": "Recalculated: Gross ₹5956, Net ₹4970, 14 days"
     }
   ],
   "payroll_entries": [
@@ -2818,7 +2801,7 @@
       "employeeId": 1765228926417,
       "periodStart": "2025-11-24",
       "periodEnd": "2025-12-07",
-      "grossPay": 8407,
+      "grossPay": 8406.666666666666,
       "deductions": 1007,
       "advanceDeductions": 0,
       "loanDeductions": 1007,
@@ -2826,7 +2809,7 @@
       "status": "Unpaid",
       "totalBillableMinutes": 6250,
       "workingDays": 14,
-      "overtimePay": 2006,
+      "overtimePay": 2005.714285714286,
       "totalOvertimeMinutes": 1080,
       "paidAt": null
     },
@@ -2852,7 +2835,7 @@
       "employeeId": 1765231172204,
       "periodStart": "2025-11-24",
       "periodEnd": "2025-12-07",
-      "grossPay": 7535,
+      "grossPay": 7534.933333333333,
       "deductions": 3046,
       "advanceDeductions": 2000,
       "loanDeductions": 1046,
@@ -2886,16 +2869,16 @@
       "employeeId": 1765232352685,
       "periodStart": "2025-11-24",
       "periodEnd": "2025-12-07",
-      "grossPay": 5956,
+      "grossPay": 7485.666666666666,
       "deductions": 986,
       "advanceDeductions": 0,
       "loanDeductions": 986,
-      "netPay": 4970,
+      "netPay": 6500,
       "status": "Unpaid",
-      "totalBillableMinutes": 5255,
+      "totalBillableMinutes": 6155,
       "workingDays": 14,
-      "overtimePay": 0,
-      "totalOvertimeMinutes": 0,
+      "overtimePay": 1530,
+      "totalOvertimeMinutes": 900,
       "paidAt": null
     }
   ],
@@ -3325,14 +3308,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-24",
       "shiftStart": "08:20",
-      "shiftEnd": "18:00",
+      "shiftEnd": "20:00",
       "clockIn": "08:20",
-      "clockOut": "18:00",
+      "clockOut": "20:00",
       "breakMinutes": 60,
-      "totalMinutes": 580,
-      "billableMinutes": 520,
+      "totalMinutes": 700,
+      "billableMinutes": 640,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3347,7 +3330,7 @@
       "totalMinutes": 520,
       "billableMinutes": 460,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3355,14 +3338,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-26",
       "shiftStart": "08:20",
-      "shiftEnd": "18:00",
+      "shiftEnd": "20:00",
       "clockIn": "08:20",
-      "clockOut": "18:00",
+      "clockOut": "20:00",
       "breakMinutes": 60,
-      "totalMinutes": 580,
-      "billableMinutes": 520,
+      "totalMinutes": 700,
+      "billableMinutes": 640,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3370,14 +3353,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-27",
       "shiftStart": "08:35",
-      "shiftEnd": "18:00",
+      "shiftEnd": "18:30",
       "clockIn": "08:35",
-      "clockOut": "18:00",
+      "clockOut": "18:30",
       "breakMinutes": 60,
-      "totalMinutes": 565,
-      "billableMinutes": 505,
+      "totalMinutes": 595,
+      "billableMinutes": 535,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3385,14 +3368,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-28",
       "shiftStart": "08:25",
-      "shiftEnd": "18:00",
+      "shiftEnd": "23:30",
       "clockIn": "08:25",
-      "clockOut": "18:00",
+      "clockOut": "23:30",
       "breakMinutes": 60,
-      "totalMinutes": 575,
-      "billableMinutes": 515,
+      "totalMinutes": 905,
+      "billableMinutes": 785,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3407,7 +3390,7 @@
       "totalMinutes": 0,
       "billableMinutes": 0,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3422,7 +3405,7 @@
       "totalMinutes": 0,
       "billableMinutes": 0,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3430,14 +3413,14 @@
       "employeeId": 1765232352685,
       "date": "2025-12-01",
       "shiftStart": "08:20",
-      "shiftEnd": "18:00",
+      "shiftEnd": "20:00",
       "clockIn": "08:20",
-      "clockOut": "18:00",
+      "clockOut": "20:00",
       "breakMinutes": 60,
-      "totalMinutes": 580,
-      "billableMinutes": 520,
+      "totalMinutes": 700,
+      "billableMinutes": 640,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3445,14 +3428,14 @@
       "employeeId": 1765232352685,
       "date": "2025-12-02",
       "shiftStart": "08:25",
-      "shiftEnd": "18:00",
+      "shiftEnd": "20:00",
       "clockIn": "08:25",
-      "clockOut": "18:00",
+      "clockOut": "20:00",
       "breakMinutes": 60,
-      "totalMinutes": 575,
-      "billableMinutes": 515,
+      "totalMinutes": 695,
+      "billableMinutes": 635,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3467,7 +3450,7 @@
       "totalMinutes": 575,
       "billableMinutes": 515,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3475,14 +3458,14 @@
       "employeeId": 1765232352685,
       "date": "2025-12-04",
       "shiftStart": "08:20",
-      "shiftEnd": "18:00",
+      "shiftEnd": "20:00",
       "clockIn": "08:20",
-      "clockOut": "18:00",
+      "clockOut": "20:00",
       "breakMinutes": 60,
-      "totalMinutes": 580,
-      "billableMinutes": 520,
+      "totalMinutes": 700,
+      "billableMinutes": 640,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3497,7 +3480,7 @@
       "totalMinutes": 575,
       "billableMinutes": 515,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3512,7 +3495,7 @@
       "totalMinutes": 210,
       "billableMinutes": 150,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3527,7 +3510,7 @@
       "totalMinutes": 0,
       "billableMinutes": 0,
       "status": "active",
-      "modifiedAt": "2025-12-08T22:28:24.312Z",
+      "modifiedAt": "2025-12-08T22:25:17.590Z",
       "modifiedBy": "admin (127.0.0.1)"
     }
   ],

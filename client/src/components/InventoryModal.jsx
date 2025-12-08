@@ -62,7 +62,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!formData.name || !formData.category || !formData.type || !formData.stock || !formData.price) {
+        if (!formData.name || !formData.category || !formData.type) {
             addToast('Please fill in all required fields', 'error');
             return;
         }
@@ -99,8 +99,8 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
-                    stock: parseInt(formData.stock),
-                    price: parseFloat(formData.price),
+                    stock: parseInt(formData.stock) || 0,
+                    price: parseFloat(formData.price) || 0,
                     imageUrl
                 })
             });
@@ -153,121 +153,6 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
 
                 <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {/* Item Name */}
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                Item Name *
-                            </label>
-                            <input
-                                type="text"
-                                name="name"
-                                required
-                                placeholder="Enter item name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                style={{
-                                    width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                    fontSize: '0.95rem'
-                                }}
-                            />
-                        </div>
-
-                        {/* Category and Type */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                    Category *
-                                </label>
-                                <input
-                                    type="text"
-                                    name="category"
-                                    required
-                                    placeholder="e.g., Electronics"
-                                    value={formData.category}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                        fontSize: '0.95rem'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                    Type *
-                                </label>
-                                <input
-                                    type="text"
-                                    name="type"
-                                    required
-                                    placeholder="e.g., Product"
-                                    value={formData.type}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                        fontSize: '0.95rem'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Stock and Price */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                    Stock Quantity *
-                                </label>
-                                <input
-                                    type="number"
-                                    name="stock"
-                                    required
-                                    min="0"
-                                    placeholder="0"
-                                    value={formData.stock}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                        fontSize: '0.95rem'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                    Price (₹) *
-                                </label>
-                                <input
-                                    type="number"
-                                    name="price"
-                                    required
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={formData.price}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                        fontSize: '0.95rem'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Description */}
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                Description
-                            </label>
-                            <textarea
-                                name="description"
-                                placeholder="Optional item description..."
-                                value={formData.description}
-                                onChange={handleChange}
-                                style={{
-                                    width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                    fontSize: '0.9rem', minHeight: '80px', resize: 'vertical'
-                                }}
-                            />
-                        </div>
-
                         {/* Image Upload/URL Section */}
                         <div>
                             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
@@ -414,6 +299,83 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                                 </div>
                             )}
                         </div>
+                        {/* Item Name */}
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                Item Name *
+                            </label>
+                            <input
+                                type="text"
+                                name="name"
+                                required
+                                placeholder="Enter item name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                style={{
+                                    width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                    fontSize: '0.95rem'
+                                }}
+                            />
+                        </div>
+
+                        {/* Category and Type */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                    Category *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="category"
+                                    required
+                                    placeholder="e.g., Electronics"
+                                    value={formData.category}
+                                    onChange={handleChange}
+                                    style={{
+                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                        fontSize: '0.95rem'
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                    Type *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="type"
+                                    required
+                                    placeholder="e.g., Product"
+                                    value={formData.type}
+                                    onChange={handleChange}
+                                    style={{
+                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                        fontSize: '0.95rem'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+
+
+                        {/* Description */}
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                Description
+                            </label>
+                            <textarea
+                                name="description"
+                                placeholder="Optional item description..."
+                                value={formData.description}
+                                onChange={handleChange}
+                                style={{
+                                    width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                    fontSize: '0.9rem', minHeight: '80px', resize: 'vertical'
+                                }}
+                            />
+                        </div>
+
+
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Printer, Moon, User } from 'lucide-react';
+import { ArrowLeft, Printer, Moon, User, MessageCircle } from 'lucide-react';
 
 const Payslip = () => {
     const { id } = useParams();
@@ -87,6 +87,13 @@ const Payslip = () => {
         window.print();
     };
 
+    const handleWhatsApp = () => {
+        const phoneNumber = entry.employeeContact ? entry.employeeContact.replace(/[^0-9]/g, '') : '';
+        const message = `*Payslip for ${entry.employeeName}*\nPeriod: ${formatDate(entry.periodStart)} - ${formatDate(entry.periodEnd)}\nNet Pay: ${formatCurrency(entry.netPay)}\n\nPlease find your payslip details above.`;
+        const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     const formatDate = (dateStr) => {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
@@ -124,16 +131,28 @@ const Payslip = () => {
                 >
                     <ArrowLeft size={16} /> Back
                 </button>
-                <button
-                    onClick={handlePrint}
-                    style={{
-                        background: '#000', color: 'white', border: 'none', borderRadius: '8px',
-                        padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600,
-                        fontSize: '13px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                    }}
-                >
-                    <Printer size={16} /> Print Payslip
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                        onClick={handleWhatsApp}
+                        style={{
+                            background: '#25D366', color: 'white', border: 'none', borderRadius: '8px',
+                            padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600,
+                            fontSize: '13px', boxShadow: '0 4px 12px rgba(37, 211, 102, 0.2)'
+                        }}
+                    >
+                        <MessageCircle size={16} /> WhatsApp
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        style={{
+                            background: '#000', color: 'white', border: 'none', borderRadius: '8px',
+                            padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600,
+                            fontSize: '13px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        <Printer size={16} /> Print Payslip
+                    </button>
+                </div>
             </div>
 
             {/* A4 Page Container */}
@@ -379,10 +398,7 @@ const Payslip = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: '12px', fontWeight: 600 }}>Total Earnings</span>
                             <span style={{ fontSize: '13px', fontWeight: 700 }}>
-                                {formatCurrency(
-                                    (Number(entry.grossPay || 0) + (entry.isAdjusted ? Number(entry.adjustmentAmount || 0) : 0)) -
-                                    (Number(entry.advanceDeductions || 0) + Number(entry.loanDeductions || 0))
-                                )}
+                                {formatCurrency(entry.netPay)}
                             </span>
                         </div>
                     </div>
@@ -392,10 +408,7 @@ const Payslip = () => {
                 <section style={{ background: '#000', color: 'white', padding: '15px 20px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Net Payable Amount</div>
                     <div style={{ fontSize: '24px', fontWeight: 700 }}>
-                        {formatCurrency(
-                            (Number(entry.grossPay || 0) + (entry.isAdjusted ? Number(entry.adjustmentAmount || 0) : 0)) -
-                            (Number(entry.advanceDeductions || 0) + Number(entry.loanDeductions || 0))
-                        )}
+                        {formatCurrency(entry.netPay)}
                     </div>
                 </section>
 
