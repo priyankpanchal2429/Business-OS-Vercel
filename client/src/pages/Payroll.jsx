@@ -21,6 +21,8 @@ const Payroll = () => {
     const [advanceModal, setAdvanceModal] = useState({ isOpen: false, employee: null });
     const [isBonusSettingsOpen, setIsBonusSettingsOpen] = useState(false);
     const [toasts, setToasts] = useState([]);
+    const [isLocked, setIsLocked] = useState(false);
+    const [lockedPeriodInfo, setLockedPeriodInfo] = useState(null);
 
     // Helper to format date as YYYY-MM-DD in local time
     const toLocalISOString = (d) => {
@@ -33,12 +35,11 @@ const Payroll = () => {
         return new Date(y, m - 1, d);
     };
 
-    // Period Logic (Default: Current Bi-Weekly Cycle)
-    // Anchor: Dec 8 2025 (Monday). Cycle is 14 days.
-    const [currentPeriod, setCurrentPeriod] = useState(() => {
+    // Calculate default period (will be overridden by locked period if exists)
+    const calculateDefaultPeriod = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Normalize to midnight
-        const anchor = new Date(2025, 11, 8); // Dec 8 2025
+        const anchor = new Date(2025, 11, 8); // Dec 8 2025 - MUST MATCH BACKEND
 
         const diffTime = today.getTime() - anchor.getTime();
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
@@ -50,16 +51,59 @@ const Payroll = () => {
         const start = new Date(today);
         start.setDate(today.getDate() - cycleDiff);
         const end = new Date(start);
-        end.setDate(start.getDate() + 13); // End on Sunday
+        end.setDate(start.getDate() + 13); // End 13 days after start
 
         return {
             start: toLocalISOString(start),
             end: toLocalISOString(end)
         };
-    });
+    };
+
+    // Period Logic (Default: Current Bi-Weekly Cycle, but can be overridden by locked period)
+    // Anchor: Dec 8 2025 (Monday). Cycle is 14 days. MUST match backend!
+    const [currentPeriod, setCurrentPeriod] = useState(calculateDefaultPeriod);
 
     useEffect(() => {
+        // Fetch locked period first
+        const checkLockedPeriod = async () => {
+            try {
+                const res = await fetch('/api/payroll/locked-period');
+                const data = await res.json();
+
+                if (data.locked && data.period) {
+                    // Use locked period
+                    setCurrentPeriod({
+                        start: data.period.start,
+                        end: data.period.end
+                    });
+                    setIsLocked(true);
+                    setLockedPeriodInfo(data.period);
+                } else {
+                    // Use calculated period
+                    setIsLocked(false);
+                    setLockedPeriodInfo(null);
+                }
+            } catch (err) {
+                console.error('Failed to check locked period:', err);
+            }
+        };
+
+        checkLockedPeriod();
         fetchEmployees();
+
+        // Listen for advance salary updates
+        const handleAdvanceUpdate = () => {
+            console.log('[Payroll] Advance salary updated, refreshing data...');
+            fetchPeriodData();
+        };
+
+        window.addEventListener('advanceSalaryUpdated', handleAdvanceUpdate);
+        window.addEventListener('payrollUpdated', handleAdvanceUpdate);
+
+        return () => {
+            window.removeEventListener('advanceSalaryUpdated', handleAdvanceUpdate);
+            window.removeEventListener('payrollUpdated', handleAdvanceUpdate);
+        };
     }, []);
 
     useEffect(() => {
@@ -79,7 +123,7 @@ const Payroll = () => {
     const fetchPeriodData = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}`);
+            const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&t=${Date.now()}`);
             const data = await res.json();
             setPeriodData(data);
             setSelectedIds([]); // Reset selection on period change
@@ -95,12 +139,16 @@ const Payroll = () => {
             const res = await fetch('/api/payroll/mark-paid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employeeIds: items.map(i => i.employeeId) })
+                body: JSON.stringify({
+                    employeeIds: items.map(i => i.employeeId),
+                    periodStart: currentPeriod.start,
+                    periodEnd: currentPeriod.end
+                })
             });
             const result = await res.json();
             fetchPeriodData();
             setSelectedIds([]);
-            addToast(`Marked ${items.length} employee(s) as Paid`, 'success');
+            addToast(`Marked ${items.length} employee(s) as Paid (Payslip Frozen)`, 'success');
         } catch (err) {
             console.error('Failed to mark as paid:', err);
             addToast('Failed to update status', 'error');
@@ -128,6 +176,11 @@ const Payroll = () => {
     };
 
     const changePeriod = (direction) => {
+        if (isLocked) {
+            addToast('Period is locked. Unlock it first to change periods.', 'error');
+            return;
+        }
+
         const newStart = parseLocalDate(currentPeriod.start);
         newStart.setDate(newStart.getDate() + (direction * 14));
 
@@ -138,6 +191,79 @@ const Payroll = () => {
             start: toLocalISOString(newStart),
             end: toLocalISOString(newEnd)
         });
+    };
+
+    const handleLockPeriod = async () => {
+        if (isLocked) {
+            addToast('Period is already locked.', 'info');
+            return;
+        }
+
+        const confirmLock = window.confirm(
+            `Lock the current payroll period?\n\nPeriod: ${formatDate(currentPeriod.start)} – ${formatDate(currentPeriod.end)}\n\nThis will prevent automatic period changes until manually unlocked.`
+        );
+
+        if (!confirmLock) return;
+
+        try {
+            const res = await fetch('/api/payroll/lock-period', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    start: currentPeriod.start,
+                    end: currentPeriod.end,
+                    lockedBy: 'Admin'
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setIsLocked(true);
+                setLockedPeriodInfo(data.period);
+                addToast('Payroll period locked successfully.', 'success');
+            } else {
+                addToast('Failed to lock period.', 'error');
+            }
+        } catch (err) {
+            console.error('Failed to lock period:', err);
+            addToast('Failed to lock period.', 'error');
+        }
+    };
+
+    const handleUnlockPeriod = async () => {
+        if (!isLocked) {
+            addToast('Period is not locked.', 'info');
+            return;
+        }
+
+        const confirmUnlock = window.confirm(
+            `Unlock the current payroll period?\n\nThis will allow automatic period calculations to resume.`
+        );
+
+        if (!confirmUnlock) return;
+
+        try {
+            const res = await fetch('/api/payroll/unlock-period', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setIsLocked(false);
+                setLockedPeriodInfo(null);
+                // Recalculate period
+                setCurrentPeriod(calculateDefaultPeriod());
+                addToast('Payroll period unlocked successfully.', 'success');
+            } else {
+                addToast('Failed to unlock period.', 'error');
+            }
+        } catch (err) {
+            console.error('Failed to unlock period:', err);
+            addToast('Failed to unlock period.', 'error');
+        }
     };
 
     // Derived State
@@ -245,6 +371,13 @@ const Payroll = () => {
         fetchPeriodData();
     };
 
+    const getInitials = (name) => {
+        if (!name) return '';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0][0].toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    };
+
     return (
         <div>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -259,29 +392,59 @@ const Payroll = () => {
                     <div style={{
                         padding: '12px 20px',
                         background: 'var(--color-background-subtle)',
-                        border: '1px solid var(--color-accent)',
+                        border: `2px solid ${isLocked ? '#ff9500' : 'var(--color-accent)'}`,
                         borderRadius: 'var(--radius-md)',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 12
+                        flexDirection: 'column',
+                        gap: 8
                     }}>
-                        <Calendar size={20} color="var(--color-accent)" />
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Current Period
-                            </div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                {formatDate(currentPeriod.start)} – {formatDate(currentPeriod.end)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <Calendar size={20} color={isLocked ? '#ff9500' : 'var(--color-accent)'} />
+                            <div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Current Period {isLocked && <span style={{ color: '#ff9500', fontWeight: 600 }}>🔒 LOCKED</span>}
+                                </div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                    {formatDate(currentPeriod.start)} – {formatDate(currentPeriod.end)}
+                                </div>
                             </div>
 
+                            {/* Navigation Buttons */}
+                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                                <button
+                                    onClick={() => changePeriod(-1)}
+                                    style={{
+                                        ...navButtonStyle,
+                                        opacity: isLocked ? 0.5 : 1,
+                                        cursor: isLocked ? 'not-allowed' : 'pointer'
+                                    }}
+                                    disabled={isLocked}
+                                ><ChevronLeft size={18} /></button>
+                                <button
+                                    onClick={() => changePeriod(1)}
+                                    style={{
+                                        ...navButtonStyle,
+                                        opacity: isLocked ? 0.5 : 1,
+                                        cursor: isLocked ? 'not-allowed' : 'pointer'
+                                    }}
+                                    disabled={isLocked}
+                                ><ChevronRight size={18} /></button>
+                            </div>
                         </div>
 
-                        {/* Navigation Buttons */}
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                            <button onClick={() => changePeriod(-1)} style={navButtonStyle}><ChevronLeft size={18} /></button>
-                            <button onClick={() => changePeriod(1)} style={navButtonStyle}><ChevronRight size={18} /></button>
-                        </div>
-
+                        {/* Admin Notice */}
+                        {isLocked && lockedPeriodInfo && (
+                            <div style={{
+                                fontSize: '0.75rem',
+                                color: '#ff9500',
+                                background: 'rgba(255, 149, 0, 0.1)',
+                                padding: '6px 10px',
+                                borderRadius: 'var(--radius-sm)',
+                                fontWeight: 500
+                            }}>
+                                ⚠️ Period locked by admin — manual change required. Locked by {lockedPeriodInfo.lockedBy} on {new Date(lockedPeriodInfo.lockedAt).toLocaleDateString()}
+                            </div>
+                        )}
                     </div>
 
                     <button
@@ -431,7 +594,11 @@ const Payroll = () => {
                                                 backgroundPosition: 'center',
                                                 overflow: 'hidden'
                                             }}>
-                                                {!employees.find(e => e.id === item.employeeId)?.image && <User size={18} />}
+                                                {!employees.find(e => e.id === item.employeeId)?.image && (
+                                                    <span style={{ fontWeight: 600, fontSize: '1.2rem' }}>
+                                                        {getInitials(item.employeeName)}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div>
                                                 <div style={{ fontWeight: 500 }}>{item.employeeName}</div>

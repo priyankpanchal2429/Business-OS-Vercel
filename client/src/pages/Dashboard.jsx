@@ -302,7 +302,7 @@ const Dashboard = () => {
                             }}>
                                 <div>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        Total Balance
+                                        Annual Bonus
                                     </span>
                                     <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-success)' }}>
                                         ₹{bonusStats.companyTotalBalance.toLocaleString('en-IN')}

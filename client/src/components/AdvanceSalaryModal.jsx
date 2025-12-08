@@ -92,7 +92,9 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
                     employeeId: employee.id, // Only really needed for POST but safe to send
                     amount: parseFloat(amount),
                     dateIssued,
-                    reason
+                    reason,
+                    periodStart: currentPeriod?.start,
+                    periodEnd: currentPeriod?.end
                 })
             });
 
@@ -104,6 +106,20 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
 
                 // Refresh list explicitly
                 await fetchExistingAdvances();
+
+                // Dispatch custom event for real-time updates
+                window.dispatchEvent(new CustomEvent('advanceSalaryUpdated', {
+                    detail: {
+                        employeeId: employee.id,
+                        action: editingId ? 'updated' : 'created',
+                        advance: result.advance
+                    }
+                }));
+
+                // Also trigger payroll update
+                window.dispatchEvent(new CustomEvent('payrollUpdated', {
+                    detail: { employeeId: employee.id }
+                }));
 
                 // Notify parent
                 onSave(result);
@@ -135,6 +151,20 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
                 addToast('Advance Salary deleted.', 'success');
                 // Remove locally
                 setExistingAdvances(prev => prev.filter(item => item.id !== id));
+
+                // Dispatch custom events for real-time updates
+                window.dispatchEvent(new CustomEvent('advanceSalaryUpdated', {
+                    detail: {
+                        employeeId: employee.id,
+                        action: 'deleted',
+                        advanceId: id
+                    }
+                }));
+
+                window.dispatchEvent(new CustomEvent('payrollUpdated', {
+                    detail: { employeeId: employee.id }
+                }));
+
                 // Update Parent
                 onSave({ success: true }); // Just trigger reload
 

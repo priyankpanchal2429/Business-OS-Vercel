@@ -72,6 +72,13 @@ const AttendanceCard = () => {
     // Combine all employees for display
     const allEmployees = [...attendance.working, ...attendance.notWorking];
 
+    const getInitials = (name) => {
+        if (!name) return '';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0][0].toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    };
+
     return (
         <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -163,7 +170,11 @@ const AttendanceCard = () => {
                                                 overflow: 'hidden',
                                                 flexShrink: 0
                                             }}>
-                                                {!emp.employeeImage && <User size={20} />}
+                                                {!emp.employeeImage && (
+                                                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                                                        {getInitials(emp.employeeName)}
+                                                    </span>
+                                                )}
                                             </div>
 
                                             {/* Employee Info */}

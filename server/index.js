@@ -215,6 +215,19 @@ app.get('/api/employees', (req, res) => {
     res.json(data.employees);
 });
 
+// Get single employee by ID
+app.get('/api/employees/:id', (req, res) => {
+    const data = readData();
+    const employeeId = parseInt(req.params.id);
+    const employee = data.employees.find(emp => emp.id === employeeId);
+
+    if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    res.json(employee);
+});
+
 app.post('/api/employees', (req, res) => {
     const data = readData();
     const newEmployee = { id: Date.now(), ...req.body };
@@ -298,6 +311,48 @@ app.delete('/api/employees/:id', (req, res) => {
     res.json({ success: true, message: 'Employee deleted permanently' });
 });
 
+// Reorder Employees (Drag & Drop)
+app.post('/api/employees/reorder', (req, res) => {
+    const { orderedIds } = req.body; // Array of employee IDs in new order
+    const data = readData();
+
+    if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: 'orderedIds must be an array' });
+    }
+
+    // Create a map for quick lookup
+    const employeeMap = new Map(data.employees.map(emp => [emp.id, emp]));
+
+    // Reorder based on the provided IDs
+    const reorderedEmployees = orderedIds
+        .map(id => employeeMap.get(id))
+        .filter(emp => emp !== undefined);
+
+    // Add any employees that weren't in the orderedIds (safety fallback)
+    const orderedIdSet = new Set(orderedIds);
+    data.employees.forEach(emp => {
+        if (!orderedIdSet.has(emp.id)) {
+            reorderedEmployees.push(emp);
+        }
+    });
+
+    data.employees = reorderedEmployees;
+
+    // Audit log
+    if (!data.audit_logs) data.audit_logs = [];
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'EMPLOYEES_REORDER',
+        targetId: 'ALL',
+        actor: `${req.userRole} (${req.ip})`,
+        timestamp: new Date().toISOString(),
+        details: 'Employee list reordered via drag & drop'
+    });
+
+    writeData(data);
+    res.json({ success: true, message: 'Employees reordered successfully' });
+});
+
 // Payroll
 app.get('/api/payroll', (req, res) => {
     const data = readData();
@@ -311,6 +366,22 @@ app.post('/api/payroll', (req, res) => {
     data.payroll.push(newRecord);
     writeData(data);
     res.json(newRecord);
+});
+
+// Get payroll history for a specific employee
+app.get('/api/payroll/history/:employeeId', (req, res) => {
+    const data = readData();
+    const employeeId = parseInt(req.params.employeeId);
+
+    // Get all Paid payroll records for this employee
+    const history = (data.payroll_entries || []).filter(p =>
+        p.employeeId === employeeId && p.status === 'Paid'
+    );
+
+    // Sort by period start date (newest first)
+    history.sort((a, b) => new Date(b.periodStart) - new Date(a.periodStart));
+
+    res.json(history);
 });
 
 // --- BONUS SYSTEM ---
@@ -405,16 +476,6 @@ app.post('/api/bonus/withdraw', (req, res) => {
 
     // Audit Log
     data.audit_logs.push({
-        id: Date.now() + '-log',
-        action: 'BONUS_WITHDRAWAL',
-        targetId: employeeId,
-        actor: `${req.userRole} (${req.ip})`,
-        timestamp: new Date().toISOString(),
-        details: `Withdrew Bonus: ₹${withdrawalAmount}`
-    });
-
-    writeData(data);
-    res.json({
         success: true,
         withdrawal,
         newBalance: availableBalance - withdrawalAmount
@@ -458,21 +519,65 @@ app.get('/api/bonus/stats', (req, res) => {
     });
 });
 
+// Get Bonus Details for Employee
+app.get('/api/bonus/:id', (req, res) => {
+    const data = readData();
+    const employeeId = parseInt(req.params.id);
+
+    // Validate that employee exists
+    const employee = data.employees.find(e => e.id === employeeId);
+    if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const settings = data.settings.bonus || {
+        startDate: '2025-04-01',
+        endDate: '2026-03-31',
+        amountPerDay: 35
+    };
+
+    // Calculate accrued days & amount
+    const totalDays = countWorkingDays(data, employeeId, settings.startDate, settings.endDate);
+    const totalAccrued = totalDays * settings.amountPerDay;
+
+    // Get withdrawals
+    const withdrawals = (data.bonus_withdrawals || [])
+        .filter(w => w.employeeId === employeeId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const totalWithdrawn = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+    const balance = totalAccrued - totalWithdrawn;
+
+    res.json({
+        employeeId,
+        settings,
+        totalDays,
+        totalAccrued,
+        totalWithdrawn,
+        balance,
+        withdrawals
+    });
+});
+
+
+
+// Helper: Count working days in a range
 // Helper: Count working days in a range
 function countWorkingDays(data, employeeId, startStr, endStr) {
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-    const now = new Date(); // Cap at today? Usually specificied end date is future.
+    // Use string comparison YYYY-MM-DD to be timezone safe
+    // Assumptions: startStr, endStr, and e.date are all YYYY-MM-DD strings
+    // Use local time for 'today' to avoid clipping current day due to UTC lag
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    // Cap calculation at Today if end date is in future? 
-    // Yes, bonus only accrues for days actually worked.
-    const effectiveEnd = end > now ? now : end;
+    // Cap calculation at Today if end date is in future
+    // Bonus only accrues for days actually passed/worked
+    const effectiveEnd = endStr > today ? today : endStr;
 
     return (data.timesheet_entries || []).filter(e => {
-        const d = new Date(e.date);
         return e.employeeId === employeeId &&
-            d >= start && d <= effectiveEnd && // Within range
-            (e.clockIn || e.shiftStart) // Present
+            e.date >= startStr && e.date <= effectiveEnd && // Within range (inclusive)
+            (e.clockIn || e.shiftStart) // Present (has shift or clock in)
     }).length;
 }
 
@@ -484,8 +589,26 @@ app.get('/api/payroll/period', (req, res) => {
     const data = readData();
     const payrollEntries = data.payroll_entries || [];
 
-    // Map over all employees to find their status for this period
-    const periodPayroll = data.employees.map(emp => {
+
+    // Filter out resigned employees from payroll cycle UNLESS they are in their final settlement period
+    // i.e. if their lastWorkingDay is within or after the period starts
+    const activeEmployees = data.employees.filter(emp => {
+        if (emp.status !== 'Resigned') return true;
+
+        // Use lastWorkingDay to determine eligibility
+        // If they have no lastWorkingDay, assume they are fully resigned (exclude)
+        if (!emp.lastWorkingDay) return false;
+
+        const lastDay = new Date(emp.lastWorkingDay);
+        const periodStartObj = new Date(start);
+
+        // Include if their last working day is on or after the period start
+        // This ensures they appear for the final settlement period
+        return lastDay >= periodStartObj;
+    });
+
+    // Map over active/eligible employees to find their status for this period
+    const periodPayroll = activeEmployees.map(emp => {
         // ALWAYS recalculate to get fresh data (including new deductions/advances)
         // This ensures the frontend sees the latest state immediately
         const recalculated = recalculatePayrollForPeriod(data, emp.id, start, end);
@@ -528,12 +651,19 @@ app.get('/api/payroll/period', (req, res) => {
                 grossPay: emp.salary || 0,
                 deductions: 0,
                 advanceDeductions: 0,
+                loanDeductions: 0, // Add explicit loanDeductions init
                 netPay: emp.salary || 0,
                 status: 'Unpaid',
-                paidAt: null
+                paidAt: null,
+                isAdjusted: false
             };
         }
     });
+
+    // CRITICAL FIX: Persist the recalculated payroll entries to disk.
+    // This ensures that when we click "Pay Now", the backend reads the fresh, accurate data
+    // instead of stale data from the file.
+    writeData(data);
 
     res.json(periodPayroll);
 });
@@ -628,9 +758,9 @@ app.post('/api/payroll/status', (req, res) => {
     res.json(updatedEntries);
 });
 
-// Mark employees as Paid
+// Mark employees as Paid - Creates a FROZEN SNAPSHOT of all payslip data
 app.post('/api/payroll/mark-paid', (req, res) => {
-    const { employeeIds } = req.body;
+    const { employeeIds, periodStart, periodEnd } = req.body;
     const data = readData();
     if (!data.payroll_entries) data.payroll_entries = [];
     if (!data.audit_logs) data.audit_logs = [];
@@ -639,10 +769,145 @@ app.post('/api/payroll/mark-paid', (req, res) => {
     const actor = `${req.userRole} (${req.ip})`;
 
     employeeIds.forEach(employeeId => {
-        const entry = data.payroll_entries.find(p => p.employeeId === employeeId);
+        // Find or create the payroll entry for this employee & period
+        let entry = data.payroll_entries.find(p =>
+            p.employeeId === employeeId &&
+            p.periodStart === periodStart &&
+            p.periodEnd === periodEnd
+        );
+
+        // If no entry exists, we need to create one with recalculated values
+        if (!entry) {
+            const calcResult = recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd);
+            if (calcResult) {
+                entry = data.payroll_entries.find(p =>
+                    p.employeeId === employeeId &&
+                    p.periodStart === periodStart
+                );
+            }
+        }
+
         if (entry) {
+            // --- CREATE FROZEN SNAPSHOT ---
+            const employee = data.employees.find(e => e.id === employeeId);
+
+            // 1. Freeze Employee Info
+            entry.frozenEmployeeName = employee?.name || 'Unknown';
+            entry.frozenEmployeeRole = employee?.role || 'Unknown';
+            entry.frozenEmployeeImage = employee?.image || null;
+            entry.frozenPerShiftAmount = employee?.perShiftAmount;
+            entry.frozenHourlyRate = employee?.hourlyRate;
+            entry.frozenSalary = employee?.salary;
+
+            // 2. Freeze Timesheet Details
+            const start = new Date(periodStart);
+            const end = new Date(periodEnd);
+            const periodEntries = (data.timesheet_entries || []).filter(e => {
+                const entryDate = new Date(e.date);
+                return e.employeeId === employeeId &&
+                    entryDate >= start &&
+                    entryDate <= end &&
+                    e.status === 'active';
+            });
+
+            const standardShiftEnd = employee?.shiftEnd || '18:00';
+            entry.frozenTimesheet = periodEntries.map(e => {
+                const clockIn = e.clockIn || e.shiftStart || '';
+                const clockOut = e.clockOut || e.shiftEnd || '';
+                const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, standardShiftEnd);
+                return {
+                    date: e.date,
+                    clockIn: clockIn || '-',
+                    clockOut: clockOut || '-',
+                    breakMinutes: e.breakMinutes || 0,
+                    totalMinutes: calc.totalMinutes,
+                    billableMinutes: calc.billableMinutes,
+                    overtimeMinutes: calc.overtimeMinutes,
+                    nightStatus: calc.nightStatus,
+                    dinnerBreakDeduction: calc.dinnerBreakDeduction
+                };
+            }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // 3. Freeze Deductions (Advances & Loans)
+            const periodDeductions = (data.deductions || []).filter(d =>
+                d.employeeId === employeeId &&
+                d.periodStart === periodStart &&
+                d.periodEnd === periodEnd &&
+                d.status === 'active'
+            );
+
+            entry.frozenAdvances = periodDeductions
+                .filter(d => d.type === 'advance')
+                .map(d => {
+                    let advanceDate = periodStart;
+                    if (d.linkedAdvanceId) {
+                        const linkedAdvance = (data.advance_salaries || []).find(a => a.id === d.linkedAdvanceId);
+                        if (linkedAdvance && linkedAdvance.dateIssued) {
+                            advanceDate = linkedAdvance.dateIssued;
+                        }
+                    }
+                    return {
+                        id: d.id,
+                        date: advanceDate,
+                        amount: d.amount,
+                        reason: d.description || 'Advance Salary'
+                    };
+                });
+
+            entry.frozenLoans = periodDeductions
+                .filter(d => d.type === 'loan')
+                .map(d => ({
+                    id: d.id,
+                    description: d.description,
+                    amount: d.amount
+                }));
+
+            // 4. Freeze Loan Summary
+            const activeLoan = (data.loans || []).find(l => l.employeeId === employeeId && l.status === 'active');
+            if (activeLoan) {
+                const entryStart = new Date(periodStart);
+                const allLoanDeductions = (data.deductions || []).filter(d =>
+                    d.employeeId === employeeId &&
+                    d.type === 'loan' &&
+                    d.status === 'active'
+                );
+                const previousRepayments = allLoanDeductions
+                    .filter(d => new Date(d.periodEnd) < entryStart)
+                    .reduce((sum, d) => sum + Number(d.amount), 0);
+                const currentPeriodRepayment = periodDeductions
+                    .filter(d => d.type === 'loan')
+                    .reduce((sum, d) => sum + Number(d.amount), 0);
+                const openingBalance = activeLoan.amount - previousRepayments;
+                const remainingBalance = openingBalance - currentPeriodRepayment;
+
+                if (openingBalance > 0) {
+                    entry.frozenLoanSummary = {
+                        loanDate: activeLoan.date,
+                        originalAmount: activeLoan.amount,
+                        openingBalance: openingBalance,
+                        currentDeduction: currentPeriodRepayment,
+                        remainingBalance: Math.max(0, remainingBalance)
+                    };
+                }
+            }
+
+            // 5. Freeze Bonus Info
+            const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
+            const ytdBonusDays = countWorkingDays(data, employeeId, bonusSettings.startDate, bonusSettings.endDate);
+            const ytdBonusAccrued = ytdBonusDays * bonusSettings.amountPerDay;
+            const totalWithdrawn = (data.bonus_withdrawals || [])
+                .filter(w => w.employeeId === employeeId)
+                .reduce((sum, w) => sum + w.amount, 0);
+
+            entry.frozenBonus = {
+                ytdDays: ytdBonusDays,
+                balance: ytdBonusAccrued - totalWithdrawn
+            };
+
+            // 6. Mark as Paid
             entry.status = 'Paid';
             entry.paidAt = timestamp;
+            entry.isFrozen = true; // Flag to indicate this payslip is frozen
 
             data.audit_logs.push({
                 id: Date.now() + '-log',
@@ -650,7 +915,7 @@ app.post('/api/payroll/mark-paid', (req, res) => {
                 targetId: entry.id,
                 actor,
                 timestamp,
-                details: `Marked employee ${employeeId} as Paid`
+                details: `Marked employee ${employeeId} as Paid (Payslip Frozen)`
             });
         }
     });
@@ -689,6 +954,98 @@ app.post('/api/payroll/mark-unpaid', (req, res) => {
                 details: `Reversed payment for employee ${employeeId}`
             });
         }
+    });
+
+    writeData(data);
+    res.json({ success: true });
+});
+
+// --- PAYROLL PERIOD LOCK MANAGEMENT ---
+
+// Get Current Locked Period
+app.get('/api/payroll/locked-period', (req, res) => {
+    const data = readData();
+
+    if (!data.settings) data.settings = {};
+    if (!data.settings.lockedPayrollPeriod) {
+        // No locked period - return null
+        return res.json({ locked: false, period: null });
+    }
+
+    res.json({
+        locked: true,
+        period: data.settings.lockedPayrollPeriod
+    });
+});
+
+// Set and Lock Payroll Period
+app.post('/api/payroll/lock-period', (req, res) => {
+    const { start, end, lockedBy } = req.body;
+    const data = readData();
+
+    if (!start || !end) {
+        return res.status(400).json({ error: 'Start and end dates are required' });
+    }
+
+    if (!data.settings) data.settings = {};
+    if (!data.audit_logs) data.audit_logs = [];
+
+    const timestamp = new Date().toISOString();
+    const actor = lockedBy || `${req.userRole} (${req.ip})`;
+
+    // Set locked period
+    data.settings.lockedPayrollPeriod = {
+        start,
+        end,
+        lockedAt: timestamp,
+        lockedBy: actor,
+        locked: true
+    };
+
+    // Audit log
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'PAYROLL_PERIOD_LOCKED',
+        targetId: 'PAYROLL_PERIOD',
+        actor,
+        timestamp,
+        details: `Locked payroll period: ${start} to ${end}`
+    });
+
+    writeData(data);
+    res.json({
+        success: true,
+        period: data.settings.lockedPayrollPeriod
+    });
+});
+
+// Unlock Payroll Period
+app.post('/api/payroll/unlock-period', (req, res) => {
+    const data = readData();
+
+    if (!data.settings) data.settings = {};
+    if (!data.audit_logs) data.audit_logs = [];
+
+    const previousPeriod = data.settings.lockedPayrollPeriod;
+
+    if (!previousPeriod) {
+        return res.status(400).json({ error: 'No locked period to unlock' });
+    }
+
+    const timestamp = new Date().toISOString();
+    const actor = `${req.userRole} (${req.ip})`;
+
+    // Remove locked period
+    delete data.settings.lockedPayrollPeriod;
+
+    // Audit log
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'PAYROLL_PERIOD_UNLOCKED',
+        targetId: 'PAYROLL_PERIOD',
+        actor,
+        timestamp,
+        details: `Unlocked payroll period: ${previousPeriod.start} to ${previousPeriod.end}`
     });
 
     writeData(data);
@@ -840,21 +1197,31 @@ app.post('/api/advance-salary', (req, res) => {
 
     data.advance_salaries.push(advance);
 
-    // Calculate next payroll period (assuming bi-weekly from Dec 5, 2025)
-    const anchor = new Date('2025-12-05');
-    const today = new Date(dateIssued);
-    const daysSinceAnchor = Math.floor((today - anchor) / (1000 * 60 * 60 * 24));
-    const currentCycle = Math.floor(daysSinceAnchor / 14);
+    // Use provided period if available (from frontend context), otherwise calculate
+    let periodStart, periodEnd;
 
-    // Deduct in the CURRENT period (so it shows up immediately in the active payroll)
-    const cycleStart = new Date(anchor);
-    cycleStart.setDate(anchor.getDate() + (currentCycle * 14));
+    if (req.body.periodStart && req.body.periodEnd) {
+        periodStart = req.body.periodStart;
+        periodEnd = req.body.periodEnd;
+        console.log(`[ADVANCE_SALARY] Using provided period: ${periodStart} to ${periodEnd}`);
+    } else {
+        // Calculate next payroll period (assuming bi-weekly from Dec 8, 2025)
+        const anchor = new Date('2025-12-08');
+        const today = new Date(dateIssued);
+        const daysSinceAnchor = Math.floor((today - anchor) / (1000 * 60 * 60 * 24));
+        const currentCycle = Math.floor(daysSinceAnchor / 14);
 
-    const cycleEnd = new Date(cycleStart);
-    cycleEnd.setDate(cycleStart.getDate() + 13);
+        // Deduct in the CURRENT period (so it shows up immediately in the active payroll)
+        const cycleStart = new Date(anchor);
+        cycleStart.setDate(anchor.getDate() + (currentCycle * 14));
 
-    const periodStart = cycleStart.toISOString().split('T')[0];
-    const periodEnd = cycleEnd.toISOString().split('T')[0];
+        const cycleEnd = new Date(cycleStart);
+        cycleEnd.setDate(cycleStart.getDate() + 13);
+
+        periodStart = cycleStart.toISOString().split('T')[0];
+        periodEnd = cycleEnd.toISOString().split('T')[0];
+        console.log(`[ADVANCE_SALARY] Calculated period from ${dateIssued}: ${periodStart} to ${periodEnd}`);
+    }
 
     // Auto-create deduction for next period
     const deduction = {
@@ -916,10 +1283,29 @@ app.get('/api/advance-salary', (req, res) => {
     res.json(results);
 });
 
+// Alias for /api/advances (for resigned employee history)
+app.get('/api/advances', (req, res) => {
+    const { employeeId } = req.query;
+    const data = readData();
+
+    if (!data.advance_salaries) data.advance_salaries = [];
+
+    let results = data.advance_salaries;
+
+    if (employeeId) {
+        results = results.filter(a => a.employeeId === parseInt(employeeId));
+    }
+
+    // Sort by newest first
+    results.sort((a, b) => new Date(b.dateIssued) - new Date(a.dateIssued));
+
+    res.json(results);
+});
+
 // Update Advance Salary
 app.patch('/api/advance-salary/:id', (req, res) => {
     const { id } = req.params;
-    const { amount, dateIssued, reason } = req.body;
+    const { amount, dateIssued, reason, periodStart, periodEnd } = req.body;
     const data = readData();
 
     if (!data.advance_salaries) data.advance_salaries = [];
@@ -939,11 +1325,18 @@ app.patch('/api/advance-salary/:id', (req, res) => {
     // Update Linked Deduction
     const deductionIndex = data.deductions.findIndex(d => d.linkedAdvanceId === id);
     if (deductionIndex !== -1) {
-        data.deductions[deductionIndex] = {
+        // Prepare update object
+        const updatedDeduction = {
             ...data.deductions[deductionIndex],
             amount: parseFloat(amount),
             description: `Advance Salary - ${dateIssued}` // Update description in case date changed
         };
+
+        // Explicitly update period if provided (Critical for correcting period assignment)
+        if (periodStart) updatedDeduction.periodStart = periodStart;
+        if (periodEnd) updatedDeduction.periodEnd = periodEnd;
+
+        data.deductions[deductionIndex] = updatedDeduction;
     }
 
     // Audit Log
@@ -1037,7 +1430,10 @@ app.get('/api/attendance/today', (req, res) => {
     const working = [];
     const notWorking = [];
 
-    data.employees.forEach(emp => {
+    // Filter out resigned employees from attendance
+    const activeEmployees = data.employees.filter(emp => emp.status !== 'Resigned');
+
+    activeEmployees.forEach(emp => {
         // Find today's timesheet entry
         const todayEntry = data.timesheet_entries.find(entry =>
             entry.employeeId === emp.id &&
@@ -1100,6 +1496,25 @@ app.get('/api/attendance/today', (req, res) => {
 });
 
 // --- TIMESHEET MANAGEMENT ---
+
+// Get all timesheet entries (optional: filter by employeeId)
+app.get('/api/timesheet', (req, res) => {
+    const { employeeId } = req.query;
+    const data = readData();
+
+    if (!data.timesheet_entries) data.timesheet_entries = [];
+
+    let results = data.timesheet_entries;
+
+    if (employeeId) {
+        results = results.filter(entry => entry.employeeId === parseInt(employeeId));
+    }
+
+    // Sort by date (newest first)
+    results.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json(results);
+});
 
 // Get Timesheet for Employee in Period
 app.get('/api/timesheet/:employeeId/:periodStart/:periodEnd', (req, res) => {
@@ -1282,16 +1697,43 @@ app.get('/api/payroll/:id', (req, res) => {
         return res.status(404).json({ error: 'Payroll entry not found' });
     }
 
+    // --- CHECK IF FROZEN (PAID) ---
+    // If the payslip is frozen (paid), return the frozen snapshot data
+    if (entry.isFrozen && entry.status === 'Paid') {
+        // Use frozen employee data
+        const response = {
+            ...entry,
+            employeeName: entry.frozenEmployeeName,
+            employeeRole: entry.frozenEmployeeRole,
+            employeeImage: entry.frozenEmployeeImage,
+            perShiftAmount: entry.frozenPerShiftAmount,
+            hourlyRate: entry.frozenHourlyRate,
+            salary: entry.frozenSalary,
+            details: {
+                timesheet: entry.frozenTimesheet || [],
+                advances: entry.frozenAdvances || [],
+                loans: entry.frozenLoans || [],
+                loanSummary: entry.frozenLoanSummary || null,
+                bonus: entry.frozenBonus || null
+            }
+        };
+        return res.json(response);
+    }
+
+    // --- UNPAID PAYSLIP: Calculate fresh details ---
     // Enhance with employee details
     const employee = data.employees.find(e => e.id === entry.employeeId);
     if (employee) {
         entry.employeeName = employee.name;
         entry.employeeRole = employee.role;
-        entry.employeeId = employee.id; // Ensure ID is present
+        entry.employeeImage = employee.image;
+        entry.employeeId = employee.id;
+        // Pass rate info for frontend Daily Earnings calculation
+        entry.perShiftAmount = employee.perShiftAmount;
+        entry.hourlyRate = employee.hourlyRate;
+        entry.salary = employee.salary;
     }
 
-    // --- Hydrate with Details (Timesheet, Advances, Loans) ---
-    // Even for saved payroll, we fetch fresh details to show the breakdown
     const start = new Date(entry.periodStart);
     const end = new Date(entry.periodEnd);
 
@@ -1313,7 +1755,8 @@ app.get('/api/payroll/:id', (req, res) => {
             clockOut: e.clockOut || e.shiftEnd || '-',
             breakMinutes: e.breakMinutes || 0,
             totalMinutes: calc.totalMinutes,
-            billableMinutes: calc.billableMinutes
+            billableMinutes: calc.billableMinutes,
+            overtimeMinutes: calc.overtimeMinutes
         };
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -1327,12 +1770,21 @@ app.get('/api/payroll/:id', (req, res) => {
 
     entry.details.advances = periodDeductions
         .filter(d => d.type === 'advance')
-        .map(d => ({
-            id: d.id,
-            date: d.date || d.createdAt || entry.periodStart,
-            amount: d.amount,
-            reason: d.description || 'Advance Salary'
-        }));
+        .map(d => {
+            let advanceDate = entry.periodStart;
+            if (d.linkedAdvanceId) {
+                const linkedAdvance = (data.advance_salaries || []).find(a => a.id === d.linkedAdvanceId);
+                if (linkedAdvance && linkedAdvance.dateIssued) {
+                    advanceDate = linkedAdvance.dateIssued;
+                }
+            }
+            return {
+                id: d.id,
+                date: advanceDate,
+                amount: d.amount,
+                reason: d.description || 'Advance Salary'
+            };
+        });
 
     entry.details.loans = periodDeductions
         .filter(d => d.type === 'loan')
@@ -1340,10 +1792,161 @@ app.get('/api/payroll/:id', (req, res) => {
             id: d.id,
             description: d.description,
             amount: d.amount,
-            remainingBalance: 'N/A'
+            remainingBalance: 'N/A' // Calculated in summary
         }));
 
+    // Ensure loanDeductions total is available for the response
+    if (entry.loanDeductions === undefined) {
+        entry.loanDeductions = entry.details.loans.reduce((sum, l) => sum + (l.amount || 0), 0);
+    }
+
+    // --- LOAN LOGIC ---
+    if (!data.loans) data.loans = [];
+    // Determine the relevant loan (Active or implicitly active via deductions)
+    let activeLoan = data.loans.find(l => l.employeeId === entry.employeeId && l.status === 'active');
+
+    // Fallback: If we have deductions but no "active" loan found, grab the most recent one
+    if (!activeLoan && entry.loanDeductions > 0) {
+        const employeeLoans = data.loans
+            .filter(l => l.employeeId === entry.employeeId)
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (employeeLoans.length > 0) {
+            activeLoan = employeeLoans[0];
+        }
+    }
+
+    if (activeLoan) {
+        const entryStart = new Date(entry.periodStart);
+        const allLoanDeductions = (data.deductions || []).filter(d =>
+            d.employeeId === entry.employeeId &&
+            d.type === 'loan' &&
+            d.status === 'active'
+        );
+        const previousRepayments = allLoanDeductions
+            .filter(d => new Date(d.periodEnd) < entryStart)
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+        const currentPeriodRepayment = periodDeductions
+            .filter(d => d.type === 'loan')
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+        const openingBalance = activeLoan.amount - previousRepayments;
+        const remainingBalance = openingBalance - currentPeriodRepayment;
+
+        // ALWAYS show summary if we found a relevant loan, to ensure visibility on payslip
+        entry.details.loanSummary = {
+            loanDate: activeLoan.date,
+            originalAmount: activeLoan.amount,
+            openingBalance: openingBalance,
+            currentDeduction: currentPeriodRepayment,
+            remainingBalance: Math.max(0, remainingBalance)
+        };
+    }
+
+    // 3. Bonus Stats
+    const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
+    const accruedDays = countWorkingDays(data, entry.employeeId, bonusSettings.startDate, bonusSettings.endDate);
+    const totalAccrued = accruedDays * bonusSettings.amountPerDay;
+    const totalWithdrawn = (data.bonus_withdrawals || [])
+        .filter(w => w.employeeId === entry.employeeId)
+        .reduce((sum, w) => sum + w.amount, 0);
+
+    entry.details.bonus = {
+        ytdDays: accruedDays,
+        balance: totalAccrued - totalWithdrawn
+    };
+
     res.json(entry);
+});
+
+// Get Loans (optionally filter by employeeId)
+app.get('/api/loans', (req, res) => {
+    const data = readData();
+    const { employeeId } = req.query;
+
+    let loans = data.loans || [];
+
+    if (employeeId) {
+        loans = loans.filter(l => l.employeeId === parseInt(employeeId));
+    }
+
+    res.json(loans);
+});
+
+// Create New Loan
+app.post('/api/loans', (req, res) => {
+    const data = readData();
+    const { employeeId, amount, date } = req.body;
+
+    if (!data.loans) data.loans = [];
+
+    // Check if already has active loan
+    const existing = data.loans.find(l => l.employeeId === parseInt(employeeId) && l.status === 'active');
+    if (existing) {
+        return res.status(400).json({ error: 'Employee already has an active loan. Close it first.' });
+    }
+
+    const newLoan = {
+        id: `loan-${Date.now()}`,
+        employeeId: parseInt(employeeId),
+        amount: parseFloat(amount),
+        date: date,
+        status: 'active',
+        createdAt: new Date().toISOString()
+    };
+
+    data.loans.push(newLoan);
+    writeData(data);
+
+    // Audit log
+    if (!data.audit_logs) data.audit_logs = [];
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'LOAN_ISSUED',
+        targetId: employeeId,
+        actor: `${req.userRole || 'admin'} (${req.ip})`,
+        timestamp: new Date().toISOString(),
+        details: `Issued Loan: ₹${amount}`
+    });
+    writeData(data);
+
+    res.json({ success: true, loan: newLoan });
+});
+
+// Update Loan (Edit)
+app.patch('/api/loans/:id', (req, res) => {
+    const data = readData();
+    const loanId = req.params.id;
+    const { amount, date } = req.body;
+
+    if (!data.loans) data.loans = [];
+
+    const loanIndex = data.loans.findIndex(l => l.id === loanId);
+    if (loanIndex === -1) {
+        return res.status(404).json({ error: 'Loan not found' });
+    }
+
+    const loan = data.loans[loanIndex];
+    const oldAmount = loan.amount;
+
+    // Update loan fields
+    if (amount !== undefined) loan.amount = parseFloat(amount);
+    if (date !== undefined) loan.date = date;
+    loan.updatedAt = new Date().toISOString();
+
+    data.loans[loanIndex] = loan;
+
+    // Audit log
+    if (!data.audit_logs) data.audit_logs = [];
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: 'LOAN_UPDATED',
+        targetId: loan.employeeId,
+        actor: `${req.userRole || 'admin'} (${req.ip})`,
+        timestamp: new Date().toISOString(),
+        details: `Updated Loan: ₹${oldAmount} → ₹${loan.amount}`
+    });
+
+    writeData(data);
+    res.json({ success: true, loan });
 });
 
 // Helper: Calculate shift hours with OT and Dinner Break
@@ -1527,7 +2130,6 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         } else {
             grossPay = parseFloat(employee.perShiftAmount) * workingDays;
         }
-
     } else if (employee.hourlyRate) {
         hourlyRate = employee.hourlyRate;
         grossPay = hourlyRate * totalBillableHours;
@@ -1602,19 +2204,36 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
 
     const formattedAdvances = periodDeductions
         .filter(d => d.type === 'advance')
-        .map(d => ({
-            id: d.id,
-            date: d.date || d.createdAt || periodStart,
-            amount: d.amount,
-            reason: d.description || 'Advance Salary'
-        }));
+        .map(d => {
+            // Find the linked advance salary record to get the actual date
+            let advanceDate = periodStart; // fallback
+            if (d.linkedAdvanceId) {
+                const linkedAdvance = (data.advance_salaries || []).find(a => a.id === d.linkedAdvanceId);
+                if (linkedAdvance && linkedAdvance.dateIssued) {
+                    advanceDate = linkedAdvance.dateIssued;
+                }
+            }
 
+            return {
+                id: d.id,
+                date: advanceDate,
+                amount: d.amount,
+                reason: d.description || 'Advance Salary'
+            };
+        });
+
+
+    // Calculate specifically the loan component (Total Amount)
+    const totalLoanDeductions = periodDeductions
+        .filter(d => d.type === 'loan')
+        .reduce((sum, d) => sum + (d.amount || 0), 0);
 
     if (payrollEntry) {
         // Update existing
         payrollEntry.grossPay = grossPay;
         payrollEntry.deductions = totalDeductions;
         payrollEntry.advanceDeductions = advanceDeductions;
+        payrollEntry.loanDeductions = totalLoanDeductions; // Add this
         payrollEntry.netPay = netPay;
         payrollEntry.totalBillableMinutes = totalBillableMinutes;
         payrollEntry.workingDays = workingDays;
@@ -1625,23 +2244,22 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
             payrollEntry.adjustmentAmount = netPay - previousNetPay;
         }
     } else {
-        // Create new entry
+        // Create new
         payrollEntry = {
-            id: `pay-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: `pay-${Date.now()}-${employeeId}`,
             employeeId: parseInt(employeeId),
             periodStart,
             periodEnd,
             grossPay,
             deductions: totalDeductions,
             advanceDeductions,
+            loanDeductions: totalLoanDeductions, // Add this
             netPay,
+            status: 'Pending',
             totalBillableMinutes,
             workingDays,
-            status: 'Unpaid',
-            paidAt: null,
-            isAdjusted: false,
-            overtimePay, // New
-            totalOvertimeMinutes // New
+            overtimePay,
+            totalOvertimeMinutes
         };
         data.payroll_entries.push(payrollEntry);
     }
@@ -1665,6 +2283,43 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
 
     const bonusBalance = ytdBonusAccrued - totalWithdrawn;
 
+    // --- LOAN SUMMARY CALCULATION ---
+    if (!data.loans) data.loans = [];
+    let activeLoan = data.loans.find(l => l.employeeId === parseInt(employeeId) && l.status === 'active');
+
+    // Fallback if no active loan but we have loan deductions
+    if (!activeLoan && totalLoanDeductions > 0) {
+        const employeeLoans = data.loans
+            .filter(l => l.employeeId === parseInt(employeeId))
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (employeeLoans.length > 0) activeLoan = employeeLoans[0];
+    }
+
+    let loanSummary = null;
+    if (activeLoan) {
+        const entryStart = new Date(periodStart);
+        const allLoanDeductions = (data.deductions || []).filter(d =>
+            d.employeeId === parseInt(employeeId) &&
+            d.type === 'loan' &&
+            d.status === 'active'
+        );
+        const previousRepayments = allLoanDeductions
+            .filter(d => new Date(d.periodEnd) < entryStart)
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+
+        // currentPeriodRepayment is essentially totalLoanDeductions
+        const openingBalance = activeLoan.amount - previousRepayments;
+        const remainingBalance = openingBalance - totalLoanDeductions;
+
+        loanSummary = {
+            loanDate: activeLoan.date,
+            originalAmount: activeLoan.amount,
+            openingBalance: openingBalance,
+            currentDeduction: totalLoanDeductions,
+            remainingBalance: Math.max(0, remainingBalance)
+        };
+    }
+
     return {
         employeeId: parseInt(employeeId),
         employeeName: employee.name,
@@ -1682,9 +2337,8 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         details: {
             timesheet: formattedTimesheet,
             advances: formattedAdvances,
-            timesheet: formattedTimesheet,
-            advances: formattedAdvances,
             loans: formattedLoans,
+            loanSummary: loanSummary,
             // New Bonus Section Data
             bonus: {
                 currentCycleDays: currentCycleBonusDays,

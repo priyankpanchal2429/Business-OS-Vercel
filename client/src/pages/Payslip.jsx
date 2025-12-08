@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Printer, Moon, User } from 'lucide-react';
 
 const Payslip = () => {
     const { id } = useParams();
@@ -35,6 +35,13 @@ const Payslip = () => {
                 const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
+                    console.log('[Payslip] Loaded data:', {
+                        employeeName: data.employeeName,
+                        advanceDeductions: data.advanceDeductions,
+                        'details.advances': data.details?.advances,
+                        periodStart: data.periodStart,
+                        periodEnd: data.periodEnd
+                    });
                     setEntry(data);
                 } else {
                     addToast('Payslip not found.', 'error');
@@ -47,7 +54,30 @@ const Payslip = () => {
                 setLoading(false);
             }
         };
+
         fetchPayslip();
+
+        // Listen for advance salary updates
+        const handleAdvanceUpdate = (event) => {
+            console.log('[Payslip] Advance salary updated, refreshing payslip...');
+            setLoading(true);
+            fetchPayslip();
+        };
+
+        // Listen for payroll updates
+        const handlePayrollUpdate = (event) => {
+            console.log('[Payslip] Payroll updated, refreshing payslip...');
+            setLoading(true);
+            fetchPayslip();
+        };
+
+        window.addEventListener('advanceSalaryUpdated', handleAdvanceUpdate);
+        window.addEventListener('payrollUpdated', handlePayrollUpdate);
+
+        return () => {
+            window.removeEventListener('advanceSalaryUpdated', handleAdvanceUpdate);
+            window.removeEventListener('payrollUpdated', handlePayrollUpdate);
+        };
     }, [id, location.search, navigate, addToast]);
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading Payslip...</div>;
@@ -82,565 +112,401 @@ const Payslip = () => {
     };
 
     return (
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ background: '#f5f5f7', minHeight: '100vh', padding: '20px 0', fontFamily: 'Inter, sans-serif' }}>
             {/* Header / Actions - Hidden when printing */}
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
+            <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 15px auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button
                     onClick={() => navigate('/payroll')}
                     style={{
-                        background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                        color: 'var(--color-text-secondary)', fontSize: '0.9rem'
+                        background: 'white', border: '1px solid #e1e1e1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                        color: '#666', fontSize: '13px', padding: '8px 16px', borderRadius: '8px', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                     }}
                 >
-                    <ArrowLeft size={18} /> Back to Payroll
+                    <ArrowLeft size={16} /> Back
                 </button>
-                <div style={{ display: 'flex', gap: 12 }}>
-                    <button
-                        onClick={handlePrint}
-                        style={{
-                            background: 'var(--color-accent)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
-                            padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 500
-                        }}
-                    >
-                        <Printer size={16} /> Print Payslip
-                    </button>
-                </div>
+                <button
+                    onClick={handlePrint}
+                    style={{
+                        background: '#000', color: 'white', border: 'none', borderRadius: '8px',
+                        padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600,
+                        fontSize: '13px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    <Printer size={16} /> Print Payslip
+                </button>
             </div>
 
-            {/* Payslip Container */}
-            <div id="payslip-content" className="payslip-container">
-                {/* Company Header */}
-                {/* Header Section Matching Reference Image */}
-                <div className="top-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', paddingBottom: '10px' }}>
+            {/* A4 Page Container */}
+            <div id="payslip-content" className="a4-page">
 
-                    {/* LEFT SIDE: Title & Period */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h1 style={{ margin: '0 0 20px 0', fontSize: '28px', color: '#111', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>2 Week Payslip</h1>
-
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Pay Period
-                        </div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#000', marginBottom: '2px' }}>
-                            {formatDate(entry.periodStart)} – {formatDate(entry.periodEnd)}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#666' }}>
-                            Expected: {entry.workingDays} Days
-                        </div>
+                {/* 1. Top Section (Header + Employee Card) */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '3px solid #000', paddingBottom: '25px' }}>
+                    {/* Left: Title & Date Range */}
+                    <div>
+                        <h1 style={{ margin: 0, fontSize: '42px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-1px', lineHeight: 1 }}>Payslip</h1>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '15px', color: '#777', fontWeight: 500 }}>
+                            {formatDate(entry.periodStart)} — {formatDate(entry.periodEnd)}
+                        </p>
                     </div>
 
-                    {/* RIGHT SIDE: Photo & Employee Info */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: '120px' }}>
-                        {entry.employeeImage ? (
-                            <img
-                                src={entry.employeeImage}
-                                alt=""
-                                style={{
-                                    width: '64px',
-                                    height: '64px',
-                                    borderRadius: '12px',
-                                    objectFit: 'cover',
-                                    marginBottom: '8px',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                }}
-                            />
-                        ) : (
-                            <div style={{
-                                width: '64px',
-                                height: '64px',
-                                borderRadius: '12px',
-                                background: '#f5f5f5',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginBottom: '8px',
-                                color: '#ccc',
-                                border: '1px solid #eee'
-                            }}>
-                                <span style={{ fontSize: '24px' }}>👤</span>
+                    {/* Right: Employee Card */}
+                    <div style={{
+                        background: '#f5f5f5',
+                        padding: '16px 24px',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '40px',
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+                    }}>
+                        {/* Avatar & Identity */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, overflow: 'hidden', border: '2px solid white', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                                {entry.employeeImage ? (
+                                    <img src={entry.employeeImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <User size={28} color="white" />
+                                )}
                             </div>
-                        )}
-                        <div style={{ fontSize: '16px', fontWeight: 700, color: '#000', lineHeight: '1.2' }}>
-                            {entry.employeeName}
+                            <div>
+                                <div style={{ fontSize: '17px', fontWeight: 800, color: '#111', lineHeight: 1.2 }}>{entry.employeeName}</div>
+                                <div style={{ fontSize: '13px', color: '#888', fontWeight: 500 }}>{entry.employeeRole}</div>
+                            </div>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
-                            {entry.employeeRole}
+
+                        {/* Stats */}
+                        <div style={{ display: 'flex', gap: '32px', textAlign: 'right' }}>
+                            <div>
+                                <div style={{ fontSize: '10px', color: '#aaa', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Pay Date</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#000' }}>{new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '10px', color: '#aaa', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Working Days</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#000' }}>{Math.floor((entry.details?.timesheet?.length || 0))} Days</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* --- DETAILED SECTIONS (Compact for Print) --- */}
-
-                {/* 1. Timesheet Summary */}
+                {/* Timesheet Details (Moved) */}
                 {entry.details?.timesheet?.length > 0 && (
-                    <div className="section-container avoid-break">
-                        <h3 className="section-header">Timesheet Summary</h3>
-                        <table className="details-table">
+                    <section style={{ marginBottom: '20px' }}>
+                        <h3 className="sub-header" style={{ marginBottom: '10px' }}>Timesheet Details</h3>
+                        <table className="compact-table">
                             <thead>
                                 <tr>
-                                    <th style={{ textAlign: 'left' }}>Date</th>
-                                    <th style={{ textAlign: 'center' }}>In</th>
-                                    <th style={{ textAlign: 'center' }}>Out</th>
-                                    <th style={{ textAlign: 'center' }}>Break</th>
-                                    <th style={{ textAlign: 'center' }}>Shift</th>
+                                    <th>Date</th>
+                                    <th>Time In</th>
+                                    <th>Time Out</th>
+                                    <th>Break</th>
+                                    <th>Shift</th>
                                     <th style={{ textAlign: 'right' }}>OT</th>
+                                    <th style={{ textAlign: 'right' }}>Hours</th>
                                     <th style={{ textAlign: 'right' }}>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {entry.details.timesheet.map((row, idx) => (
-                                    <tr key={idx}>
-                                        <td>{formatDate(row.date)}</td>
-                                        <td style={{ textAlign: 'center' }}>{formatTime12h(row.clockIn)}</td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            {formatTime12h(row.clockOut)}
-                                        </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            {row.breakMinutes}m
-                                        </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            {row.nightStatus ? 'Night' : 'Std'}
-                                        </td>
-                                        <td style={{ textAlign: 'right', color: row.overtimeMinutes > 0 ? '#000' : '#888' }}>
-                                            {row.overtimeMinutes > 0 ? `${(row.overtimeMinutes / 60).toFixed(1)}h` : '-'}
-                                        </td>
-                                        <td style={{ textAlign: 'right', fontWeight: 500 }}>
-                                            {Math.floor(row.billableMinutes / 60)}:{(row.billableMinutes % 60).toString().padStart(2, '0')}min
-                                        </td>
-                                    </tr>
-                                ))}
+                                {entry.details.timesheet.map((row, idx) => {
+                                    const isSunday = new Date(row.date).getDay() === 0;
+                                    return (
+                                        <tr key={idx} style={{
+                                            background: row.nightStatus ? '#fffde7' : 'transparent',
+                                            color: isSunday ? '#d32f2f' : 'inherit'
+                                        }}>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    {new Date(row.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                                    {row.nightStatus && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
+                                                </div>
+                                            </td>
+                                            <td>{formatTime12h(row.clockIn)}</td>
+                                            <td>{formatTime12h(row.clockOut)}</td>
+                                            <td>{row.breakMinutes > 0 ? `${row.breakMinutes}m` : '-'}</td>
+                                            <td>{row.nightStatus ? 'Night' : '-'}</td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                {row.overtimeMinutes > 0 ? `${(row.overtimeMinutes / 60).toFixed(1)}h` : '-'}
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                {Math.floor(row.billableMinutes / 60)}h {(row.billableMinutes % 60)}m
+                                            </td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                {(() => {
+                                                    const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
+                                                    return hourlyRate ? formatCurrency(hourlyRate * (row.billableMinutes / 60)) : '-';
+                                                })()}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, paddingTop: '10px', borderTop: '2px solid #eee' }}>Total Amount</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 700, paddingTop: '10px', borderTop: '2px solid #eee' }}>
+                                        {formatCurrency(entry.details.timesheet.reduce((sum, row) => {
+                                            const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
+                                            return sum + (hourlyRate * (row.billableMinutes / 60));
+                                        }, 0))}
+                                    </td>
+                                </tr>
+                            </tfoot>
                         </table>
-                    </div>
+                    </section>
                 )}
 
-                {/* Earnings & Loan Summary Cards */}
-                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start', margin: '20px 0' }}>
+                {/* 3. Financial Summary (Split View) */}
+                {/* 3. Financial Summary (Split View) */}
+                {/* 3. Financial Summary (Consolidated View) */}
 
-                    {/* Earnings Card */}
-                    <div className="avoid-break" style={{
-                        border: '1px solid #0071e3',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        background: '#f8fbff',
-                        flex: 1,
-                        minWidth: '260px'
-                    }}>
-                        <h3 style={{
-                            margin: '0 0 12px 0',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            color: '#0071e3',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            borderBottom: '1px solid rgba(0, 113, 227, 0.2)',
-                            paddingBottom: '8px'
-                        }}>Earnings</h3>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '13px', color: '#333' }}>Basic Salary</span>
-                                <span style={{ fontSize: '13px', fontWeight: 600 }}>{formatCurrency(entry.grossPay - (entry.overtimePay || 0))}</span>
-                            </div>
 
-                            {entry.overtimePay > 0 && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#0071e3' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '13px' }}>Overtime Pay</span>
-                                        <span style={{ fontSize: '11px', opacity: 0.85 }}>({(entry.totalOvertimeMinutes / 60).toFixed(1)} hrs @ 1.5x)</span>
-                                    </div>
+
+                {/* 5. Additional Details (Bonus & Loans) */}
+                {/* 5. Additional Details (Bonus, Overtime) */}
+                {(entry.details?.bonus || Number(entry.overtimePay || 0) > 0) && (
+                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                        {/* Overtime */}
+                        {Number(entry.overtimePay || 0) > 0 && (
+                            <div className="info-card" style={{ border: '1px solid #fbc02d' }}>
+                                <div className="card-label">Overtime Summary</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                                    <span style={{ fontSize: '12px', color: '#555' }}>Total Hours</span>
+                                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{(Number(entry.totalOvertimeMinutes || 0) / 60).toFixed(1)} hrs</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                                    <span style={{ fontSize: '12px', color: '#555' }}>Amount</span>
                                     <span style={{ fontSize: '13px', fontWeight: 600 }}>{formatCurrency(entry.overtimePay)}</span>
                                 </div>
-                            )}
-
-                            {entry.isAdjusted && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#0071e3' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '13px' }}>Payoff</span>
-                                        <span style={{ fontSize: '11px', opacity: 0.85 }}>(Previous Period Adjustment)</span>
-                                    </div>
-                                    <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                                        {entry.adjustmentAmount > 0 ? '+' : ''}{formatCurrency(entry.adjustmentAmount)}
-                                    </span>
+                            </div>
+                        )}
+                        {/* Bonus */}
+                        {entry.details?.bonus && (
+                            <div className="info-card">
+                                <div className="card-label">Annual Bonus</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                                    <span style={{ fontSize: '12px', color: '#555' }}>Year to Date</span>
+                                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{entry.details.bonus.ytdDays} Days Accrued</span>
                                 </div>
-                            )}
-                        </div>
-
-                        <div style={{ borderTop: '1px solid rgba(0, 113, 227, 0.2)', margin: '12px 0 0 0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', color: '#333' }}>Total</span>
-                            <span style={{ fontSize: '16px', fontWeight: 700, color: '#0071e3' }}>
-                                {formatCurrency(entry.grossPay + (entry.isAdjusted ? entry.adjustmentAmount : 0))}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Advance Salary Card */}
-                    <div className="avoid-break" style={{
-                        border: '1px solid #ed6c02',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        background: '#fff9f5',
-                        flex: 1,
-                        minWidth: '200px'
-                    }}>
-                        <h3 style={{
-                            margin: '0 0 12px 0',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            color: '#ed6c02',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            borderBottom: '1px solid rgba(237, 108, 2, 0.2)',
-                            paddingBottom: '8px'
-                        }}>Advance Salary</h3>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '13px', color: '#333' }}>Total Advance</span>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#ed6c02' }}>{formatCurrency(entry.advanceDeductions)}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                                    <span style={{ fontSize: '12px', color: '#555' }}>Balance</span>
+                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#2e7d32' }}>{formatCurrency(entry.details.bonus.balance)}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div style={{ borderTop: '1px solid rgba(237, 108, 2, 0.2)', margin: '12px 0 0 0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', color: '#333' }}>Total</span>
-                            <span style={{ fontSize: '16px', fontWeight: 700, color: '#ed6c02' }}>
-                                {formatCurrency(entry.advanceDeductions)}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Loan Summary Card */}
-                    <div className="avoid-break" style={{
-                        border: '1px solid #d32f2f',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        background: '#fff5f5',
-                        flex: 1,
-                        minWidth: '200px'
-                    }}>
-                        <h3 style={{
-                            margin: '0 0 12px 0',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            color: '#d32f2f',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            borderBottom: '1px solid rgba(211, 47, 47, 0.2)',
-                            paddingBottom: '8px'
-                        }}>Loan Summary</h3>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '13px', color: '#333' }}>Other Deductions</span>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#d32f2f' }}>{formatCurrency(entry.deductions - (entry.advanceDeductions || 0))}</span>
-                            </div>
-                        </div>
-
-                        <div style={{ borderTop: '1px solid rgba(211, 47, 47, 0.2)', margin: '12px 0 0 0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', color: '#333' }}>Total</span>
-                            <span style={{ fontSize: '16px', fontWeight: 700, color: '#d32f2f' }}>
-                                {formatCurrency(entry.deductions - (entry.advanceDeductions || 0))}
-                            </span>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* Bonus Tracker (Card Style) */}
-                {entry.details?.bonus && (
-                    <div className="section-container avoid-break" style={{
-                        border: '1px solid #0071e3',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        background: '#f8fbff',
-                        marginTop: '20px',
-                        width: 'fit-content',
-                        minWidth: '200px'
-                    }}>
-                        <h3 style={{
-                            margin: '0 0 12px 0',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            color: '#0071e3',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            borderBottom: '1px solid rgba(0, 113, 227, 0.2)',
-                            paddingBottom: '8px'
-                        }}>
-                            Annual Bonus
-                        </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
-                                <span style={{ fontSize: '13px', color: '#555' }}>Total Days</span>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>{entry.details.bonus.ytdDays}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
-                                <span style={{ fontSize: '13px', color: '#555' }}>Balance</span>
-                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0071e3' }}>{formatCurrency(entry.details.bonus.balance)}</span>
-                            </div>
-                        </div>
-                    </div>
+                        )}
+                    </section>
                 )}
 
-                <div className="split-sections">
-                    {/* 2. Advance Salary Section */}
-                    {entry.details?.advances?.length > 0 && (
-                        <div className="section-container avoid-break" style={{ flex: 1 }}>
-                            <h3 className="section-header">Advance Salary</h3>
-                            <table className="details-table">
-                                <thead>
-                                    <tr>
-                                        <th style={{ textAlign: 'left' }}>Date</th>
-                                        <th style={{ textAlign: 'right' }}>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {entry.details.advances.map((adv, idx) => (
-                                        <tr key={idx}>
-                                            <td>{formatDate(adv.date)}</td>
-                                            <td style={{ textAlign: 'right', color: '#d32f2f' }}>
-                                                {formatCurrency(adv.amount)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                {/* 6. Loan Information (Red Border) */}
+                {/* 6. Loan Information (Red Border) */}
+                {/* 6. Combined Financial Section: Loan Summary & Earnings */}
+                <section style={{ display: 'grid', gridTemplateColumns: entry.details?.loanSummary ? '1fr 1fr' : '1fr', gap: '20px', marginBottom: '20px' }}>
+
+                    {/* Loan Summary (Left side if present) */}
+                    {entry.details?.loanSummary && (
+                        <div className="info-card" style={{ border: '1px solid #d32f2f' }}>
+                            <div className="card-label" style={{ marginBottom: '10px' }}>Loan Summary</div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '13px', color: '#555' }}>Original Amount</span>
+                                <span style={{ fontSize: '13px', fontWeight: 600 }}>{formatCurrency(entry.details.loanSummary.originalAmount)}</span>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #eee', margin: '8px 0' }}></div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', color: '#555' }}>Opening Balance</span>
+                                <span style={{ fontSize: '13px', fontWeight: 500 }}>{formatCurrency(entry.details.loanSummary.openingBalance)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', color: '#555' }}>Deduction</span>
+                                <span style={{ fontSize: '13px', color: '#d32f2f' }}>{formatCurrency(entry.details.loanSummary.currentDeduction)}</span>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #eee', margin: '8px 0' }}></div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#c62828' }}>Remaining Amount</span>
+                                <span style={{ fontSize: '14px', fontWeight: 800, color: '#c62828' }}>{formatCurrency(entry.details.loanSummary.remainingBalance)}</span>
+                            </div>
                         </div>
                     )}
 
-                    {/* 4. Loan Summary Section (Fits beside Advances if space allows, or stacked) */}
-                    {(entry.details?.loans?.length > 0) && (
-                        <div className="section-container avoid-break" style={{ flex: 1 }}>
-                            <h3 className="section-header">Loans</h3>
-                            <table className="details-table">
-                                <thead>
-                                    <tr>
-                                        <th style={{ textAlign: 'left' }}>Type</th>
-                                        <th style={{ textAlign: 'right' }}>Paid</th>
-                                        <th style={{ textAlign: 'right' }}>Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {entry.details.loans.map((loan, idx) => (
-                                        <tr key={idx}>
-                                            <td>{loan.description || 'Loan'}</td>
-                                            <td style={{ textAlign: 'right', color: '#d32f2f' }}>
-                                                {formatCurrency(loan.amount)}
-                                            </td>
-                                            <td style={{ textAlign: 'right', color: '#666' }}>
-                                                {loan.remainingBalance}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                    {/* Earnings Card */}
+                    <div className="info-card" style={{ border: '1px solid #2196f3' }}>
+                        <div className="card-label" style={{ marginBottom: '15px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>Earnings</div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '12px', color: '#555' }}>Basic Salary</span>
+                            <span style={{ fontSize: '13px', fontWeight: 600 }}>{formatCurrency(Number(entry.grossPay || 0) - Number(entry.overtimePay || 0))}</span>
                         </div>
-                    )}
-                </div>
 
+                        {Number(entry.overtimePay || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#555' }}>
+                                    Overtime <span style={{ fontSize: '10px', color: '#888' }}>({(Number(entry.totalOvertimeMinutes || 0) / 60).toFixed(1)} hrs)</span>
+                                </span>
+                                <span style={{ fontSize: '13px', fontWeight: 600 }}>{formatCurrency(entry.overtimePay)}</span>
+                            </div>
+                        )}
 
+                        {entry.isAdjusted && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#555' }}>Adjustment</span>
+                                <span style={{ fontSize: '13px', fontWeight: 600 }}>{formatCurrency(entry.adjustmentAmount)}</span>
+                            </div>
+                        )}
 
-                {/* Net Pay Highlight */}
-                <div className="net-pay-section avoid-break">
-                    <div className="net-pay-label">Net Payable Amount</div>
-                    <div className="net-pay-value" style={{ color: '#0071e3' }}>{formatCurrency(entry.netPay)}</div>
-                    <div className="net-pay-note">Paid via Bank Transfer</div>
-                </div>
+                        {Number(entry.advanceDeductions || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#555' }}>Advance Salary</span>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#d32f2f' }}>
+                                    -{formatCurrency(entry.advanceDeductions)}
+                                </span>
+                            </div>
+                        )}
 
+                        {Number(entry.loanDeductions || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#555' }}>Loan Repayment</span>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#d32f2f' }}>
+                                    -{formatCurrency(entry.loanDeductions)}
+                                </span>
+                            </div>
+                        )}
+
+                        <div style={{ borderTop: '1px solid #eee', margin: '12px 0 8px 0' }}></div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600 }}>Total Earnings</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700 }}>
+                                {formatCurrency(
+                                    (Number(entry.grossPay || 0) + (entry.isAdjusted ? Number(entry.adjustmentAmount || 0) : 0)) -
+                                    (Number(entry.advanceDeductions || 0) + Number(entry.loanDeductions || 0))
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+                {/* 4. Net Pay Banner (Moved) */}
+                <section style={{ background: '#000', color: 'white', padding: '15px 20px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Net Payable Amount</div>
+                    <div style={{ fontSize: '24px', fontWeight: 700 }}>
+                        {formatCurrency(
+                            (Number(entry.grossPay || 0) + (entry.isAdjusted ? Number(entry.adjustmentAmount || 0) : 0)) -
+                            (Number(entry.advanceDeductions || 0) + Number(entry.loanDeductions || 0))
+                        )}
+                    </div>
+                </section>
 
             </div>
 
-            {/* Print Styles */}
             <style>{`
-                /* Base Styles for Screen (Aesthetics) */
-                .payslip-container {
+                .a4-page {
+                    width: 210mm;
+                    min-height: 297mm;
+                    margin: 0 auto;
                     background: white;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    padding: 40px;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                    font-family: 'Inter', sans-serif;
+                    padding: 10mm;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+                    box-sizing: border-box;
                     color: #111;
                 }
-                .header-section {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    border-bottom: 2px solid #eee;
-                    padding-bottom: 20px;
-                    margin-bottom: 24px;
-                }
-                .details-section {
-                    display: flex;
-                    gap: 32px;
-                    margin-bottom: 24px;
-                    background: #f9f9f9;
-                    padding: 20px;
-                    border-radius: 6px;
-                }
-                .section-label {
-                    margin: 0 0 8px 0;
-                    font-size: 11px;
-                    text-transform: uppercase;
-                    color: #666;
-                    font-weight: 600;
-                    letter-spacing: 0.5px;
-                }
-                .earnings-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-bottom: 24px;
-                    font-size: 13px;
-                }
-                .earnings-table th {
-                    text-align: left;
-                    padding: 10px;
-                    background: #f5f5f5;
-                    border-bottom: 1px solid #ddd;
-                    font-weight: 600;
-                    font-size: 12px;
-                    color: #333;
-                }
-                .earnings-table td {
-                    padding: 10px;
-                    border-bottom: 1px solid #eee;
-                }
-                .earnings-table tfoot td {
-                    font-weight: 600;
-                    padding: 10px;
-                    background: #f9f9f9;
-                    border-top: 2px solid #ddd;
-                }
-                .total-value { text-align: right; }
-                .deduction { color: #d32f2f; }
-                .line-item { margin-bottom: 4px; }
-                .highlight { color: var(--color-primary, #0071e3); }
-                .italic { font-style: italic; color: #666; }
-                .spacer-row { height: 40px; }
                 
-                .section-container { margin-bottom: 24px; }
-                .section-header {
-                    font-size: 13px;
-                    color: #333;
-                    border-bottom: 1px solid #eee;
-                    padding-bottom: 6px;
-                    margin-bottom: 10px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-                .details-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 12px;
-                }
-                .details-table th {
-                    background: #fafafa;
-                    color: #666;
-                    padding: 6px 8px;
-                    font-weight: 600;
+                .sub-header {
                     font-size: 11px;
-                }
-                .details-table td {
-                    padding: 6px 8px;
-                    border-bottom: 1px solid #f0f0f0;
-                    color: #333;
+                    text-transform: uppercase;
+                    color: #888;
+                    letter-spacing: 1px;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 8px;
+                    margin: 0 0 12px 0;
                 }
 
-                .bonus-section {
-                    background: #f0f7ff;
-                    border: 1px solid #e0efff;
+                .financial-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                }
+                .financial-table td {
+                    padding: 8px 0;
+                    border-bottom: 1px solid #f9f9f9;
+                }
+                .financial-table .amount {
+                    text-align: right;
+                    font-weight: 500;
+                    font-variant-numeric: tabular-nums;
+                }
+                .financial-table tfoot td {
+                    padding-top: 12px;
+                    border-bottom: none;
+                    font-weight: 700;
+                    font-size: 14px;
+                    border-top: 1px solid #eee;
+                }
+
+                .info-card {
+                    background: #f9f9f9;
                     border-radius: 6px;
                     padding: 12px;
+                    border: 1px solid #eee;
                 }
-                .metric-row {
-                    display: flex;
-                    gap: 24px;
-                }
-                .metric {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                }
-                .metric label { font-size: 11px; color: #666; text-transform: uppercase; }
-                .metric span { font-size: 13px; fontWeight: 600; color: #333; }
-
-                .net-pay-section {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: flex-end;
-                    border-top: 1px solid #eee;
-                    padding-top: 16px;
-                    margin-top: 8px;
-                }
-                .net-pay-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-                .net-pay-value { font-size: 24px; font-weight: 700; color: #000; }
-                .net-pay-note { font-size: 12px; color: #888; font-style: italic; margin-top: 4px; }
-
-
-                .split-sections {
-                    display: flex;
-                    gap: 24px;
+                .card-label {
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    color: #000;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
                 }
 
-                /* PRINT SPECIFIC STYLES - EXCLUSIVE PRINTING */
+                .compact-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                    color: #444;
+                }
+                .compact-table th {
+                    text-align: left;
+                    padding: 6px 4px;
+                    border-bottom: 1px solid #ddd;
+                    font-weight: 600;
+                    color: #000;
+                    font-size: 10px;
+                    text-transform: uppercase;
+                }
+                .compact-table td {
+                    padding: 6px 4px;
+                    border-bottom: 1px solid #f5f5f5;
+                }
+
                 @media print {
                     @page {
                         size: A4;
-                        margin: 15mm 15mm;
+                        margin: 0.5mm;
                     }
-
-                    /* 
-                       CRITICAL: Hide EVERYTHING in the document body. 
-                       Then specifically make the payslip container visible.
-                       This ensures Sidebar, Navbar, and all other clutter is gone.
-                    */
                     body {
                         visibility: hidden;
                         background: white;
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                        overflow: hidden; /* Prevent scrolling/extra pages from hidden content */
-                        height: 100%;
                     }
-
-                    /* Hide elements explicitly marked as no-print */
-                    .no-print { display: none !important; }
-
-                    /* Position the payslip container to capture the full page */
+                    .no-print {
+                        display: none !important;
+                    }
                     #payslip-content {
                         visibility: visible;
                         position: absolute;
                         left: 0;
                         top: 0;
                         width: 100%;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        border: none !important;
+                        margin: 0;
+                        padding: 10mm;
                         box-shadow: none !important;
-                        overflow: visible; /* Allow payslip to extend as needed */
+                        background: white;
                     }
-
-                    /* Ensure children of the payslip are visible */
                     #payslip-content * {
                         visibility: visible;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
-
-                    /* Typography Scaling for Print */
-                    #payslip-content h1 { font-size: 24px !important; } /* Restore bold header size */
-                    .header-section { padding-bottom: 10px !important; margin-bottom: 20px !important; }
-                    
-                    /* Compact Details for Print */
-                    .details-section {
-                        padding: 0 !important;
-                        margin-bottom: 20px !important;
-                        background: transparent !important;
-                        border: none !important;
-                    }
-
-                    /* Clearer Tables for Print */
-                    .earnings-table { font-size: 12px !important; margin-bottom: 20px !important; width: 100% !important; }
-                    .earnings-table th { background: #f5f5f5 !important; color: #000 !important; border-bottom: 1px solid #000 !important; }
-                    .earnings-table td { border-bottom: 1px solid #eee !important; }
-                    
-
                 }
             `}</style>
         </div>

@@ -32,13 +32,26 @@ const Toast = ({ id, message, type, onClose }) => {
             borderRadius: '12px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
             borderLeft: `4px solid ${isSuccess ? 'var(--color-success)' : 'var(--color-error)'}`,
-            marginBottom: '12px',
-            transform: isExiting ? 'translateX(100%)' : 'translateX(0)',
+            marginTop: '12px',
+            transform: isExiting ? 'translateY(100%)' : 'translateY(0)',
             opacity: isExiting ? 0 : 1,
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             position: 'relative',
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}>
+            <style>{`
+                @keyframes slideUp {
+                    from {
+                        transform: translateY(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+                }
+            `}</style>
             <div style={{
                 color: isSuccess ? 'var(--color-success)' : 'var(--color-error)',
                 marginTop: '2px'
@@ -80,11 +93,11 @@ export const ToastContainer = ({ toasts, removeToast }) => {
     return (
         <div style={{
             position: 'fixed',
-            top: '24px',
+            bottom: '24px',
             right: '24px',
             zIndex: 9999,
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'column-reverse',
             gap: '12px',
             pointerEvents: 'none' // Allowed clicks to pass through empty space
         }}>

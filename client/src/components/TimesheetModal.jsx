@@ -144,6 +144,46 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
         return date.getDay() === 0;
     };
 
+    // Helper: Calculate Daily Earnings
+    const calculateDailyEarnings = (entry) => {
+        if (!entry.clockIn || !entry.clockOut) return 0;
+
+        const start = new Date(`1970-01-01T${entry.clockIn}`);
+        const end = new Date(`1970-01-01T${entry.clockOut}`);
+        let diffMs = end - start;
+        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+        let totalMinutes = diffMs / (1000 * 60);
+        let billableMinutes = totalMinutes - (parseInt(entry.breakMinutes) || 0);
+        if (billableMinutes < 0) billableMinutes = 0;
+
+        const billableHours = billableMinutes / 60;
+
+        // Rate Logic
+        if (employee.perShiftAmount) {
+            // Calculate standard shift duration for proration
+            let standardHours = 8; // Default fallback
+            if (employee.shiftStart && employee.shiftEnd) {
+                const s = new Date(`1970-01-01T${employee.shiftStart}`);
+                const e = new Date(`1970-01-01T${employee.shiftEnd}`);
+                let d = (e - s) / (1000 * 60 * 60);
+                if (d < 0) d += 24;
+                standardHours = d - ((employee.breakTime || 60) / 60);
+            }
+            if (standardHours <= 0) standardHours = 8;
+
+            return (parseFloat(employee.perShiftAmount) / standardHours) * billableHours;
+        } else if (employee.hourlyRate) {
+            return parseFloat(employee.hourlyRate) * billableHours;
+        } else if (employee.salary) {
+            // Derived hourly rate from monthly salary
+            const rate = parseFloat(employee.salary) / 30 / 8;
+            return rate * billableHours;
+        }
+
+        return 0;
+    };
+
     const validateEntries = () => {
         const errors = {};
         let firstErrorKey = null;
@@ -242,6 +282,14 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
         };
     };
 
+    // Helper: Get Initials
+    const getInitials = (name) => {
+        if (!name) return '';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0][0].toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -262,7 +310,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                 background: 'white',
                 borderRadius: '16px',
                 width: '90%',
-                maxWidth: '900px',
+                maxWidth: '960px', // Widened slightly to accommodate new column
                 maxHeight: '90vh',
                 display: 'flex',
                 flexDirection: 'column',
@@ -291,7 +339,11 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                             backgroundPosition: 'center',
                             overflow: 'hidden'
                         }}>
-                            {!employee?.image && <User size={24} />}
+                            {!employee?.image && (
+                                <span style={{ fontWeight: 600, fontSize: '1.2rem' }}>
+                                    {getInitials(employee?.name)}
+                                </span>
+                            )}
                         </div>
                         <div>
                             <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{employee?.name} - Manual Timesheet</h2>
@@ -330,7 +382,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                 <thead>
                                     <tr style={{ background: 'var(--color-background-subtle)', borderBottom: '1px solid var(--color-border)' }}>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '60px' }}>Day</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '140px' }}>Date</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '180px' }}>Date</th>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock In</th>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock Out</th>
                                         <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '100px' }}>Break (mins)</th>
@@ -376,7 +428,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                                             border: '1px solid',
                                                             borderRadius: 'var(--radius-sm)',
                                                             fontSize: '0.9rem',
-                                                            width: '125px',
+                                                            width: '165px',
                                                             marginBottom: entry.date ? '4px' : '0'
                                                         })}
                                                     />
