@@ -3227,126 +3227,6 @@
       "actor": "admin (127.0.0.1)",
       "timestamp": "2025-12-10T08:59:57.468Z",
       "details": "Recalculated: Gross ₹6862, Net ₹3816, 14 days"
-    },
-    {
-      "id": "1765357438257-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:03:58.256Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765357438258-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:03:58.256Z",
-      "details": "Recalculated: Gross ₹7537, Net ₹6551, 14 days"
-    },
-    {
-      "id": "1765357480074-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:04:40.074Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765357480075-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:04:40.074Z",
-      "details": "Recalculated: Gross ₹7537, Net ₹6551, 14 days"
-    },
-    {
-      "id": "1765357539301-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:05:39.300Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765357539301-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:05:39.300Z",
-      "details": "Recalculated: Gross ₹7588, Net ₹6602, 14 days"
-    },
-    {
-      "id": "1765357856030-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:10:56.030Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765357856031-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:10:56.030Z",
-      "details": "Recalculated: Gross ₹7656, Net ₹6670, 14 days"
-    },
-    {
-      "id": "1765358912093-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:28:32.093Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765358912093-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:28:32.093Z",
-      "details": "Recalculated: Gross ₹7588, Net ₹6602, 14 days"
-    },
-    {
-      "id": "1765360037010-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:47:17.009Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765360037010-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:47:17.009Z",
-      "details": "Recalculated: Gross ₹7588, Net ₹6602, 14 days"
-    },
-    {
-      "id": "1765360217334-log",
-      "action": "DEDUCTIONS_UPDATED",
-      "targetId": 1765232352685,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:50:17.334Z",
-      "details": "Updated deductions: ₹1088"
-    },
-    {
-      "id": "1765360531001-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765231172204,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:55:31.001Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765360531002-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765231172204,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:55:31.001Z",
-      "details": "Recalculated: Gross ₹6990, Net ₹3944, 14 days"
     }
   ],
   "payroll_entries": [
@@ -3406,13 +3286,13 @@
       "employeeId": 1765231172204,
       "periodStart": "2025-11-24",
       "periodEnd": "2025-12-07",
-      "grossPay": 6990,
+      "grossPay": 6862,
       "deductions": 3046,
       "advanceDeductions": 2000,
       "loanDeductions": 1046,
-      "netPay": 3944,
+      "netPay": 3816,
       "status": "Unpaid",
-      "totalBillableMinutes": 6193,
+      "totalBillableMinutes": 6073,
       "workingDays": 14,
       "overtimePay": 1152,
       "totalOvertimeMinutes": 720,
@@ -3440,16 +3320,16 @@
       "employeeId": 1765232352685,
       "periodStart": "2025-11-24",
       "periodEnd": "2025-12-07",
-      "grossPay": 7588,
-      "deductions": 1088,
+      "grossPay": 5956,
+      "deductions": 986,
       "advanceDeductions": 0,
-      "loanDeductions": 1088,
-      "netPay": 6500,
+      "loanDeductions": 986,
+      "netPay": 4970,
       "status": "Unpaid",
-      "totalBillableMinutes": 6245,
+      "totalBillableMinutes": 5255,
       "workingDays": 14,
-      "overtimePay": 1530,
-      "totalOvertimeMinutes": 900,
+      "overtimePay": 0,
+      "totalOvertimeMinutes": 0,
       "paidAt": null
     },
     {
@@ -3947,12 +3827,12 @@
       "breakMinutes": 0,
       "dayType": "Travel",
       "totalMinutes": 540,
-      "billableMinutes": 540,
-      "regularMinutes": 540,
+      "billableMinutes": 480,
+      "regularMinutes": 480,
       "overtimeMinutes": 0,
-      "nightStatus": null,
+      "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3971,7 +3851,7 @@
       "overtimeMinutes": 180,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3990,7 +3870,7 @@
       "overtimeMinutes": 180,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4004,12 +3884,12 @@
       "breakMinutes": 0,
       "dayType": "Travel",
       "totalMinutes": 855,
-      "billableMinutes": 855,
-      "regularMinutes": 855,
+      "billableMinutes": 795,
+      "regularMinutes": 795,
       "overtimeMinutes": 0,
-      "nightStatus": null,
+      "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4028,7 +3908,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4047,7 +3927,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4066,7 +3946,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4085,7 +3965,7 @@
       "overtimeMinutes": 120,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4104,7 +3984,7 @@
       "overtimeMinutes": 120,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4123,7 +4003,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4142,7 +4022,7 @@
       "overtimeMinutes": 120,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4161,7 +4041,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4180,7 +4060,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4199,7 +4079,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4207,18 +4087,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-24",
       "shiftStart": "08:20",
-      "shiftEnd": "20:00",
+      "shiftEnd": "18:00",
       "clockIn": "08:20",
-      "clockOut": "20:00",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
-      "totalMinutes": 700,
-      "billableMinutes": 640,
-      "regularMinutes": 520,
-      "overtimeMinutes": 120,
-      "nightStatus": "Night Shift",
+      "totalMinutes": 580,
+      "billableMinutes": 520,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4230,14 +4106,10 @@
       "clockIn": "08:20",
       "clockOut": "17:00",
       "breakMinutes": 60,
-      "dayType": "Work",
       "totalMinutes": 520,
       "billableMinutes": 460,
-      "regularMinutes": 460,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4245,18 +4117,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-26",
       "shiftStart": "08:20",
-      "shiftEnd": "00:00",
+      "shiftEnd": "18:00",
       "clockIn": "08:20",
-      "clockOut": "00:00",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
-      "totalMinutes": 940,
-      "billableMinutes": 820,
-      "regularMinutes": 520,
-      "overtimeMinutes": 300,
-      "nightStatus": "Night Shift",
+      "totalMinutes": 580,
+      "billableMinutes": 520,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4264,18 +4132,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-27",
       "shiftStart": "08:35",
-      "shiftEnd": "18:30",
+      "shiftEnd": "18:00",
       "clockIn": "08:35",
-      "clockOut": "18:30",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Travel",
-      "totalMinutes": 595,
-      "billableMinutes": 535,
-      "regularMinutes": 535,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
+      "totalMinutes": 565,
+      "billableMinutes": 505,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4283,18 +4147,14 @@
       "employeeId": 1765232352685,
       "date": "2025-11-28",
       "shiftStart": "08:25",
-      "shiftEnd": "20:00",
+      "shiftEnd": "18:00",
       "clockIn": "08:25",
-      "clockOut": "20:00",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
-      "totalMinutes": 695,
-      "billableMinutes": 635,
-      "regularMinutes": 515,
-      "overtimeMinutes": 120,
-      "nightStatus": "Night Shift",
+      "totalMinutes": 575,
+      "billableMinutes": 515,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4306,14 +4166,10 @@
       "clockIn": "",
       "clockOut": "",
       "breakMinutes": 0,
-      "dayType": "Work",
       "totalMinutes": 0,
       "billableMinutes": 0,
-      "regularMinutes": 0,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4325,14 +4181,10 @@
       "clockIn": "",
       "clockOut": "",
       "breakMinutes": 0,
-      "dayType": "Work",
       "totalMinutes": 0,
       "billableMinutes": 0,
-      "regularMinutes": 0,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4340,18 +4192,14 @@
       "employeeId": 1765232352685,
       "date": "2025-12-01",
       "shiftStart": "08:20",
-      "shiftEnd": "20:00",
+      "shiftEnd": "18:00",
       "clockIn": "08:20",
-      "clockOut": "20:00",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
-      "totalMinutes": 700,
-      "billableMinutes": 640,
-      "regularMinutes": 520,
-      "overtimeMinutes": 120,
-      "nightStatus": "Night Shift",
+      "totalMinutes": 580,
+      "billableMinutes": 520,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4359,18 +4207,14 @@
       "employeeId": 1765232352685,
       "date": "2025-12-02",
       "shiftStart": "08:25",
-      "shiftEnd": "20:00",
+      "shiftEnd": "18:00",
       "clockIn": "08:25",
-      "clockOut": "20:00",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
-      "totalMinutes": 695,
-      "billableMinutes": 635,
-      "regularMinutes": 515,
-      "overtimeMinutes": 120,
-      "nightStatus": "Night Shift",
+      "totalMinutes": 575,
+      "billableMinutes": 515,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4382,14 +4226,10 @@
       "clockIn": "08:25",
       "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
       "totalMinutes": 575,
       "billableMinutes": 515,
-      "regularMinutes": 515,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4397,18 +4237,14 @@
       "employeeId": 1765232352685,
       "date": "2025-12-04",
       "shiftStart": "08:20",
-      "shiftEnd": "20:00",
+      "shiftEnd": "18:00",
       "clockIn": "08:20",
-      "clockOut": "20:00",
+      "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
-      "totalMinutes": 700,
-      "billableMinutes": 640,
-      "regularMinutes": 520,
-      "overtimeMinutes": 120,
-      "nightStatus": "Night Shift",
+      "totalMinutes": 580,
+      "billableMinutes": 520,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4420,14 +4256,10 @@
       "clockIn": "08:25",
       "clockOut": "18:00",
       "breakMinutes": 60,
-      "dayType": "Work",
       "totalMinutes": 575,
       "billableMinutes": 515,
-      "regularMinutes": 515,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4438,15 +4270,11 @@
       "shiftEnd": "12:00",
       "clockIn": "08:30",
       "clockOut": "12:00",
-      "breakMinutes": 0,
-      "dayType": "Work",
+      "breakMinutes": 60,
       "totalMinutes": 210,
-      "billableMinutes": 210,
-      "regularMinutes": 210,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
+      "billableMinutes": 150,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4458,14 +4286,10 @@
       "clockIn": "",
       "clockOut": "",
       "breakMinutes": 0,
-      "dayType": "Work",
       "totalMinutes": 0,
       "billableMinutes": 0,
-      "regularMinutes": 0,
-      "overtimeMinutes": 0,
-      "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:47:17.009Z",
+      "modifiedAt": "2025-12-08T22:28:24.312Z",
       "modifiedBy": "admin (127.0.0.1)"
     }
   ],
@@ -4527,7 +4351,7 @@
       "periodEnd": "2025-12-07",
       "type": "loan",
       "description": "Week 3/4",
-      "amount": 1088,
+      "amount": 986,
       "status": "active",
       "createdAt": "2025-12-08T22:23:36.771Z",
       "createdBy": "admin (127.0.0.1)"

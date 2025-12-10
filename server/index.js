@@ -810,11 +810,11 @@ app.post('/api/payroll/mark-paid', (req, res) => {
                     e.status === 'active';
             });
 
-            const standardShiftEnd = employee?.shiftEnd || '18:00';
             entry.frozenTimesheet = periodEntries.map(e => {
                 const clockIn = e.clockIn || e.shiftStart || '';
                 const clockOut = e.clockOut || e.shiftEnd || '';
-                const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, standardShiftEnd);
+                const dayType = e.dayType || 'Work';
+                const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType);
                 return {
                     date: e.date,
                     clockIn: clockIn || '-',
@@ -1572,9 +1572,10 @@ app.post('/api/timesheet', (req, res) => {
         // Normalize time fields - accept both naming conventions
         const clockIn = entry.clockIn || entry.shiftStart || '';
         const clockOut = entry.clockOut || entry.shiftEnd || '';
+        const dayType = entry.dayType || 'Work'; // Default to Work if not specified
 
-        // Calculate hours
-        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes);
+        // Calculate hours with day type
+        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes, dayType);
 
         const timesheetEntry = {
             id: entry.id || `ts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1586,8 +1587,12 @@ app.post('/api/timesheet', (req, res) => {
             clockIn: clockIn,
             clockOut: clockOut,
             breakMinutes: parseInt(entry.breakMinutes) || 0,
+            dayType: dayType, // Save day type
             totalMinutes: calc.totalMinutes,
             billableMinutes: calc.billableMinutes,
+            regularMinutes: calc.regularMinutes,
+            overtimeMinutes: calc.overtimeMinutes,
+            nightStatus: calc.nightStatus,
             status: 'active',
             modifiedAt: timestamp,
             modifiedBy: actor
@@ -1758,15 +1763,19 @@ app.get('/api/payroll/:id', (req, res) => {
 
     entry.details = {};
     entry.details.timesheet = periodEntries.map(e => {
-        const calc = calculateShiftHours(e.clockIn || e.shiftStart, e.clockOut || e.shiftEnd, e.breakMinutes);
+        const dayType = e.dayType || 'Work';
+        const calc = calculateShiftHours(e.clockIn || e.shiftStart, e.clockOut || e.shiftEnd, e.breakMinutes, dayType);
         return {
             date: e.date,
             clockIn: e.clockIn || e.shiftStart || '-',
             clockOut: e.clockOut || e.shiftEnd || '-',
             breakMinutes: e.breakMinutes || 0,
+            dayType: dayType,
             totalMinutes: calc.totalMinutes,
             billableMinutes: calc.billableMinutes,
-            overtimeMinutes: calc.overtimeMinutes
+            regularMinutes: calc.regularMinutes,
+            overtimeMinutes: calc.overtimeMinutes,
+            nightStatus: calc.nightStatus
         };
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -1959,10 +1968,19 @@ app.patch('/api/loans/:id', (req, res) => {
     res.json({ success: true, loan });
 });
 
-// Helper: Calculate shift hours with OT and Dinner Break
-function calculateShiftHours(startTime, endTime, breakMins, standardShiftEnd = '18:00') {
+// Helper: Calculate shift hours with Travel/Work Day distinction and OT logic
+function calculateShiftHours(startTime, endTime, breakMins, dayType = 'Work', otCutoff = '18:00') {
     if (!startTime || !endTime) {
-        return { totalMinutes: 0, billableMinutes: 0, overtimeMinutes: 0, nightStatus: null, dinnerBreakDeduction: 0 };
+        return {
+            totalMinutes: 0,
+            billableMinutes: 0,
+            regularMinutes: 0,
+            overtimeMinutes: 0,
+            regularPay: 0,
+            overtimePay: 0,
+            nightStatus: null,
+            dinnerBreakDeduction: 0
+        };
     }
 
     const parseTime = (t) => {
@@ -1972,10 +1990,9 @@ function calculateShiftHours(startTime, endTime, breakMins, standardShiftEnd = '
 
     let start = parseTime(startTime);
     let end = parseTime(endTime);
-    const shiftEnd = parseTime(standardShiftEnd);
+    const otCutoffMins = parseTime(otCutoff);
 
-    // Handle overnight (e.g., 22:00 to 02:00)
-    // We treat 00:00-09:00 as next day for calculation simplicity in single shift context
+    // Handle overnight shifts (e.g., 22:00 to 02:00)
     let crossMidnight = false;
     if (end < start) {
         end += 24 * 60;
@@ -1988,19 +2005,10 @@ function calculateShiftHours(startTime, endTime, breakMins, standardShiftEnd = '
     let duration = end - start;
     let dinnerBreakDeduction = 0;
 
-    // Check Dinner Break (8 PM - 9 PM)
-    // Intersect [start, end] with [DINNER_START, DINNER_END]
-    // Note: If shift crosses midnight, DINNER_START might be 'yesterday' relative to 'tomorrow' morning, 
-    // but typically dinner is in the first evening.
-    // If end > 24*60 (next day), we assume dinner was on the first day (evening).
-
-    // Effective interval for dinner check on the "start day"
-    const effectiveStart = start;
-    const effectiveEnd = end; // Can be > 24*60
-
-    if (effectiveStart < DINNER_END && effectiveEnd > DINNER_START) {
-        const overlapStart = Math.max(effectiveStart, DINNER_START);
-        const overlapEnd = Math.min(effectiveEnd, DINNER_END);
+    // Check Dinner Break (8 PM - 9 PM) - auto deduction if working during this time
+    if (start < DINNER_END && end > DINNER_START) {
+        const overlapStart = Math.max(start, DINNER_START);
+        const overlapEnd = Math.min(end, DINNER_END);
         if (overlapEnd > overlapStart) {
             dinnerBreakDeduction = overlapEnd - overlapStart;
         }
@@ -2008,60 +2016,93 @@ function calculateShiftHours(startTime, endTime, breakMins, standardShiftEnd = '
 
     // Determine Night Status
     let nightStatus = null;
-    const endHour24 = (end % (24 * 60)) / 60; // normalized to 0-24
-
-    // Logic: If worked past 20:00 -> Night Shift Worked
-    // Logic: If worked past 24:00 (00:00) -> Extended Night Shift
-    // 'end' is raw (could be 25:00 for 1am).
-
     if (end > 24 * 60) {
         nightStatus = 'Extended Night';
     } else if (end >= 20 * 60) {
         nightStatus = 'Night Shift';
     }
 
-    // Calculate Billable Minutes
-    // Total Minutes - standard break - dinner break
-    let billableMinutes = Math.max(0, duration - (breakMins || 0) - dinnerBreakDeduction);
-
-    // Calculate Overtime
-    // OT is time worked AFTER shiftEnd (e.g. 18:00)
-    // BUT we must exclude the dinner break if it happens during OT (which it usually does, 20-21 is > 18)
-
+    // --- TRAVEL vs WORK DAY LOGIC ---
+    let regularMinutes = 0;
     let overtimeMinutes = 0;
-    if (end > shiftEnd) {
-        // Raw OT duration
-        const otStart = Math.max(start, shiftEnd);
-        const otEnd = end;
-        let otDuration = Math.max(0, otEnd - otStart);
+    let billableMinutes = 0;
 
-        // Deduct dinner break from OT if it falls inside OT period
-        // Dinner (20-21) is typically > ShiftEnd (18).
-        // Calculate overlap of OT period with Dinner period
-        if (otStart < DINNER_END && otEnd > DINNER_START) {
-            const overlapStart = Math.max(otStart, DINNER_START);
-            const overlapEnd = Math.min(otEnd, DINNER_END);
-            if (overlapEnd > overlapStart) {
-                otDuration -= (overlapEnd - overlapStart);
+    if (dayType === 'Travel') {
+        // RULE: Travel days = ALL hours are regular pay, but breaks are DEDUCTED
+        // Travel calculation: Total duration - breaks
+        billableMinutes = Math.max(0, duration - (breakMins || 0));
+        regularMinutes = billableMinutes;
+        overtimeMinutes = 0;
+        dinnerBreakDeduction = 0; // No dinner break for travel
+        nightStatus = null; // No night status for travel days
+    } else {
+        // WORK DAY: Calculate regular vs OT based on 6 PM (18:00) cutoff
+
+        // First calculate billable minutes (with break deductions for work days)
+        billableMinutes = Math.max(0, duration - (breakMins || 0) - dinnerBreakDeduction);
+
+        // Determine how much time was worked BEFORE otCutoff
+        const workBeforeCutoff = Math.max(0, Math.min(end, otCutoffMins) - start);
+
+        // Determine how much time was worked AFTER otCutoff
+        let workAfterCutoff = 0;
+        if (end > otCutoffMins) {
+            const otStart = Math.max(start, otCutoffMins);
+            workAfterCutoff = end - otStart;
+        }
+
+        // Recalculate more precisely:
+        regularMinutes = Math.max(0, Math.min(end, otCutoffMins) - start);
+        overtimeMinutes = Math.max(0, end - Math.max(start, otCutoffMins));
+
+        // Deduct standard break from regular time first
+        let remainingBreak = breakMins || 0;
+        if (regularMinutes >= remainingBreak) {
+            regularMinutes -= remainingBreak;
+            remainingBreak = 0;
+        } else {
+            remainingBreak -= regularMinutes;
+            regularMinutes = 0;
+        }
+
+        // Deduct remaining break from OT
+        if (remainingBreak > 0 && overtimeMinutes >= remainingBreak) {
+            overtimeMinutes -= remainingBreak;
+        } else if (remainingBreak > 0) {
+            overtimeMinutes = 0;
+        }
+
+        // Deduct dinner break if it falls in OT period (typically 8-9 PM is after 6 PM)
+        if (overtimeMinutes > 0 && dinnerBreakDeduction > 0) {
+            // Check if dinner time overlaps with OT period
+            const otStartTime = Math.max(start, otCutoffMins);
+            if (otStartTime < DINNER_END && end > DINNER_START) {
+                const dinnerOverlapInOT = Math.min(
+                    dinnerBreakDeduction,
+                    Math.max(0, Math.min(end, DINNER_END) - Math.max(otStartTime, DINNER_START))
+                );
+                overtimeMinutes = Math.max(0, overtimeMinutes - dinnerOverlapInOT);
             }
         }
 
-        // Also deduct standard break from OT? 
-        // Typically standard break (lunch) is earlier. If user enters break time, 
-        // we might assume it's lunch. We won't deduct "breakMins" from OT unless total work < break.
-        // We assume billableMinutes already handles 'breakMins'.
-        // We need to ensure we don't count OT if total billable is low?
-        // Simple rule: OT = BillableMinutes - StandardShiftDuration?
-        // Or strict clock-based? Prompt says: "Overtime Hours = Paid Hours - Shift Hours"
+        // Recalculate billable to match
+        billableMinutes = regularMinutes + overtimeMinutes;
 
-        // Let's use the Prompt's Step 3: "Overtime Hours = Paid Hours - Shift Hours"
-        // Shift Hours = shiftEnd - shiftStart - standardBreak? 
-        // Let's rely on strict clock diff first as per Step 1.
-
-        overtimeMinutes = otDuration;
+        // If no overtime, clear night status (no OT = no night shift)
+        if (overtimeMinutes === 0) {
+            nightStatus = null;
+        }
     }
 
-    return { totalMinutes: duration, billableMinutes, overtimeMinutes, nightStatus, dinnerBreakDeduction };
+    return {
+        totalMinutes: duration,
+        billableMinutes,
+        regularMinutes,
+        overtimeMinutes,
+        nightStatus,
+        dinnerBreakDeduction,
+        dayType // Include for reference
+    };
 }
 
 // Helper: Recalculate payroll for employee in a period based on timesheet entries
@@ -2093,10 +2134,10 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         const clockIn = entry.clockIn || entry.shiftStart || '';
         const clockOut = entry.clockOut || entry.shiftEnd || '';
 
-        // Use employee shift end for OT calculation
-        const standardShiftEnd = employee.shiftEnd || '18:00';
+        // Use dayType to determine OT calculation
+        const dayType = entry.dayType || 'Work';
 
-        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes || 0, standardShiftEnd);
+        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes || 0, dayType);
 
         return {
             ...entry,
@@ -2109,8 +2150,8 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         totalOvertimeMinutes += e.overtimeMinutes;
     });
 
-    // Calculate total regular minutes (excluding OT) for Basic Salary calculation
-    const totalRegularMinutes = Math.max(0, totalBillableMinutes - totalOvertimeMinutes);
+    // Calculate total regular minutes from entries (now includes regularMinutes field)
+    const totalRegularMinutes = richEntries.reduce((sum, e) => sum + (e.regularMinutes || 0), 0);
 
     // Calculate gross pay (Basic Salary)
     // Option 1: Employee has perShiftAmount (per day rate)

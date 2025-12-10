@@ -3331,22 +3331,6 @@
       "actor": "admin (127.0.0.1)",
       "timestamp": "2025-12-10T09:50:17.334Z",
       "details": "Updated deductions: ₹1088"
-    },
-    {
-      "id": "1765360531001-log",
-      "action": "TIMESHEET_UPDATE",
-      "targetId": 1765231172204,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:55:31.001Z",
-      "details": "Updated 14 timesheet entries"
-    },
-    {
-      "id": "1765360531002-payroll-log",
-      "action": "PAYROLL_RECALCULATED",
-      "targetId": 1765231172204,
-      "actor": "admin (127.0.0.1)",
-      "timestamp": "2025-12-10T09:55:31.001Z",
-      "details": "Recalculated: Gross ₹6990, Net ₹3944, 14 days"
     }
   ],
   "payroll_entries": [
@@ -3947,12 +3931,12 @@
       "breakMinutes": 0,
       "dayType": "Travel",
       "totalMinutes": 540,
-      "billableMinutes": 540,
-      "regularMinutes": 540,
+      "billableMinutes": 480,
+      "regularMinutes": 480,
       "overtimeMinutes": 0,
-      "nightStatus": null,
+      "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3971,7 +3955,7 @@
       "overtimeMinutes": 180,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -3990,7 +3974,7 @@
       "overtimeMinutes": 180,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4004,12 +3988,12 @@
       "breakMinutes": 0,
       "dayType": "Travel",
       "totalMinutes": 855,
-      "billableMinutes": 855,
-      "regularMinutes": 855,
+      "billableMinutes": 795,
+      "regularMinutes": 795,
       "overtimeMinutes": 0,
-      "nightStatus": null,
+      "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4028,7 +4012,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4047,7 +4031,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4066,7 +4050,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4085,7 +4069,7 @@
       "overtimeMinutes": 120,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4104,7 +4088,7 @@
       "overtimeMinutes": 120,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4123,7 +4107,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4142,7 +4126,7 @@
       "overtimeMinutes": 120,
       "nightStatus": "Night Shift",
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4161,7 +4145,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4180,7 +4164,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {
@@ -4199,7 +4183,7 @@
       "overtimeMinutes": 0,
       "nightStatus": null,
       "status": "active",
-      "modifiedAt": "2025-12-10T09:55:31.001Z",
+      "modifiedAt": "2025-12-10T08:59:57.468Z",
       "modifiedBy": "admin (127.0.0.1)"
     },
     {

@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Printer, Moon, User, MessageCircle } from 'lucide-react';
+import {
+    Calendar, Clock, Download, Printer, Share2, DollarSign,
+    Briefcase, Building, ChevronLeft, Moon, Plane
+} from 'lucide-react';
 
 const Payslip = () => {
     const { id } = useParams();
@@ -227,21 +230,28 @@ const Payslip = () => {
                             <tbody>
                                 {entry.details.timesheet.map((row, idx) => {
                                     const isSunday = new Date(row.date).getDay() === 0;
+                                    const isTravel = row.dayType === 'Travel';
+                                    const hasOvertime = row.overtimeMinutes > 0;
+                                    const showNightStatus = row.nightStatus && hasOvertime; // Only show if has OT
+
                                     return (
                                         <tr key={idx} style={{
-                                            background: row.nightStatus ? '#fffde7' : 'transparent',
+                                            background: isTravel ? '#e0f2fe' : (showNightStatus ? '#fffde7' : 'transparent'),
                                             color: isSunday ? '#d32f2f' : 'inherit'
                                         }}>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     {new Date(row.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                                    {row.nightStatus && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
+                                                    {isTravel && <Plane size={12} fill="#0ea5e9" color="#0ea5e9" title="Travel Day" />}
+                                                    {showNightStatus && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
                                                 </div>
                                             </td>
                                             <td>{formatTime12h(row.clockIn)}</td>
                                             <td>{formatTime12h(row.clockOut)}</td>
                                             <td>{row.breakMinutes > 0 ? `${row.breakMinutes}m` : '-'}</td>
-                                            <td>{row.nightStatus ? 'Night' : '-'}</td>
+                                            <td>
+                                                {isTravel ? 'Travel' : (showNightStatus ? 'Night' : '-')}
+                                            </td>
                                             <td style={{ textAlign: 'right' }}>
                                                 {row.overtimeMinutes > 0 ? `${(row.overtimeMinutes / 60).toFixed(1)}h` : '-'}
                                             </td>
@@ -251,7 +261,8 @@ const Payslip = () => {
                                             <td style={{ textAlign: 'right', fontWeight: 600 }}>
                                                 {(() => {
                                                     const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
-                                                    return hourlyRate ? formatCurrency(hourlyRate * (row.billableMinutes / 60)) : '-';
+                                                    const amount = hourlyRate * (row.billableMinutes / 60);
+                                                    return hourlyRate ? '₹' + Math.round(amount).toLocaleString('en-IN') : '-';
                                                 })()}
                                             </td>
                                         </tr>
@@ -262,10 +273,11 @@ const Payslip = () => {
                                 <tr>
                                     <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, paddingTop: '10px', borderTop: '2px solid #eee' }}>Total Amount</td>
                                     <td style={{ textAlign: 'right', fontWeight: 700, paddingTop: '10px', borderTop: '2px solid #eee' }}>
-                                        {formatCurrency(entry.details.timesheet.reduce((sum, row) => {
+                                        {'₹' + entry.details.timesheet.reduce((sum, row) => {
                                             const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
-                                            return sum + (hourlyRate * (row.billableMinutes / 60));
-                                        }, 0))}
+                                            const dailyAmount = hourlyRate * (row.billableMinutes / 60);
+                                            return sum + Math.round(dailyAmount);
+                                        }, 0).toLocaleString('en-IN')}
                                     </td>
                                 </tr>
                             </tfoot>

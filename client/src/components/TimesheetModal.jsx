@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Save, User, Zap, RotateCcw, AlertCircle } from 'lucide-react';
+import { X, Plus, Save, User, Zap, RotateCcw, AlertCircle, Trash2, Briefcase, Plane } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isPaid, prefilledDate, onSave }) => {
@@ -51,13 +51,63 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                     clockOut: e.clockOut || e.shiftEnd || '',
                     breakMinutes: e.breakMinutes || 0
                 }));
-            setEntries(normalizedEntries.length > 0 ? normalizedEntries : []);
+
+            // If no existing entries, pre-populate all dates in the period
+            if (normalizedEntries.length === 0) {
+                const preloadedEntries = generatePeriodDates(periodStart, periodEnd);
+                setEntries(preloadedEntries);
+            } else {
+                setEntries(normalizedEntries);
+            }
         } catch (err) {
             console.error('Failed to fetch timesheet:', err);
-            setEntries([]);
+            // Even on error, pre-populate dates so users can still work
+            const preloadedEntries = generatePeriodDates(periodStart, periodEnd);
+            setEntries(preloadedEntries);
         } finally {
             setLoading(false);
         }
+    };
+
+    // Helper: Generate entries for all dates in the payroll period
+    const generatePeriodDates = (startDate, endDate) => {
+        const entries = [];
+
+        // Parse dates properly to avoid timezone issues
+        // startDate and endDate are in YYYY-MM-DD format
+        const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+        const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+
+        const start = new Date(startYear, startMonth - 1, startDay);
+        const end = new Date(endYear, endMonth - 1, endDay);
+
+        let currentDate = new Date(start);
+        let counter = 0;
+
+        while (currentDate <= end) {
+            // Format as YYYY-MM-DD
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
+            entries.push({
+                id: `ts-preload-${counter}`,
+                employeeId: employee.id,
+                date: dateStr,
+                clockIn: '',
+                clockOut: '',
+                breakMinutes: 0,
+                dayType: 'Work', // Default to Work
+                notes: '',
+                status: 'new'
+            });
+
+            currentDate.setDate(currentDate.getDate() + 1);
+            counter++;
+        }
+
+        return entries;
     };
 
     const handleFieldChange = (index, field, value) => {
@@ -81,6 +131,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
             clockIn: '',
             clockOut: '',
             breakMinutes: 0,
+            dayType: 'Work', // Default to Work
             notes: '',
             status: 'new'
         };
@@ -382,18 +433,19 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                 <thead>
                                     <tr style={{ background: 'var(--color-background-subtle)', borderBottom: '1px solid var(--color-border)' }}>
                                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '60px' }}>Day</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '180px' }}>Date</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock In</th>
-                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Clock Out</th>
-                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '100px' }}>Break (mins)</th>
-                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '100px' }}>Actions</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '150px' }}>Date</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '130px' }}>Type</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '110px' }}>Clock In</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '110px' }}>Clock Out</th>
+                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '90px' }}>Break</th>
+                                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', width: '120px' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {entries.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                                                No timesheet entries yet. Click "Add Day" to start.
+                                            <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                                Loading dates for this payroll period...
                                             </td>
                                         </tr>
                                     ) : (
@@ -423,13 +475,16 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                                         type="date"
                                                         value={entry.date}
                                                         onChange={(e) => handleFieldChange(idx, 'date', e.target.value)}
+                                                        disabled={entry.status !== 'new' || entry.id?.startsWith('ts-preload-')}
                                                         style={getInputStyle(idx, 'date', {
                                                             padding: '6px 10px',
                                                             border: '1px solid',
                                                             borderRadius: 'var(--radius-sm)',
                                                             fontSize: '0.9rem',
                                                             width: '165px',
-                                                            marginBottom: entry.date ? '4px' : '0'
+                                                            marginBottom: entry.date ? '4px' : '0',
+                                                            background: entry.id?.startsWith('ts-preload-') ? 'var(--color-background-subtle)' : 'white',
+                                                            cursor: entry.id?.startsWith('ts-preload-') ? 'not-allowed' : 'text'
                                                         })}
                                                     />
                                                     {validationErrors[`${idx}-date`] && (
@@ -437,6 +492,32 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                                             {validationErrors[`${idx}-date`]}
                                                         </div>
                                                     )}
+                                                </td>
+                                                {/* Day Type Column */}
+                                                <td style={{ padding: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <select
+                                                            value={entry.dayType || 'Work'}
+                                                            onChange={(e) => handleFieldChange(idx, 'dayType', e.target.value)}
+                                                            style={{
+                                                                padding: '6px 8px',
+                                                                border: '1px solid var(--color-border)',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                fontSize: '0.9rem',
+                                                                width: '110px',
+                                                                cursor: 'pointer',
+                                                                background: entry.dayType === 'Travel' ? 'rgba(0, 122, 255, 0.05)' : 'white'
+                                                            }}
+                                                        >
+                                                            <option value="Work">Work</option>
+                                                            <option value="Travel">Travel</option>
+                                                        </select>
+                                                        {entry.dayType === 'Travel' ? (
+                                                            <Plane size={16} color="var(--color-accent)" title="Travel Day" />
+                                                        ) : (
+                                                            <Briefcase size={16} color="var(--color-text-secondary)" title="Work Day" />
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td style={{ padding: '12px' }}>
                                                     <input
@@ -533,6 +614,25 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                                         >
                                                             <RotateCcw size={16} />
                                                         </button>
+
+                                                        {/* Delete Day */}
+                                                        <button
+                                                            onClick={() => deleteDay(idx)}
+                                                            title="Delete Day"
+                                                            style={{
+                                                                border: 'none',
+                                                                background: 'transparent',
+                                                                color: 'var(--color-error)',
+                                                                cursor: 'pointer',
+                                                                padding: '8px',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                transition: 'background 0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 59, 48, 0.1)'}
+                                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -541,7 +641,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                 </tbody>
                             </table>
 
-                            {/* Add Day Button */}
+                            {/* Add Extra Day Button */}
                             <button
                                 onClick={addNewDay}
                                 style={{
@@ -560,7 +660,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                 }}
                             >
                                 <Plus size={16} />
-                                Add Day
+                                Add Extra Day
                             </button>
                         </>
                     )}
