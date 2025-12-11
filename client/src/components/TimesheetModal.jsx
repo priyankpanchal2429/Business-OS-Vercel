@@ -275,6 +275,12 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
             return;
         }
 
+        // Safety Confirmation
+        const confirmSave = window.confirm(
+            `Are you sure you want to save timesheet for ${employee.name}?\n\nPeriod: ${formatDate(periodStart)} to ${formatDate(periodEnd)}\n\nExisting entries for these dates will be updated.`
+        );
+        if (!confirmSave) return;
+
         // Clear any previous errors
         setValidationErrors({});
         setSaving(true);

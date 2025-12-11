@@ -260,12 +260,15 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '8px'
-                    }}>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '8px'
+                        }}>
                         <X size={24} />
                     </button>
                 </div>
@@ -351,6 +354,7 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
                             </h3>
                             {editingId && (
                                 <button
+                                    type="button"
                                     onClick={resetForm}
                                     style={{
                                         border: '1px solid var(--color-border)',
@@ -447,6 +451,7 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
                     borderBottomRightRadius: '16px'
                 }}>
                     <button
+                        type="button"
                         onClick={onClose}
                         disabled={saving}
                         style={{
@@ -462,6 +467,7 @@ const AdvanceSalaryModal = ({ isOpen, onClose, employee, onSave, currentPeriod }
                         Close
                     </button>
                     <button
+                        type="button"
                         onClick={handleSave}
                         disabled={saving}
                         style={{

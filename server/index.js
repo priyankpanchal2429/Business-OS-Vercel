@@ -61,6 +61,35 @@ const upload = multer({
     }
 });
 
+// Configure separate upload for PDFs (Payslips)
+const ARCHIVES_DIR = path.join(__dirname, 'archives', 'payslips');
+if (!fs.existsSync(ARCHIVES_DIR)) {
+    fs.mkdirSync(ARCHIVES_DIR, { recursive: true });
+}
+
+const pdfStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, ARCHIVES_DIR);
+    },
+    filename: (req, file, cb) => {
+        // Use original filename (sanitized) to match requirements
+        // e.g., Payslip_Hitesh_2025-11-23.pdf
+        cb(null, file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'));
+    }
+});
+
+const pdfUpload = multer({
+    storage: pdfStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per requirement
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed!'));
+        }
+    }
+});
+
 // Serve uploaded files statically
 app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -566,17 +595,10 @@ app.get('/api/bonus/:id', (req, res) => {
 function countWorkingDays(data, employeeId, startStr, endStr) {
     // Use string comparison YYYY-MM-DD to be timezone safe
     // Assumptions: startStr, endStr, and e.date are all YYYY-MM-DD strings
-    // Use local time for 'today' to avoid clipping current day due to UTC lag
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    // Cap calculation at Today if end date is in future
-    // Bonus only accrues for days actually passed/worked
-    const effectiveEnd = endStr > today ? today : endStr;
 
     return (data.timesheet_entries || []).filter(e => {
         return e.employeeId === employeeId &&
-            e.date >= startStr && e.date <= effectiveEnd && // Within range (inclusive)
+            e.date >= startStr && e.date <= endStr && // Within range (inclusive)
             (e.clockIn || e.shiftStart) // Present (has shift or clock in)
     }).length;
 }
@@ -893,14 +915,25 @@ app.post('/api/payroll/mark-paid', (req, res) => {
 
             // 5. Freeze Bonus Info
             const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
-            const ytdBonusDays = countWorkingDays(data, employeeId, bonusSettings.startDate, bonusSettings.endDate);
+
+            // FIX: Cap bonus calculation at the period end date for frozen payslip accuracy
+            const safeBonusEndDate = new Date(periodEnd) > new Date(bonusSettings.endDate) ? bonusSettings.endDate : periodEnd;
+            const ytdBonusDays = countWorkingDays(data, employeeId, bonusSettings.startDate, safeBonusEndDate);
             const ytdBonusAccrued = ytdBonusDays * bonusSettings.amountPerDay;
+
+            // Filter withdrawals to only include those made ON or BEFORE the period end date
             const totalWithdrawn = (data.bonus_withdrawals || [])
-                .filter(w => w.employeeId === employeeId)
+                .filter(w => {
+                    if (w.employeeId !== employeeId || w.status === 'rejected') return false;
+                    if (!w.date) return true;
+                    return new Date(w.date) <= new Date(periodEnd);
+                })
                 .reduce((sum, w) => sum + w.amount, 0);
 
             entry.frozenBonus = {
                 ytdDays: ytdBonusDays,
+                ytdAccrued: ytdBonusAccrued, // Explicit
+                totalWithdrawn: totalWithdrawn, // Explicit
                 balance: ytdBonusAccrued - totalWithdrawn
             };
 
@@ -1568,6 +1601,7 @@ app.post('/api/timesheet', (req, res) => {
     const savedEntries = [];
 
     // Process each entry
+    // Process each entry
     entries.forEach(entry => {
         // Normalize time fields - accept both naming conventions
         const clockIn = entry.clockIn || entry.shiftStart || '';
@@ -1577,37 +1611,71 @@ app.post('/api/timesheet', (req, res) => {
         // Calculate hours with day type
         const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes, dayType);
 
-        const timesheetEntry = {
-            id: entry.id || `ts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            employeeId: parseInt(employeeId),
-            date: entry.date,
-            shiftStart: clockIn,
-            shiftEnd: clockOut,
-            // Ensure these are explicitly saved
-            clockIn: clockIn,
-            clockOut: clockOut,
-            breakMinutes: parseInt(entry.breakMinutes) || 0,
-            dayType: dayType, // Save day type
-            totalMinutes: calc.totalMinutes,
-            billableMinutes: calc.billableMinutes,
-            regularMinutes: calc.regularMinutes,
-            overtimeMinutes: calc.overtimeMinutes,
-            nightStatus: calc.nightStatus,
-            status: 'active',
-            modifiedAt: timestamp,
-            modifiedBy: actor
-        };
+        // --- UPSERT LOGIC (DATE-BASED) ---
+        // Find existing entry for this Employee + Date
+        const existingIndex = data.timesheet_entries.findIndex(e =>
+            e.employeeId === parseInt(employeeId) &&
+            e.date === entry.date // Strict date match
+        );
 
-        totalBillableMinutes += calc.billableMinutes;
+        const currentTimestamp = new Date().toISOString();
 
-        // Update or insert
-        const existingIndex = data.timesheet_entries.findIndex(e => e.id === timesheetEntry.id);
+        let timesheetEntry;
+
         if (existingIndex >= 0) {
+            // UDPATE existing
+            const existingEntry = data.timesheet_entries[existingIndex];
+
+            // Capture previous state for audit (only if meaningful change)
+            if (existingEntry.clockIn !== clockIn || existingEntry.clockOut !== clockOut) {
+                /* Optional detailed audit log could go here */
+            }
+
+            timesheetEntry = {
+                ...existingEntry, // Preserve ID and other meta
+                shiftStart: clockIn,
+                shiftEnd: clockOut,
+                clockIn: clockIn,
+                clockOut: clockOut,
+                breakMinutes: parseInt(entry.breakMinutes) || 0,
+                dayType: dayType,
+                totalMinutes: calc.totalMinutes,
+                billableMinutes: calc.billableMinutes,
+                regularMinutes: calc.regularMinutes,
+                overtimeMinutes: calc.overtimeMinutes, // Ensure these are updated
+                nightStatus: calc.nightStatus,
+                status: 'active',
+                modifiedAt: currentTimestamp,
+                modifiedBy: actor
+            };
+
             data.timesheet_entries[existingIndex] = timesheetEntry;
         } else {
+            // INSERT new
+            timesheetEntry = {
+                id: entry.id || `ts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                employeeId: parseInt(employeeId),
+                date: entry.date,
+                shiftStart: clockIn,
+                shiftEnd: clockOut,
+                clockIn: clockIn,
+                clockOut: clockOut,
+                breakMinutes: parseInt(entry.breakMinutes) || 0,
+                dayType: dayType,
+                totalMinutes: calc.totalMinutes,
+                billableMinutes: calc.billableMinutes,
+                regularMinutes: calc.regularMinutes,
+                overtimeMinutes: calc.overtimeMinutes,
+                nightStatus: calc.nightStatus,
+                status: 'active',
+                createdAt: currentTimestamp,
+                modifiedAt: currentTimestamp,
+                modifiedBy: actor
+            };
             data.timesheet_entries.push(timesheetEntry);
         }
 
+        totalBillableMinutes += calc.billableMinutes;
         savedEntries.push(timesheetEntry);
     });
 
@@ -1861,15 +1929,29 @@ app.get('/api/payroll/:id', (req, res) => {
     }
 
     // 3. Bonus Stats
+    // 3. Bonus Stats
     const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
-    const accruedDays = countWorkingDays(data, entry.employeeId, bonusSettings.startDate, bonusSettings.endDate);
+
+    // FIX: Cap bonus calculation at the period end date to ensure historical accuracy
+    const safeBonusEndDate = new Date(entry.periodEnd) > new Date(bonusSettings.endDate) ? bonusSettings.endDate : entry.periodEnd;
+    const accruedDays = countWorkingDays(data, entry.employeeId, bonusSettings.startDate, safeBonusEndDate);
     const totalAccrued = accruedDays * bonusSettings.amountPerDay;
+
+    // Filter withdrawals to only include those made ON or BEFORE the period end date
     const totalWithdrawn = (data.bonus_withdrawals || [])
-        .filter(w => w.employeeId === entry.employeeId)
+        .filter(w => {
+            if (w.employeeId !== entry.employeeId || w.status === 'rejected') return false;
+            if (!w.date) return true;
+            return new Date(w.date) <= new Date(entry.periodEnd);
+        })
         .reduce((sum, w) => sum + w.amount, 0);
 
+    // Ensure we preserve the full bonus object structure if it exists, or update it
     entry.details.bonus = {
+        ...entry.details.bonus, // Keep existing fields if any
         ytdDays: accruedDays,
+        ytdAccrued: totalAccrued, // Add explicit amount
+        totalWithdrawn: totalWithdrawn, // Add explicit withdrawn
         balance: totalAccrued - totalWithdrawn
     };
 
@@ -2248,7 +2330,8 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
             billableMinutes: e.billableMinutes,
             overtimeMinutes: e.overtimeMinutes, // New
             nightStatus: e.nightStatus,         // New
-            dinnerBreakDeduction: e.dinnerBreakDeduction // New
+            dinnerBreakDeduction: e.dinnerBreakDeduction, // New
+            dayType: e.dayType                  // New: For Travel Highlights
         };
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -2332,13 +2415,23 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
     const currentCycleBonusAmount = currentCycleBonusDays * bonusSettings.amountPerDay;
 
     // 2. Year-to-Date Bonus
-    const ytdBonusDays = countWorkingDays(data, parseInt(employeeId), bonusSettings.startDate, bonusSettings.endDate);
+    // 2. YTD Bonus (Cumulative UP TO this period end)
+    // We cap the end date at the periodEnd to ensure that past payslips don't show future bonus accruals
+    const safeBonusEndDate = new Date(periodEnd) > new Date(bonusSettings.endDate) ? bonusSettings.endDate : periodEnd;
+    const ytdBonusDays = countWorkingDays(data, parseInt(employeeId), bonusSettings.startDate, safeBonusEndDate);
     const ytdBonusAccrued = ytdBonusDays * bonusSettings.amountPerDay;
 
-    // 3. Withdrawn
+    // Filter withdrawals to only include those made ON or BEFORE the period end date
+    // Note: Assuming withdrawal has a 'date' field. If not, we might need another strategy, but usually financial transactions have dates.
+    // Let's check the withdrawal structure. If no date, we can't filter, but assuming there is one based on typical usage.
+    // Checking previous grep, withdrawal usually has date. I will add a safe check.
     const totalWithdrawn = (data.bonus_withdrawals || [])
-        .filter(w => w.employeeId === parseInt(employeeId))
-        .reduce((sum, w) => sum + w.amount, 0);
+        .filter(entry => {
+            if (entry.employeeId !== parseInt(employeeId) || entry.status === 'rejected') return false;
+            if (!entry.date) return true; // Fallback if no date (shouldn't happen)
+            return new Date(entry.date) <= new Date(periodEnd);
+        })
+        .reduce((sum, entry) => sum + entry.amount, 0);
 
     const bonusBalance = ytdBonusAccrued - totalWithdrawn;
 
@@ -2413,6 +2506,53 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         }
     };
 }
+
+// WhatsApp Send Endpoint (PDF Attachment)
+app.post('/api/whatsapp/send', pdfUpload.single('file'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No PDF file uploaded.' });
+        }
+
+        const data = readData(); // <--- FIX: Read data
+        const { employeeName, periodEnd, contact, netPay } = req.body;
+        const filename = req.file.filename;
+
+        console.log(`[WhatsApp] ---------------------------------------------------`);
+        console.log(`[WhatsApp] Sending Payslip Request Received`);
+        console.log(`[WhatsApp] To: ${contact}`);
+        console.log(`[WhatsApp] Employee: ${employeeName}`);
+        console.log(`[WhatsApp] Attachment: ${filename} (${(req.file.size / 1024).toFixed(1)} KB)`);
+        console.log(`[WhatsApp] Message: "Hi ${employeeName}, here is your payslip for period ending ${periodEnd}. Net Pay: ₹${netPay}."`);
+        console.log(`[WhatsApp] Status: MOCK SUCCESS (API Credentials not configured)`);
+        console.log(`[WhatsApp] Archived: ${req.file.path}`);
+        console.log(`[WhatsApp] ---------------------------------------------------`);
+
+        // Audit Log
+        data.audit_logs.push({
+            id: `audit-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            action: 'WHATSAPP_SHARE',
+            user: req.userRole || 'System',
+            details: {
+                employee: employeeName,
+                contact: contact,
+                file: filename,
+                periodEnd: periodEnd,
+                status: 'Sent (Mock)'
+            }
+        });
+
+        writeData(data); // <--- FIX: Save data
+
+
+        res.json({ success: true, message: 'Payslip sent successfully (Mock)' });
+
+    } catch (error) {
+        console.error('[WhatsApp] Send Failed:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
 
 // Basic Health Check (for IP debug)
 app.get('/api/health', (req, res) => {

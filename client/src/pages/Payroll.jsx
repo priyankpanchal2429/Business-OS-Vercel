@@ -94,7 +94,7 @@ const Payroll = () => {
         // Listen for advance salary updates
         const handleAdvanceUpdate = () => {
             console.log('[Payroll] Advance salary updated, refreshing data...');
-            fetchPeriodData();
+            fetchPeriodData(true); // Silent refresh to keep UI stable
         };
 
         window.addEventListener('advanceSalaryUpdated', handleAdvanceUpdate);
@@ -120,17 +120,19 @@ const Payroll = () => {
         }
     };
 
-    const fetchPeriodData = async () => {
-        setLoading(true);
+    const fetchPeriodData = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&t=${Date.now()}`);
             const data = await res.json();
+            console.log('[Payroll] Period data received:', data);
+            console.log('[Payroll] First item netPay:', data[0]?.netPay);
             setPeriodData(data);
-            setSelectedIds([]); // Reset selection on period change
+            if (!silent) setSelectedIds([]); // Reset selection only on full reload
         } catch (err) {
             console.error("Failed to fetch payroll period", err);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -365,10 +367,10 @@ const Payroll = () => {
         if (result.advance) {
             addToast(`Advance salary issued: ₹${result.advance.amount.toLocaleString('en-IN')}`, 'success');
         } else {
-            // Deleted
             addToast('Advance salary updated.', 'success');
         }
-        fetchPeriodData();
+        // Silent refresh to prevent full table reload and preserve selections
+        fetchPeriodData(true);
     };
 
     const getInitials = (name) => {
@@ -633,7 +635,7 @@ const Payroll = () => {
                                             </button>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 600 }}>₹{Number(item.netPay).toLocaleString('en-IN')}</td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 600 }}>₹{Number(item.netPay || 0).toLocaleString('en-IN')}</td>
                                     <td style={{ padding: '12px 4px 12px 32px', textAlign: 'center' }}>
                                         <StatusPill status={item.status} paidAt={item.paidAt} isAdjusted={item.isAdjusted} />
                                     </td>
@@ -663,7 +665,11 @@ const Payroll = () => {
 
                                             {/* Advance Salary Button */}
                                             <button
-                                                onClick={() => openAdvanceSalary(item)}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    openAdvanceSalary(item);
+                                                }}
                                                 title="Issue Advance Salary"
                                                 style={{
                                                     border: 'none',
