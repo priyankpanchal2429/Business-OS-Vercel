@@ -791,22 +791,33 @@ app.post('/api/payroll/mark-paid', (req, res) => {
     const actor = `${req.userRole} (${req.ip})`;
 
     employeeIds.forEach(employeeId => {
-        // Find or create the payroll entry for this employee & period
+        // Always recalculate to ensure fresh data (especially hourlyRate and totals) matches the preview logic
+        const calcResult = recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd);
+
+        // Find existing entry or use the calculated one as base
         let entry = data.payroll_entries.find(p =>
             p.employeeId === employeeId &&
             p.periodStart === periodStart &&
             p.periodEnd === periodEnd
         );
 
-        // If no entry exists, we need to create one with recalculated values
         if (!entry) {
-            const calcResult = recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd);
             if (calcResult) {
-                entry = data.payroll_entries.find(p =>
-                    p.employeeId === employeeId &&
-                    p.periodStart === periodStart
-                );
+                entry = { ...calcResult, id: Date.now() + '-' + Math.random(), status: 'Unpaid' };
+                // Ensure details and other objects are deeply copied/assigned if needed, but spread is ok for now
+                data.payroll_entries.push(entry);
             }
+        } else if (calcResult) {
+            // Update existing entry with fresh calculated values
+            Object.assign(entry, {
+                hourlyRate: calcResult.hourlyRate,
+                grossPay: calcResult.grossPay,
+                netPay: calcResult.netPay,
+                overtimePay: calcResult.overtimePay,
+                totalOvertimeMinutes: calcResult.totalOvertimeMinutes,
+                details: calcResult.details, // Important for bonus/loan details consistency
+                perShiftAmount: calcResult.perShiftAmount // Ensure shift amount is fresh
+            });
         }
 
         if (entry) {
@@ -817,8 +828,9 @@ app.post('/api/payroll/mark-paid', (req, res) => {
             entry.frozenEmployeeName = employee?.name || 'Unknown';
             entry.frozenEmployeeRole = employee?.role || 'Unknown';
             entry.frozenEmployeeImage = employee?.image || null;
-            entry.frozenPerShiftAmount = employee?.perShiftAmount;
-            entry.frozenHourlyRate = employee?.hourlyRate;
+            entry.frozenPerShiftAmount = entry.perShiftAmount || employee?.perShiftAmount;
+            // FIX: Use calculated hourlyRate from entry if available (handles per-shift conversion), otherwise fall back to profile
+            entry.frozenHourlyRate = entry.hourlyRate || employee?.hourlyRate;
             entry.frozenSalary = employee?.salary;
 
             // 2. Freeze Timesheet Details
@@ -836,7 +848,7 @@ app.post('/api/payroll/mark-paid', (req, res) => {
                 const clockIn = e.clockIn || e.shiftStart || '';
                 const clockOut = e.clockOut || e.shiftEnd || '';
                 const dayType = e.dayType || 'Work';
-                const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType);
+                const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType, employee?.shiftEnd || '18:00');
                 return {
                     date: e.date,
                     clockIn: clockIn || '-',
@@ -1608,8 +1620,10 @@ app.post('/api/timesheet', (req, res) => {
         const clockOut = entry.clockOut || entry.shiftEnd || '';
         const dayType = entry.dayType || 'Work'; // Default to Work if not specified
 
-        // Calculate hours with day type
-        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes, dayType);
+        // Fetch employee to get shift details
+        const employee = data.employees.find(e => e.id === parseInt(employeeId));
+        // Calculate hours with day type and Employee's specific shift end (OT Cutoff)
+        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes, dayType, employee?.shiftEnd || '18:00');
 
         // --- UPSERT LOGIC (DATE-BASED) ---
         // Find existing entry for this Employee + Date
@@ -1832,7 +1846,7 @@ app.get('/api/payroll/:id', (req, res) => {
     entry.details = {};
     entry.details.timesheet = periodEntries.map(e => {
         const dayType = e.dayType || 'Work';
-        const calc = calculateShiftHours(e.clockIn || e.shiftStart, e.clockOut || e.shiftEnd, e.breakMinutes, dayType);
+        const calc = calculateShiftHours(e.clockIn || e.shiftStart, e.clockOut || e.shiftEnd, e.breakMinutes, dayType, employee?.shiftEnd || '18:00');
         return {
             date: e.date,
             clockIn: e.clockIn || e.shiftStart || '-',
@@ -2219,7 +2233,7 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
         // Use dayType to determine OT calculation
         const dayType = entry.dayType || 'Work';
 
-        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes || 0, dayType);
+        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes || 0, dayType, employee?.shiftEnd || '18:00');
 
         return {
             ...entry,
@@ -2305,7 +2319,8 @@ function recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd) {
     console.log(`[DEBUG] Employee ${employeeId}: Advance Deductions: ${advanceDeductions}`);
 
     // Calculate net pay (Rounded)
-    const netPay = Math.round(Math.max(0, grossPay - totalDeductions));
+    // Calculate net pay (Rounded) - Allow negative values per user request
+    const netPay = Math.round(grossPay - totalDeductions);
 
     // Find or create payroll entry
     if (!data.payroll_entries) data.payroll_entries = [];

@@ -288,18 +288,19 @@ const Payslip = () => {
                                     const isSunday = new Date(row.date).getDay() === 0;
                                     const isTravel = row.dayType === 'Travel';
                                     const hasOvertime = row.overtimeMinutes > 0;
-                                    const showNightStatus = row.nightStatus && hasOvertime; // Only show if has OT
+                                    const showNightStatus = row.nightStatus && hasOvertime;
+                                    const highlightOvertime = hasOvertime; // Apply highlighting logic to ANY overtime as requested
 
                                     return (
                                         <tr key={idx} style={{
-                                            background: isTravel ? '#E6F4FF' : (showNightStatus ? '#fffde7' : 'transparent'),
+                                            background: isTravel ? '#E6F4FF' : (highlightOvertime ? '#fffde7' : 'transparent'),
                                             color: isSunday ? '#d32f2f' : 'inherit'
                                         }}>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     {new Date(row.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                                                     {isTravel && <Plane size={12} fill="#0ea5e9" color="#0ea5e9" title="Travel Day" />}
-                                                    {showNightStatus && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
+                                                    {highlightOvertime && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
                                                 </div>
                                             </td>
                                             <td>{formatTime12h(row.clockIn)}</td>
