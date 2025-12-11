@@ -145,20 +145,33 @@ const AttendanceCard = () => {
 
                                     return (
                                         <div key={emp.employeeId} style={{
-                                            background: 'white',
-                                            border: isWorking ? '1px solid var(--color-success)' : '1px solid var(--color-error)',
+                                            background: 'var(--color-surface)',
+                                            border: '1px solid var(--color-border)',
                                             borderRadius: 'var(--radius-md)',
-                                            padding: '8px',
+                                            padding: '12px',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '8px',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                            gap: '12px',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                            position: 'relative'
                                         }}>
-                                            {/* Profile Picture */}
+                                            {/* Status Indicator (Top Right Corner) */}
                                             <div style={{
-                                                width: 40,
-                                                height: 40,
-                                                borderRadius: '8px',
+                                                position: 'absolute',
+                                                top: '8px',
+                                                right: '8px',
+                                                width: '10px',
+                                                height: '10px',
+                                                borderRadius: '50%',
+                                                background: isWorking ? 'var(--color-success)' : 'var(--color-error)',
+                                                boxShadow: `0 0 0 2px var(--color-surface), 0 0 8px ${isWorking ? 'rgba(52, 199, 89, 0.4)' : 'rgba(255, 59, 48, 0.4)'}`
+                                            }} />
+
+                                            {/* Profile Picture - Bigger */}
+                                            <div style={{
+                                                width: 60,
+                                                height: 60,
+                                                borderRadius: '12px',
                                                 background: 'var(--color-background-subtle)',
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -168,10 +181,12 @@ const AttendanceCard = () => {
                                                 backgroundSize: 'cover',
                                                 backgroundPosition: 'center',
                                                 overflow: 'hidden',
-                                                flexShrink: 0
+                                                flexShrink: 0,
+                                                border: '2px solid white',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                                             }}>
                                                 {!emp.employeeImage && (
-                                                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: '1.5rem' }}>
                                                         {getInitials(emp.employeeName)}
                                                     </span>
                                                 )}
@@ -181,48 +196,28 @@ const AttendanceCard = () => {
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 {/* Name */}
                                                 <div style={{
-                                                    fontWeight: 500,
-                                                    fontSize: '0.95rem',
-                                                    marginBottom: '6px',
+                                                    fontWeight: 600,
+                                                    fontSize: '1rem',
+                                                    marginBottom: '4px',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
+                                                    whiteSpace: 'nowrap',
+                                                    color: 'var(--color-text-primary)'
                                                 }}>
                                                     {emp.employeeName}
-                                                </div>
-
-                                                {/* Status Badge */}
-                                                <div style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    padding: '4px 10px',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    background: isWorking ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 600,
-                                                    marginBottom: isWorking ? '6px' : '0'
-                                                }}>
-                                                    <div style={{
-                                                        width: '6px',
-                                                        height: '6px',
-                                                        borderRadius: '50%',
-                                                        background: isWorking ? 'var(--color-success)' : 'var(--color-error)'
-                                                    }} />
-                                                    {isWorking ? 'Working Today' : 'Not Working'}
                                                 </div>
 
                                                 {/* Clock Times */}
                                                 {isWorking && (
                                                     <div style={{
-                                                        fontSize: '0.8rem',
+                                                        fontSize: '0.85rem',
                                                         color: 'var(--color-text-secondary)',
                                                         fontFamily: 'monospace',
                                                         display: 'flex',
                                                         alignItems: 'center',
-                                                        gap: '4px'
+                                                        gap: '6px'
                                                     }}>
-                                                        <Clock size={12} />
+                                                        <Clock size={14} />
                                                         {(() => {
                                                             const formatTime = (timeStr) => {
                                                                 if (!timeStr) return '--:--';

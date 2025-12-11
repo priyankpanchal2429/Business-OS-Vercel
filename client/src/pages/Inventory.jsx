@@ -306,8 +306,8 @@ const Inventory = () => {
             ) : (
                 <div style={{
                     display: 'grid',
-                    // Set to 300px for balanced width product cards
-                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(300px, 1fr))' : '1fr',
+                    // Reduced to 260px for narrower product cards
+                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(260px, 1fr))' : '1fr',
                     gap: '20px',
                     paddingBottom: '40px'
                 }}>

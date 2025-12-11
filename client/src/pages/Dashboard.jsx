@@ -17,6 +17,8 @@ import {
     Briefcase,
 } from 'lucide-react';
 
+import BirthdayBanner from '../components/BirthdayBanner';
+
 const Dashboard = () => {
     const navigate = useNavigate();
     const [metrics, setMetrics] = React.useState({
@@ -28,6 +30,7 @@ const Dashboard = () => {
     });
     const [recentLogs, setRecentLogs] = useState([]);
     const [bonusStats, setBonusStats] = useState({ companyTotalBalance: 0 });
+    const [employees, setEmployees] = useState([]); // Add employees state
 
     const [loading, setLoading] = useState(true);
 
@@ -35,6 +38,11 @@ const Dashboard = () => {
         const fetchData = async () => {
             try {
                 setLoading(true);
+                // Fetch Employees (for Birthday Banner)
+                const empRes = await fetch('/api/employees');
+                const empData = await empRes.json();
+                setEmployees(empData);
+
                 // Fetch Inventory
                 const invRes = await fetch('/api/inventory');
                 const invData = await invRes.json();
@@ -87,7 +95,7 @@ const Dashboard = () => {
     const getPaydayInfo = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const anchorDate = new Date(2025, 11, 7); // Dec 7 2025 (Sunday)
+        const anchorDate = new Date(2025, 11, 6); // Dec 6 2025 (Saturday)
 
         const diffTime = today - anchorDate;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -133,7 +141,7 @@ const Dashboard = () => {
             label: "Next Payday",
             value: paydayInfo.text,
             icon: <TrendingUp size={20} color={paydayInfo.text === "Today" ? "white" : "var(--color-warning)"} />,
-            change: "Bi-Weekly (Sun)",
+            change: "Bi-Weekly (Sat)",
             isPayday: paydayInfo.text === "Today"
         }
     ];
@@ -160,6 +168,9 @@ const Dashboard = () => {
             }}>
                 {/* Left Column: Metrics & Actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2xl)' }}>
+
+                    {/* Birthday Card (Only shows if active) */}
+                    <BirthdayBanner employees={employees} />
 
                     {/* Top Row: 4 Metric Cards */}
                     <div style={{
@@ -304,7 +315,7 @@ const Dashboard = () => {
                                     <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         Annual Bonus
                                     </span>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-success)' }}>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-accent)' }}>
                                         ₹{bonusStats.companyTotalBalance.toLocaleString('en-IN')}
                                     </div>
                                 </div>

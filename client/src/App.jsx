@@ -8,6 +8,7 @@ import Employees from './pages/Employees';
 import Payroll from './pages/Payroll';
 import Payslip from './pages/Payslip';
 import ResignedEmployeeHistory from './pages/ResignedEmployeeHistory';
+import Report from './pages/Report';
 
 import { ToastProvider } from './context/ToastContext';
 
@@ -23,6 +24,7 @@ function App() {
                         <Route path="/employees" element={<Employees />} />
                         <Route path="/payroll" element={<Payroll />} />
                         <Route path="/payslip/:id" element={<Payslip />} />
+                        <Route path="/report" element={<Report />} />
                         <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

@@ -589,6 +589,218 @@ app.get('/api/bonus/:id', (req, res) => {
 });
 
 
+// --- REPORTING & ANALYTICS ---
+
+// Get Performance Report Data
+app.get('/api/reports/performance', (req, res) => {
+    const { employeeId, startDate, endDate } = req.query;
+    const data = readData();
+
+    if (!employeeId || !startDate || !endDate) {
+        return res.status(400).json({ error: 'Missing required parameters (employeeId, startDate, endDate)' });
+    }
+
+    const empId = parseInt(employeeId);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const employee = data.employees.find(e => e.id === empId);
+    if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Filter Timesheet Entries
+    const entries = (data.timesheet_entries || []).filter(e => {
+        const d = new Date(e.date);
+        return e.employeeId === empId && d >= start && d <= end && e.status === 'active';
+    });
+
+    // Bonus Settings for Bonus Days Calc
+    const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
+
+    // Aggregators
+    let totalBillableMinutes = 0;
+    let totalOvertimeMinutes = 0;
+    let totalTravelDays = 0;
+    let totalBonusDays = 0;
+    let totalPresentDays = 0;
+
+    // Daily Breakdown for Charts
+    const dailyStats = entries.map(e => {
+        const clockIn = e.clockIn || e.shiftStart || '';
+        const clockOut = e.clockOut || e.shiftEnd || '';
+        const dayType = e.dayType || 'Work';
+
+        // Calculate Hours using existing helper
+        // Assuming calculateShiftHours is available in scope
+        const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType, employee.shiftEnd || '18:00');
+
+        const isPresent = (!!e.clockIn || !!e.shiftStart);
+
+        // Bonus Rule Check (simplified version of countWorkingDays logic)
+        // Check if date is within bonus year AND present
+        const dateStr = e.date; // YYYY-MM-DD
+        const isBonusDay = (dateStr >= bonusSettings.startDate && dateStr <= bonusSettings.endDate && isPresent);
+
+        if (isPresent) totalPresentDays++;
+        if (dayType === 'Travel') totalTravelDays++;
+        if (isBonusDay) totalBonusDays++;
+
+        totalBillableMinutes += calc.billableMinutes;
+        totalOvertimeMinutes += calc.overtimeMinutes;
+
+        return {
+            date: e.date,
+            dayType: dayType,
+            billableHours: parseFloat((calc.billableMinutes / 60).toFixed(2)),
+            overtimeHours: parseFloat((calc.overtimeMinutes / 60).toFixed(2)),
+            isTravel: dayType === 'Travel',
+            isBonus: isBonusDay
+        };
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Summary KPIs
+    const summary = {
+        totalHours: parseFloat((totalBillableMinutes / 60).toFixed(2)),
+        totalOvertimeHours: parseFloat((totalOvertimeMinutes / 60).toFixed(2)),
+        avgHoursPerDay: totalPresentDays > 0 ? parseFloat((totalBillableMinutes / 60 / totalPresentDays).toFixed(2)) : 0,
+        travelDays: totalTravelDays,
+        bonusDays: totalBonusDays,
+        attendanceDays: totalPresentDays,
+        punctualityScore: 'N/A' // Placeholder for future
+    };
+
+    // Calculate total period days (excluding Sundays)
+    let totalWorkingDays = 0;
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+        const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        if (dayOfWeek !== 0) { // Exclude Sundays
+            totalWorkingDays++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    const absentDays = totalWorkingDays - totalPresentDays;
+    const attendanceRate = totalWorkingDays > 0 ? parseFloat(((totalPresentDays / totalWorkingDays) * 100).toFixed(1)) : 0;
+
+    // Earnings Calculations
+    const perShiftAmount = parseFloat(employee.perShiftAmount) || 0;
+    const baseSalary = perShiftAmount * totalPresentDays;
+
+    // Overtime calculation (assuming hourly rate = perShiftAmount / 8.75)
+    const hourlyRate = perShiftAmount > 0 ? perShiftAmount / 8.75 : 0;
+    const overtimePay = parseFloat((hourlyRate * summary.totalOvertimeHours).toFixed(2));
+
+    // Bonus calculation
+    const bonusAmountPerDay = bonusSettings.amountPerDay || 35;
+    const bonusAmount = bonusAmountPerDay * totalBonusDays;
+
+    const totalEarnings = baseSalary + overtimePay + bonusAmount;
+
+    const earnings = {
+        baseSalary: parseFloat(baseSalary.toFixed(2)),
+        overtimePay,
+        bonusAmount,
+        totalEarnings: parseFloat(totalEarnings.toFixed(2))
+    };
+
+    const attendance = {
+        totalDays: totalWorkingDays, // Excludes Sundays
+        workedDays: totalPresentDays,
+        absentDays,
+        attendanceRate
+    };
+
+    res.json({
+        employee: { id: employee.id, name: employee.name, role: employee.role, image: employee.image },
+        period: { start: startDate, end: endDate },
+        summary,
+        earnings,
+        attendance,
+        daily: dailyStats
+    });
+});
+
+// Get Leaderboard (Top Performers)
+app.get('/api/reports/leaderboard', (req, res) => {
+    const { month, year } = req.query; // e.g. month=11 (Nov), year=2025
+    const data = readData();
+
+    if (!month || !year) {
+        return res.status(400).json({ error: 'Missing required parameters (month, year)' });
+    }
+
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0); // Last day of month
+
+    // Convert to string for comparisons if needed, but Date objects work for filtering
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+
+    const activeEmployees = data.employees.filter(e => e.status.toLowerCase() === 'active');
+
+    const scores = activeEmployees.map(emp => {
+        // Filter timesheet for this employee in this range
+        const entries = (data.timesheet_entries || []).filter(e => {
+            const d = new Date(e.date);
+            return e.employeeId === emp.id && d >= start && d <= end && e.status === 'active';
+        });
+
+        // Calculate Stats
+        let totalMinutes = 0;
+        let presentDays = 0;
+        let travelDays = 0;
+
+        entries.forEach(e => {
+            if (e.clockIn || e.shiftStart) {
+                presentDays++;
+                // Use existing helper logic (simplified here for speed)
+                const clockIn = e.clockIn || e.shiftStart;
+                const clockOut = e.clockOut || e.shiftEnd;
+                // Basic diff
+                if (clockIn && clockOut) {
+                    const [h1, m1] = clockIn.split(':').map(Number);
+                    const [h2, m2] = clockOut.split(':').map(Number);
+                    let mins = (h2 * 60 + m2) - (h1 * 60 + m1) - (e.breakMinutes || 0);
+                    if (mins < 0) mins = 0;
+                    totalMinutes += mins;
+                }
+            }
+            if (e.dayType === 'Travel') travelDays++;
+        });
+
+        const totalHours = parseFloat((totalMinutes / 60).toFixed(2));
+        const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
+
+        // Scoring Algorithm (0-100)
+        // 1. Attendance: Up to 40 pts (assuming 26 working days max)
+        const attendanceScore = Math.min(40, (presentDays / 26) * 40);
+
+        // 2. Performance (Avg Hours): Up to 40 pts (Target 9h/day)
+        const performanceScore = Math.min(40, (avgHours / 9) * 40);
+
+        // 3. Bonus (Travel): 2 pts per travel day, max 20
+        const bonusScore = Math.min(20, travelDays * 2);
+
+        const totalScore = Math.min(100, Math.round(attendanceScore + performanceScore + bonusScore));
+
+        return {
+            employee: { id: emp.id, name: emp.name, role: emp.role, image: emp.image },
+            score: totalScore,
+            stats: { totalHours, presentDays, travelDays, avgHours: avgHours.toFixed(1) }
+        };
+    });
+
+    // Rank and return Top 3
+    const ranked = scores.sort((a, b) => b.score - a.score).slice(0, 3);
+
+    res.json({
+        period: { month, year },
+        topPerformers: ranked
+    });
+});
+
 
 // Helper: Count working days in a range
 // Helper: Count working days in a range
@@ -1326,6 +1538,26 @@ app.get('/api/advance-salary', (req, res) => {
     results.sort((a, b) => new Date(b.dateIssued) - new Date(a.dateIssued));
 
     res.json(results);
+});
+
+// Log Event (Client-side events like "Wished Birthday")
+app.post('/api/logs', (req, res) => {
+    const { action, details } = req.body;
+    const data = readData();
+
+    if (!data.audit_logs) data.audit_logs = [];
+
+    data.audit_logs.push({
+        id: Date.now() + '-log',
+        action: action || 'CLIENT_EVENT',
+        targetId: 'SYSTEM',
+        actor: `${req.userRole || 'User'} (${req.ip})`,
+        timestamp: new Date().toISOString(),
+        details: details || 'No details provided'
+    });
+
+    writeData(data);
+    res.json({ success: true });
 });
 
 // Alias for /api/advances (for resigned employee history)

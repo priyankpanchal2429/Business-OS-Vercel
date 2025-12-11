@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, Contact, Receipt } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Contact, Receipt, FileText } from 'lucide-react';
 import '../index.css';
 
 const Sidebar = () => {
@@ -10,6 +10,7 @@ const Sidebar = () => {
         { to: "/vendors", icon: <Users size={20} />, label: "Vendors" },
         { to: "/employees", icon: <Contact size={20} />, label: "Employees" },
         { to: "/payroll", icon: <Receipt size={20} />, label: "Payroll" },
+        { to: "/report", icon: <FileText size={20} />, label: "Report" },
     ];
 
     return (

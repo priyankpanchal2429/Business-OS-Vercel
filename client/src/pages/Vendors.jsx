@@ -132,26 +132,23 @@ const Vendors = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
                     <thead style={{ background: 'var(--color-background-subtle)', borderBottom: '1px solid var(--color-border)' }}>
                         <tr>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>ID</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Vendor Name</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Company Name</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Contact Person</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Phone</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Email</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Status</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Phone No.</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Address</th>
                             <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="7" style={{ padding: 24, textAlign: 'center' }}>Loading...</td></tr>
+                            <tr><td colSpan="5" style={{ padding: 24, textAlign: 'center' }}>Loading...</td></tr>
                         ) : filteredVendors.length === 0 ? (
-                            <tr><td colSpan="7" style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                            <tr><td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                                 {searchQuery ? 'No vendors found matching your search.' : 'No vendors found. Add your first vendor!'}
                             </td></tr>
                         ) : (
                             filteredVendors.map(vendor => (
                                 <tr key={vendor.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                    <td style={{ padding: '12px 16px' }}>#{vendor.id}</td>
                                     <td style={{ padding: '12px 16px', fontWeight: 500 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                             {vendor.logoUrl ? (
@@ -178,20 +175,10 @@ const Vendors = () => {
                                             {vendor.name}
                                         </div>
                                     </td>
-                                    <td style={{ padding: '12px 16px' }}>{vendor.contactPerson}</td>
-                                    <td style={{ padding: '12px 16px' }}>{vendor.phone}</td>
-                                    <td style={{ padding: '12px 16px', color: 'var(--color-accent)' }}>{vendor.email}</td>
-                                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                                        <span style={{
-                                            padding: '4px 12px',
-                                            borderRadius: '12px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 500,
-                                            background: vendor.status === 'active' ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)',
-                                            color: vendor.status === 'active' ? 'var(--color-success)' : 'var(--color-error)'
-                                        }}>
-                                            {vendor.status === 'active' ? 'Active' : 'Inactive'}
-                                        </span>
+                                    <td style={{ padding: '12px 16px' }}>{vendor.contactPerson || '-'}</td>
+                                    <td style={{ padding: '12px 16px' }}>{vendor.phone || '-'}</td>
+                                    <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>
+                                        {vendor.address || '-'}
                                     </td>
                                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>

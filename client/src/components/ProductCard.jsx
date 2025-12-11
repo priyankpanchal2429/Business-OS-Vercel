@@ -4,292 +4,532 @@ import { Package, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
     const [showActions, setShowActions] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [showImageModal, setShowImageModal] = useState(false);
 
+    // List View Layout
+    if (viewMode === 'list') {
+        return (
+            <div
+                style={{
+                    background: 'white',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px',
+                    padding: '16px',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    minHeight: '120px'
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = 'var(--color-accent)';
+                    setIsHovered(true);
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    setShowActions(false);
+                    setIsHovered(false);
+                }}
+            >
+                {/* Image */}
+                <div style={{
+                    width: '90px',
+                    height: '90px',
+                    background: 'white',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    border: '1px solid var(--color-border)'
+                }}>
+                    {item.imageUrl ? (
+                        <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                padding: '8px'
+                            }}
+                        />
+                    ) : (
+                        <Package size={36} color="#d1d5db" strokeWidth={1.5} />
+                    )}
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <h3 style={{
+                            margin: 0,
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            color: 'var(--color-text-primary)'
+                        }}>
+                            {item.name}
+                        </h3>
+                        {item.category && (
+                            <span style={{
+                                background: 'var(--color-background-subtle)',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: 'var(--color-text-secondary)',
+                                textTransform: 'uppercase'
+                            }}>
+                                {item.category}
+                            </span>
+                        )}
+                    </div>
+
+                    {item.description && (
+                        <p style={{
+                            margin: '0 0 12px 0',
+                            fontSize: '0.875rem',
+                            color: 'var(--color-text-secondary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {item.description}
+                        </p>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '20px', fontSize: '0.875rem' }}>
+                        {item.hsnCode && (
+                            <div>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>HSN: </span>
+                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.hsnCode}</span>
+                            </div>
+                        )}
+                        {item.type && (
+                            <div>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Type: </span>
+                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.type}</span>
+                            </div>
+                        )}
+                        {item.vendorName && (
+                            <div>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Vendor: </span>
+                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.vendorName}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Actions Menu */}
+                {isHovered && (
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowActions(!showActions);
+                            }}
+                            style={{
+                                background: 'white',
+                                border: '1px solid var(--color-border)',
+                                cursor: 'pointer',
+                                padding: '8px',
+                                borderRadius: '8px',
+                                color: 'var(--color-text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                            }}
+                        >
+                            <MoreVertical size={18} />
+                        </button>
+
+                        {showActions && (
+                            <div style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: '110%',
+                                background: 'white',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                zIndex: 10,
+                                minWidth: '140px',
+                                overflow: 'hidden'
+                            }}>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEdit(item);
+                                        setShowActions(false);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: '1px solid var(--color-border)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--color-text-primary)',
+                                        fontWeight: 500
+                                    }}
+                                    onMouseEnter={e => e.target.style.background = 'var(--color-background-subtle)'}
+                                    onMouseLeave={e => e.target.style.background = 'none'}
+                                >
+                                    <Edit2 size={16} strokeWidth={2} /> Edit
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(item);
+                                        setShowActions(false);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--color-error)',
+                                        fontWeight: 500
+                                    }}
+                                    onMouseEnter={e => e.target.style.background = '#fef2f2'}
+                                    onMouseLeave={e => e.target.style.background = 'none'}
+                                >
+                                    <Trash2 size={16} strokeWidth={2} /> Delete
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Grid View Layout (Redesigned - Vertical with Image)
     return (
-        <div
-            style={{
-                background: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-                height: '100%',
-                cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.borderColor = '#d1d5db';
-                setIsHovered(true);
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = '#e5e7eb';
-                setShowActions(false);
-                setIsHovered(false);
-            }}
-        >
-            {/* Image Section */}
-            <div style={{
-                width: '100%',
-                height: '240px',
-                background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                overflow: 'hidden',
-                borderBottom: '1px solid #f3f4f6'
-            }}>
-                {item.imageUrl ? (
+        <>
+            {/* Image Zoom Modal */}
+            {showImageModal && item.imageUrl && (
+                <div
+                    onClick={() => setShowImageModal(false)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0,0,0,0.85)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '40px',
+                        cursor: 'zoom-out'
+                    }}
+                >
                     <img
                         src={item.imageUrl}
                         alt={item.name}
                         style={{
-                            width: '100%',
-                            height: '100%',
+                            maxWidth: '90%',
+                            maxHeight: '90%',
                             objectFit: 'contain',
-                            padding: '24px'
+                            borderRadius: '12px',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
                         }}
+                        onClick={(e) => e.stopPropagation()}
                     />
-                ) : (
-                    <Package size={56} color="#d1d5db" strokeWidth={1.5} />
-                )}
+                </div>
+            )}
 
-                {/* Category Badge */}
-                {item.category && (
+            <div
+                style={{
+                    background: 'white',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    height: '100%',
+                    cursor: 'pointer',
+                    padding: '16px'
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 113, 227, 0.15)';
+                    e.currentTarget.style.transform = 'translateY(-6px)';
+                    e.currentTarget.style.borderColor = 'var(--color-accent)';
+                    setIsHovered(true);
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    setShowActions(false);
+                    setIsHovered(false);
+                }}
+            >
+                {/* Image Section - Top */}
+                <div
+                    onClick={() => item.imageUrl && setShowImageModal(true)}
+                    style={{
+                        width: '100%',
+                        height: '180px',
+                        background: 'white',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '16px',
+                        overflow: 'hidden',
+                        cursor: item.imageUrl ? 'zoom-in' : 'default',
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                        if (item.imageUrl) {
+                            e.currentTarget.style.transform = 'scale(1.02)';
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                >
+                    {item.imageUrl ? (
+                        <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                padding: '12px'
+                            }}
+                        />
+                    ) : (
+                        <Package size={48} color="#d1d5db" strokeWidth={1.5} />
+                    )}
+                </div>
+
+                {/* Content Section - Below Image */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {/* Product Name */}
+                    <h3 style={{
+                        margin: '0 0 8px 0',
+                        fontSize: '1.1rem',
+                        fontWeight: 700,
+                        color: 'var(--color-text-primary)',
+                        lineHeight: 1.3
+                    }}>
+                        {item.name}
+                    </h3>
+
+                    {/* Category Badge */}
+                    {item.category && (
+                        <div style={{
+                            display: 'inline-block',
+                            alignSelf: 'flex-start',
+                            background: 'var(--color-accent)',
+                            color: 'white',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            marginBottom: '12px'
+                        }}>
+                            {item.category}
+                        </div>
+                    )}
+
+                    {/* Description */}
+                    {item.description && (
+                        <p style={{
+                            margin: '0 0 auto 0',
+                            fontSize: '0.85rem',
+                            color: 'var(--color-text-secondary)',
+                            lineHeight: 1.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                        }}>
+                            {item.description}
+                        </p>
+                    )}
+                </div>
+
+                {/* Three-Dot Menu - Top Right */}
+                {isHovered && (
                     <div style={{
                         position: 'absolute',
                         top: 12,
-                        right: 12,
-                        background: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(8px)',
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: '#374151',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                        right: 12
                     }}>
-                        {item.category}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowActions(!showActions);
+                            }}
+                            style={{
+                                background: 'var(--color-accent)',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '6px',
+                                borderRadius: '8px',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 4px 12px rgba(0, 113, 227, 0.3)'
+                            }}
+                        >
+                            <MoreVertical size={16} />
+                        </button>
+
+                        {showActions && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: '4px',
+                                background: 'white',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                zIndex: 10,
+                                minWidth: '140px',
+                                overflow: 'hidden'
+                            }}>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEdit(item);
+                                        setShowActions(false);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: '1px solid var(--color-border)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--color-text-primary)',
+                                        fontWeight: 500
+                                    }}
+                                    onMouseEnter={e => e.target.style.background = 'var(--color-background-subtle)'}
+                                    onMouseLeave={e => e.target.style.background = 'none'}
+                                >
+                                    <Edit2 size={16} strokeWidth={2} /> Edit
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(item);
+                                        setShowActions(false);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--color-error)',
+                                        fontWeight: 500
+                                    }}
+                                    onMouseEnter={e => e.target.style.background = '#fef2f2'}
+                                    onMouseLeave={e => e.target.style.background = 'none'}
+                                >
+                                    <Trash2 size={16} strokeWidth={2} /> Delete
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
-            </div>
 
-            {/* Content Section */}
-            <div style={{
-                padding: '20px',
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative'
-            }}>
-                {/* Product Name */}
-                <h3 style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '1.25rem',
-                    fontWeight: 700,
-                    color: '#111827',
-                    lineHeight: 1.3,
-                    letterSpacing: '-0.01em'
+                {/* Bottom Section: Metadata */}
+                <div style={{
+                    paddingTop: '12px',
+                    borderTop: '1px solid var(--color-border)',
+                    marginTop: '12px'
                 }}>
-                    {item.name}
-                </h3>
-
-                {/* Description */}
-                {item.description && (
-                    <p style={{
-                        margin: '0 0 16px 0',
-                        fontSize: '0.875rem',
-                        color: '#6b7280',
-                        lineHeight: 1.5,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
                     }}>
-                        {item.description}
-                    </p>
-                )}
-
-                {/* Divider */}
-                <div style={{
-                    height: '1px',
-                    background: '#f3f4f6',
-                    margin: '12px 0'
-                }}></div>
-
-                {/* Metadata Grid */}
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    marginTop: 'auto'
-                }}>
-                    {/* HSN */}
-                    {item.hsnCode && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '0.875rem'
-                        }}>
-                            <span style={{ color: '#9ca3af', fontWeight: 500 }}>HSN</span>
-                            <span style={{ color: '#111827', fontWeight: 600 }}>{item.hsnCode}</span>
-                        </div>
-                    )}
-
-                    {/* Type */}
-                    {item.type && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '0.875rem'
-                        }}>
-                            <span style={{ color: '#9ca3af', fontWeight: 500 }}>Type</span>
-                            <span style={{ color: '#111827', fontWeight: 600 }}>{item.type}</span>
-                        </div>
-                    )}
-
-                    {/* Vendor */}
-                    {item.vendorName && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '0.875rem'
-                        }}>
-                            <span style={{ color: '#9ca3af', fontWeight: 500 }}>Vendor</span>
-                            <span style={{
-                                color: '#111827',
-                                fontWeight: 600,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '180px',
-                                textAlign: 'right'
-                            }}>{item.vendorName}</span>
-                        </div>
-                    )}
+                        {item.hsnCode && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '0.85rem'
+                            }}>
+                                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>HSN</span>
+                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.hsnCode}</span>
+                            </div>
+                        )}
+                        {item.type && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '0.85rem'
+                            }}>
+                                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>Type</span>
+                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.type}</span>
+                            </div>
+                        )}
+                        {item.vendorName && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '0.85rem'
+                            }}>
+                                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>Vendor</span>
+                                <span style={{
+                                    color: 'var(--color-text-primary)',
+                                    fontWeight: 600,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '150px',
+                                    textAlign: 'right'
+                                }}>
+                                    {item.vendorName}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-
-            {/* Three-Dot Menu - Appears on hover */}
-            {isHovered && (
-                <div style={{
-                    position: 'absolute',
-                    bottom: 16,
-                    right: 16
-                }}>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowActions(!showActions);
-                        }}
-                        style={{
-                            background: 'white',
-                            border: '1px solid #e5e7eb',
-                            cursor: 'pointer',
-                            padding: '6px',
-                            borderRadius: '6px',
-                            color: '#6b7280',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f9fafb';
-                            e.currentTarget.style.color = '#111827';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'white';
-                            e.currentTarget.style.color = '#6b7280';
-                        }}
-                    >
-                        <MoreVertical size={18} />
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    {showActions && (
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '110%',
-                            right: 0,
-                            background: 'white',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                            zIndex: 10,
-                            minWidth: '140px',
-                            overflow: 'hidden'
-                        }}>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onEdit(item);
-                                    setShowActions(false);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '10px 14px',
-                                    background: 'none',
-                                    border: 'none',
-                                    borderBottom: '1px solid #f3f4f6',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    fontSize: '0.875rem',
-                                    color: '#111827',
-                                    fontWeight: 500,
-                                    transition: 'background 0.15s'
-                                }}
-                                onMouseEnter={e => e.target.style.background = '#f9fafb'}
-                                onMouseLeave={e => e.target.style.background = 'none'}
-                            >
-                                <Edit2 size={16} strokeWidth={2} /> Edit
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete(item);
-                                    setShowActions(false);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '10px 14px',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    fontSize: '0.875rem',
-                                    color: '#ef4444',
-                                    fontWeight: 500,
-                                    transition: 'background 0.15s'
-                                }}
-                                onMouseEnter={e => e.target.style.background = '#fef2f2'}
-                                onMouseLeave={e => e.target.style.background = 'none'}
-                            >
-                                <Trash2 size={16} strokeWidth={2} /> Delete
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+        </>
     );
 };
 

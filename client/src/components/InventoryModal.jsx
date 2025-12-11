@@ -183,7 +183,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                                     <img
                                         src={imagePreview}
                                         alt="Preview"
-                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         onError={(e) => {
                                             e.target.style.display = 'none';
                                             e.target.parentElement.innerHTML = '<div style="color: var(--color-text-secondary); font-size: 0.9rem;">Invalid Image</div>';
@@ -273,8 +273,27 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                         </div>
 
                         {/* RIGHT COLUMN: Item Details */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {/* Item Name */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
+                            {/* In Use - Top Right Corner */}
+                            <div style={{ position: 'absolute', top: -60, right: 0, width: '200px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                    In use *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="category"
+                                    required
+                                    placeholder="e.g., Electronics"
+                                    value={formData.category}
+                                    onChange={handleChange}
+                                    style={{
+                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                        fontSize: '0.95rem'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Item Name - Full Width */}
                             <div>
                                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
                                     Item Name *
@@ -293,43 +312,26 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                                 />
                             </div>
 
-                            {/* Type & In use (Category) */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                        Type *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="type"
-                                        required
-                                        placeholder="e.g., Product"
-                                        value={formData.type}
-                                        onChange={handleChange}
-                                        style={{
-                                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                            fontSize: '0.95rem'
-                                        }}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                        In use *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="category"
-                                        required
-                                        placeholder="e.g., Electronics"
-                                        value={formData.category}
-                                        onChange={handleChange}
-                                        style={{
-                                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                            fontSize: '0.95rem'
-                                        }}
-                                    />
-                                </div>
+                            {/* Type (full width) */}
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                    Type *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="type"
+                                    required
+                                    placeholder="e.g., Product"
+                                    value={formData.type}
+                                    onChange={handleChange}
+                                    style={{
+                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                        fontSize: '0.95rem'
+                                    }}
+                                />
                             </div>
+
+
 
                             {/* HSN Code & Vendor Name (NEW FIELDS) */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
