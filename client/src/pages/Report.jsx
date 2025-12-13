@@ -3,9 +3,10 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { Download, Share2, Calendar, User, TrendingUp, Award, MapPin, Clock, Trophy, Crown, Sparkles } from 'lucide-react';
+import { Download, Share2, Calendar, User, TrendingUp, Award, MapPin, Clock, Trophy, Crown, Sparkles, ChevronDown } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import confetti from 'canvas-confetti';
 import { useToast } from '../context/ToastContext';
 import Avatar from '../components/Avatar';
@@ -83,11 +84,9 @@ const Report = () => {
     const fetchLeaderboard = async () => {
         setLoading(true);
         try {
-            // Default to current month based on dateRange start
-            const d = new Date(dateRange.start);
             const query = new URLSearchParams({
-                month: d.getMonth() + 1,
-                year: d.getFullYear()
+                startDate: dateRange.start,
+                endDate: dateRange.end
             });
 
             const res = await fetch(`http://localhost:3000/api/reports/leaderboard?${query}`);
@@ -111,6 +110,139 @@ const Report = () => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDownloadAllPDF = async () => {
+        try {
+            addToast('Fetching data for all employees...', 'info');
+
+            // 1. Fetch Payroll Data for the period for ALL employees
+            const res = await fetch(`http://localhost:3000/api/payroll/period?start=${dateRange.start}&end=${dateRange.end}`);
+            if (!res.ok) throw new Error('Failed to fetch payroll data');
+            const data = await res.json();
+
+            if (!data || data.length === 0) {
+                addToast('No data found for this period.', 'warning');
+                return;
+            }
+
+            addToast(`Generating PDF for ${data.length} employees...`, 'info');
+
+            // 2. Prepare Data for Table
+            const tableRows = data.map(item => {
+                // Ensure values are numbers
+                const gross = Number(item.grossPay || 0);
+                const advance = Number(item.advanceDeductions || 0);
+                const deductions = Number(item.deductions || 0) - advance; // Other deductions
+
+                // For "Remaining Loan Amount", we need detailed data. 
+                const remainingLoan = item.details?.loanSummary?.remainingBalance || 0;
+
+                const bonusDays = item.details?.bonus?.currentCycleDays || 0;
+                const bonusAmount = item.details?.bonus?.currentCycleAmount || 0;
+
+                // OT
+                const otHours = (item.totalOvertimeMinutes || 0) / 60;
+                const otPay = Number(item.overtimePay || 0);
+
+                const netPay = Number(item.netPay || 0);
+
+                return [
+                    item.employeeName,
+                    `₹${gross.toLocaleString('en-IN')}`,
+                    advance > 0 ? `₹${advance.toLocaleString('en-IN')}` : '-', // Advance
+                    deductions > 0 ? `₹${deductions.toLocaleString('en-IN')}` : '-', // Other Deductions
+                    remainingLoan > 0 ? `₹${remainingLoan.toLocaleString('en-IN')}` : '-', // Remaining Loan
+                    otHours > 0 ? `${otHours.toFixed(1)}h` : '-',
+                    otPay > 0 ? `₹${otPay.toLocaleString('en-IN')}` : '-',
+                    bonusDays > 0 ? `${bonusDays}d` : '-',
+                    bonusAmount > 0 ? `₹${bonusAmount.toLocaleString('en-IN')}` : '-',
+                    `₹${netPay.toLocaleString('en-IN')}`
+                ];
+            });
+
+            // Calculate Totals
+            const totals = data.reduce((acc, item) => ({
+                gross: acc.gross + Number(item.grossPay || 0),
+                advance: acc.advance + Number(item.advanceDeductions || 0),
+                deductions: acc.deductions + (Number(item.deductions || 0) - Number(item.advanceDeductions || 0)),
+                remainingLoan: acc.remainingLoan + (item.details?.loanSummary?.remainingBalance || 0),
+                otPay: acc.otPay + Number(item.overtimePay || 0),
+                bonusAmt: acc.bonusAmt + (item.details?.bonus?.currentCycleAmount || 0),
+                netPay: acc.netPay + Number(item.netPay || 0)
+            }), { gross: 0, advance: 0, deductions: 0, remainingLoan: 0, otPay: 0, bonusAmt: 0, netPay: 0 });
+
+            const totalRow = [
+                'TOTAL',
+                `₹${totals.gross.toLocaleString('en-IN')}`,
+                `₹${totals.advance.toLocaleString('en-IN')}`,
+                `₹${totals.deductions.toLocaleString('en-IN')}`,
+                `₹${totals.remainingLoan.toLocaleString('en-IN')}`,
+                '-',
+                `₹${totals.otPay.toLocaleString('en-IN')}`,
+                '-',
+                `₹${totals.bonusAmt.toLocaleString('en-IN')}`,
+                `₹${totals.netPay.toLocaleString('en-IN')}`
+            ];
+
+            // 3. Generate PDF
+            const doc = new jsPDF();
+
+            // Header
+            doc.setFontSize(18);
+            doc.text('Business OS - Payroll Report', 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Period: ${new Date(dateRange.start).toLocaleDateString()} to ${new Date(dateRange.end).toLocaleDateString()}`, 14, 28);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
+
+            // Table
+            autoTable(doc, {
+                startY: 40,
+                head: [['Employee', 'Basic Salary', 'Advance', 'Deductions', 'Loan Bal', 'OT Hrs', 'OT Pay', 'Bonus Days', 'Bonus Amt', 'Net Pay']],
+                body: [...tableRows, totalRow],
+                theme: 'striped',
+                headStyles: { fillColor: [66, 66, 66], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+                bodyStyles: { fontSize: 8 },
+                footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 30 },
+                    9: { fontStyle: 'bold', fillColor: [240, 248, 255] }
+                },
+                didParseCell: function (data) {
+                    if (data.row.index === tableRows.length) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [220, 220, 220];
+                    }
+                }
+            });
+
+            // Total Summary Box at Bottom
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFillColor(245, 245, 247);
+            doc.roundedRect(14, finalY, 180, 25, 3, 3, 'F');
+
+            doc.setFontSize(11);
+            doc.setTextColor(0);
+            doc.text(`Total Amount Paid: ₹${totals.netPay.toLocaleString('en-IN')}`, 20, finalY + 16);
+
+            // Footer with Page Numbers
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
+            }
+
+            doc.save(`Payroll_Report_${dateRange.start}_${dateRange.end}.pdf`);
+            addToast('PDF downloaded successfully!', 'success');
+
+        } catch (err) {
+            console.error('Failed to generate PDF:', err);
+            addToast('Failed to generate PDF report', 'error');
         }
     };
 
@@ -142,7 +274,8 @@ const Report = () => {
     const handleShareWhatsApp = async () => {
         let text = "";
         if (showLeaderboard && leaderboardData) {
-            const winner = leaderboardData.topPerformers[0];
+            // Find the winner (first non-dev)
+            const winner = leaderboardData.topPerformers.find(p => !p.employee.role.toLowerCase().includes('dev')) || leaderboardData.topPerformers[0];
             text = `🏆 Employee of the Month: ${winner.employee.name} with a Score of ${winner.score}/100!`;
         } else {
             text = `Here is the performance report for ${reportData?.employee?.name}. Performance Score: ${calculateScore()}/100.`;
@@ -204,23 +337,27 @@ const Report = () => {
                     </button>
                 </div>
 
-                {!showLeaderboard && (
-                    <div className="select-wrapper" style={{ position: 'relative' }}>
-                        <User size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-                        <select
-                            value={selectedEmployee}
-                            onChange={(e) => setSelectedEmployee(e.target.value)}
-                            style={{
-                                padding: '10px 16px 10px 36px', borderRadius: '12px', border: '1px solid #eee',
-                                fontSize: '0.95rem', outline: 'none', background: '#f9f9f9', fontWeight: 600, minWidth: '200px', appearance: 'none'
-                            }}
-                        >
-                            {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name}</option>
-                            ))}
-                        </select>
+                {!showLeaderboard ? (
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <div className="select-wrapper" style={{ position: 'relative' }}>
+                            <User size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
+                            <select
+                                value={selectedEmployee}
+                                onChange={(e) => setSelectedEmployee(e.target.value)}
+                                style={{
+                                    padding: '10px 16px 10px 36px', borderRadius: '12px', border: '1px solid #eee',
+                                    fontSize: '0.95rem', outline: 'none', background: '#f9f9f9', fontWeight: 600, minWidth: '200px', appearance: 'none'
+                                }}
+                            >
+                                {employees.map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+
                     </div>
-                )}
+                ) : null}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f9f9f9', padding: '4px', borderRadius: '12px', border: '1px solid #eee' }}>
                     <input
@@ -229,23 +366,26 @@ const Report = () => {
                         onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
                         style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
                     />
-                    {!showLeaderboard && (
-                        <>
-                            <span style={{ color: '#aaa', fontSize: '0.8rem' }}>➔</span>
-                            <input
-                                type="date"
-                                value={dateRange.end}
-                                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                                style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
-                            />
-                        </>
-                    )}
+                    <span style={{ color: '#aaa', fontSize: '0.8rem' }}>➔</span>
+                    <input
+                        type="date"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
+                    />
                 </div>
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                    onClick={handleDownloadAllPDF}
+                    className="action-btn"
+                    style={{ background: '#111827', color: 'white', border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.1)' }}
+                >
+                    <Download size={18} /> Download All (PDF)
+                </button>
                 <button onClick={handleExportPDF} className="action-btn" style={{ background: 'white', border: '1px solid #eee' }}>
-                    <Download size={18} /> Export
+                    <Download size={18} /> Export Profile
                 </button>
                 <button onClick={handleShareWhatsApp} className="action-btn" style={{ background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', color: 'white', border: 'none' }}>
                     <Share2 size={18} /> Share
@@ -265,87 +405,79 @@ const Report = () => {
     return (
         <div style={{ padding: 'var(--spacing-lg)', maxWidth: '1400px', margin: '0 auto', fontFamily: 'var(--font-family)' }}>
             <Header />
-
             {loading ? <Loading /> :
 
                 showLeaderboard ? (
                     // LEADERBOARD VIEW
                     <div ref={reportRef} style={{ background: '#F5F5F7', padding: '10px', minHeight: '60vh' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '24px', opacity: 0.6, fontSize: '0.9rem', fontWeight: 600 }}>
+                            Report Period: {new Date(dateRange.start).toLocaleDateString()} — {new Date(dateRange.end).toLocaleDateString()}
+                        </div>
                         {leaderboardData && leaderboardData.topPerformers.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', marginTop: '20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
-                                {/* Winner Card */}
-                                <div style={{
-                                    background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
-                                    border: '2px solid var(--color-accent)', borderRadius: '32px', padding: '40px',
-                                    position: 'relative', width: '100%', maxWidth: '600px',
-                                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                    boxShadow: '0 20px 50px rgba(0, 113, 227, 0.15)'
-                                }}>
-                                    <div style={{ position: 'absolute', top: -30, background: 'var(--color-accent)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 10px rgba(0, 113, 227, 0.4)' }}>
-                                        <Crown size={20} fill="white" /> EMPLOYEE OF THE MONTH
-                                    </div>
+                                {/* Winner Card - Filtered to exclude Devs */}
+                                {(() => {
+                                    // Find top non-dev
+                                    const devKeywords = ['dev', 'software', 'engineer', 'programmer'];
+                                    const winner = leaderboardData.topPerformers.find(p => {
+                                        const role = (p.employee.role || '').toLowerCase();
+                                        return !devKeywords.some(kw => role.includes(kw));
+                                    }) || leaderboardData.topPerformers[0]; // Fallback to first if all are devs
 
-                                    <Avatar
-                                        name={leaderboardData.topPerformers[0].employee.name}
-                                        src={leaderboardData.topPerformers[0].employee.image}
-                                        size={140}
-                                        borderRadius="40px"
-                                        style={{ border: '6px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', marginBottom: '24px' }}
-                                    />
-
-                                    <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 8px 0', color: '#1F2937' }}>{leaderboardData.topPerformers[0].employee.name}</h2>
-                                    <div style={{ fontSize: '1.1rem', color: 'var(--color-accent)', fontWeight: 600, marginBottom: '24px' }}>{leaderboardData.topPerformers[0].employee.role}</div>
-
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', width: '100%' }}>
-                                        <ScoreBadge label="Score" value={leaderboardData.topPerformers[0].score} icon={<Sparkles size={16} />} />
-                                        <ScoreBadge label="Attendance" value={leaderboardData.topPerformers[0].stats.presentDays} suffix=" Days" />
-                                        <ScoreBadge label="Avg Hours" value={leaderboardData.topPerformers[0].stats.avgHours} suffix="h" />
-                                    </div>
-                                </div>
-
-                                {/* Runners Up List */}
-                                <div style={{ width: '100%', maxWidth: '800px' }}>
-                                    <h3 style={{ textAlign: 'center', color: '#666', marginBottom: '20px' }}>Top Performers Leaderboard</h3>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                        {leaderboardData.topPerformers.map((p, idx) => (
-                                            <div key={idx} style={{
-                                                background: 'white', padding: '16px 24px', borderRadius: '16px',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: idx === 0 ? '2px solid #FCD34D' : '1px solid transparent'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                                                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ddd', width: '30px' }}>{idx + 1}</div>
-                                                    <Avatar name={p.employee.name} src={p.employee.image} size={48} borderRadius="12px" />
-                                                    <div>
-                                                        <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{p.employee.name}</div>
-                                                        <div style={{ fontSize: '0.85rem', color: '#888' }}>{p.employee.role}</div>
-                                                    </div>
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                                                    <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Score</div>
-                                                        <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#0071e3' }}>{p.score}</div>
-                                                    </div>
-                                                    <div style={{ textAlign: 'right', minWidth: '80px' }}>
-                                                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Hours Scored</div>
-                                                        <div style={{ fontWeight: 600 }}>{p.stats.totalHours}h</div>
-                                                    </div>
-                                                </div>
+                                    return (
+                                        <div style={{
+                                            background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                                            border: '2px solid var(--color-accent)', borderRadius: '32px', padding: '40px',
+                                            position: 'relative', width: '100%', maxWidth: '800px', margin: '0 auto',
+                                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                            boxShadow: '0 20px 50px rgba(0, 113, 227, 0.15)'
+                                        }}>
+                                            <div style={{ position: 'absolute', top: -30, background: 'var(--color-accent)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 10px rgba(0, 113, 227, 0.4)' }}>
+                                                <Crown size={20} fill="white" /> EMPLOYEE OF THE MONTH
                                             </div>
-                                        ))}
-                                    </div>
+
+                                            <Avatar
+                                                name={winner.employee.name}
+                                                src={winner.employee.image}
+                                                size={140}
+                                                borderRadius="40px"
+                                                style={{ border: '6px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', marginBottom: '24px' }}
+                                            />
+
+                                            <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 8px 0', color: '#1F2937' }}>{winner.employee.name}</h2>
+                                            <div style={{ fontSize: '1.1rem', color: 'var(--color-accent)', fontWeight: 600, marginBottom: '24px' }}>{winner.employee.role}</div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', width: '100%' }}>
+                                                <ScoreBadge label="Score" value={winner.score} icon={<Sparkles size={16} />} />
+                                                <ScoreBadge label="Attendance" value={`${winner.stats.attendanceRate}%`} />
+                                                <ScoreBadge label="Total Hours" value={winner.stats.totalHours} suffix="h" />
+                                                <ScoreBadge label="Avg Hours" value={winner.stats.avgHours} suffix="h" />
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* All Employees Leaderboard with Details */}
+                                <div style={{ width: '100%' }}>
+                                    <h3 style={{ textAlign: 'center', color: '#666', marginBottom: '20px', fontSize: '1.5rem', fontWeight: 700 }}>
+                                        Complete Performance Comparison ({leaderboardData.totalEmployees} Employees)
+                                    </h3>
+                                    <EmployeeLeaderboardTable performers={leaderboardData.topPerformers} period={leaderboardData.period} />
                                 </div>
                             </div>
                         ) : (
                             <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>
-                                No data available for this month yet.
+                                No data available for this period yet.
                             </div>
                         )}
                     </div>
                 ) : reportData ? (
                     // INDIVIDUAL REPORT VIEW (Previous Code)
                     <div ref={reportRef} style={{ background: '#F5F5F7', padding: '10px' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '24px', opacity: 0.6, fontSize: '0.9rem', fontWeight: 600 }}>
+                            Report Period: {new Date(dateRange.start).toLocaleDateString()} — {new Date(dateRange.end).toLocaleDateString()}
+                        </div>
                         {/* HERO SECTION */}
                         <div style={{
                             display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 2fr', gap: '24px', marginBottom: '32px'
@@ -405,7 +537,8 @@ const Report = () => {
                                                 fontSize: '1.8rem',
                                                 margin: '0 0 8px',
                                                 fontWeight: 800,
-                                                letterSpacing: '-0.5px'
+                                                letterSpacing: '-0.5px',
+                                                color: 'white'
                                             }}>
                                                 {reportData.employee.name}
                                             </h2>
@@ -649,4 +782,244 @@ const ScoreBadge = ({ label, value, suffix, icon }) => (
     </div>
 );
 
+// Employee Leaderboard Table Component with Expandable Details
+const EmployeeLeaderboardTable = ({ performers, period }) => {
+    const [expandedRows, setExpandedRows] = React.useState({});
+
+    const toggleRow = (idx) => {
+        setExpandedRows(prev => ({ ...prev, [idx]: !prev[idx] }));
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {performers.map((p, idx) => (
+                <div key={idx} style={{
+                    background: 'white',
+                    borderRadius: '16px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+                    border: idx === 0 ? '2px solid #FCD34D' : '1px solid #eee',
+                    overflow: 'hidden'
+                }}>
+                    {/* Main Row */}
+                    <div
+                        onClick={() => toggleRow(idx)}
+                        style={{
+                            padding: '20px 24px',
+                            display: 'grid',
+                            gridTemplateColumns: '60px 1fr 100px 100px 100px 100px 50px',
+                            alignItems: 'center',
+                            gap: '16px',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                            background: expandedRows[idx] ? '#f9fafb' : 'white'
+                        }}
+                    >
+                        {/* Rank */}
+                        <div style={{
+                            fontSize: '1.8rem',
+                            fontWeight: 800,
+                            color: idx === 0 ? '#FCD34D' : idx === 1 ? '#CBD5E1' : idx === 2 ? '#FDBA74' : '#ddd'
+                        }}>
+                            {idx + 1}
+                        </div>
+
+                        {/* Employee Info */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <Avatar name={p.employee.name} src={p.employee.image} size={56} borderRadius="12px" />
+                            <div>
+                                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111' }}>{p.employee.name}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#888' }}>{p.employee.role}</div>
+                            </div>
+                        </div>
+
+                        {/* Score */}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Score</div>
+                            <div style={{
+                                fontWeight: 800,
+                                fontSize: '1.5rem',
+                                color: idx === 0 ? '#10B981' : '#0071e3'
+                            }}>{p.score}</div>
+                        </div>
+
+                        {/* Attendance */}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Attendance</div>
+                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                                {p.stats.attendanceRate}%
+                            </div>
+                        </div>
+
+                        {/* Total Hours */}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Total Hours</div>
+                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{p.stats.totalHours}h</div>
+                        </div>
+
+                        {/* Avg Hours */}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Avg Hours</div>
+                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{p.stats.avgHours}h</div>
+                        </div>
+
+                        {/* Expand Icon */}
+                        <div style={{ textAlign: 'center' }}>
+                            <ChevronDown
+                                size={20}
+                                style={{
+                                    transition: 'transform 0.3s',
+                                    transform: expandedRows[idx] ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    color: '#888'
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {expandedRows[idx] && (
+                        <div style={{
+                            padding: '24px',
+                            background: '#f9fafb',
+                            borderTop: '1px solid #eee'
+                        }}>
+                            {/* Score Breakdown */}
+                            <div style={{ marginBottom: '24px' }}>
+                                <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#111' }}>
+                                    Score Breakdown
+                                </h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                                    <div style={{
+                                        background: 'white',
+                                        padding: '16px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e5e7eb'
+                                    }}>
+                                        <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Attendance Score</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#3B82F6' }}>
+                                            {p.scoreBreakdown.attendance}/40
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        background: 'white',
+                                        padding: '16px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e5e7eb'
+                                    }}>
+                                        <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Performance Score</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10B981' }}>
+                                            {p.scoreBreakdown.performance}/40
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        background: 'white',
+                                        padding: '16px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e5e7eb'
+                                    }}>
+                                        <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>Bonus Score</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#F59E0B' }}>
+                                            {p.scoreBreakdown.bonus}/20
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detailed Stats */}
+                            <div style={{ marginBottom: '24px' }}>
+                                <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#111' }}>
+                                    Detailed Statistics
+                                </h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+                                    <StatBox label="Present Days" value={p.stats.presentDays} color="#10B981" />
+                                    <StatBox label="Absent Days" value={p.stats.absentDays} color="#EF4444" />
+                                    <StatBox label="Travel Days" value={p.stats.travelDays} color="#8B5CF6" />
+                                    <StatBox label="Overtime Hours" value={`${p.stats.totalOvertimeHours}h`} color="#F59E0B" />
+                                    <StatBox label="Working Days" value={`${p.stats.presentDays}/${p.stats.totalWorkingDays}`} color="#6B7280" />
+                                </div>
+                            </div>
+
+                            {/* Daily Breakdown */}
+                            <div>
+                                <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 700, color: '#111' }}>
+                                    Daily Attendance Breakdown
+                                </h4>
+                                <div style={{
+                                    background: 'white',
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    border: '1px solid #e5e7eb',
+                                    maxHeight: '300px',
+                                    overflowY: 'auto'
+                                }}>
+                                    <table style={{ width: '100%', fontSize: '0.85rem' }}>
+                                        <thead style={{ background: '#f3f4f6', position: 'sticky', top: 0 }}>
+                                            <tr>
+                                                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#6b7280' }}>Date</th>
+                                                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#6b7280' }}>Type</th>
+                                                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#6b7280' }}>Clock In</th>
+                                                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#6b7280' }}>Clock Out</th>
+                                                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#6b7280' }}>Total Hours</th>
+                                                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#6b7280' }}>OT Hours</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {p.dailyBreakdown.map((day, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                                    <td style={{ padding: '10px 16px', fontWeight: 500 }}>
+                                                        {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                    </td>
+                                                    <td style={{ padding: '10px 16px' }}>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '6px',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: 600,
+                                                            background: day.dayType === 'Travel' ? '#E0E7FF' : '#F3F4F6',
+                                                            color: day.dayType === 'Travel' ? '#4F46E5' : '#6B7280'
+                                                        }}>
+                                                            {day.dayType}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '10px 16px', color: '#6b7280' }}>{day.clockIn}</td>
+                                                    <td style={{ padding: '10px 16px', color: '#6b7280' }}>{day.clockOut}</td>
+                                                    <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600 }}>
+                                                        {day.totalHours}h
+                                                    </td>
+                                                    <td style={{
+                                                        padding: '10px 16px',
+                                                        textAlign: 'right',
+                                                        fontWeight: 600,
+                                                        color: day.overtimeHours > 0 ? '#F59E0B' : '#6b7280'
+                                                    }}>
+                                                        {day.overtimeHours > 0 ? `${day.overtimeHours}h` : '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+};
+
+// Stat Box Component
+const StatBox = ({ label, value, color }) => (
+    <div style={{
+        background: 'white',
+        padding: '12px',
+        borderRadius: '10px',
+        border: '1px solid #e5e7eb',
+        textAlign: 'center'
+    }}>
+        <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: '1.2rem', fontWeight: 700, color }}>{value}</div>
+    </div>
+);
+
 export default Report;
+

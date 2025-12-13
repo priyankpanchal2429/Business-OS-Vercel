@@ -724,19 +724,26 @@ app.get('/api/reports/performance', (req, res) => {
 
 // Get Leaderboard (Top Performers)
 app.get('/api/reports/leaderboard', (req, res) => {
-    const { month, year } = req.query; // e.g. month=11 (Nov), year=2025
+    const { startDate, endDate } = req.query;
     const data = readData();
 
-    if (!month || !year) {
-        return res.status(400).json({ error: 'Missing required parameters (month, year)' });
+    if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'Missing required parameters (startDate, endDate)' });
     }
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0); // Last day of month
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    // Convert to string for comparisons if needed, but Date objects work for filtering
-    const startStr = start.toISOString().split('T')[0];
-    const endStr = end.toISOString().split('T')[0];
+    // Calculate total working days in period (excluding Sundays)
+    let totalWorkingDays = 0;
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek !== 0) { // Exclude Sundays
+            totalWorkingDays++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
 
     const activeEmployees = data.employees.filter(e => e.status.toLowerCase() === 'active');
 
@@ -749,33 +756,64 @@ app.get('/api/reports/leaderboard', (req, res) => {
 
         // Calculate Stats
         let totalMinutes = 0;
+        let totalOvertimeMinutes = 0;
         let presentDays = 0;
         let travelDays = 0;
+        let workDays = 0;
 
-        entries.forEach(e => {
-            if (e.clockIn || e.shiftStart) {
-                presentDays++;
-                // Use existing helper logic (simplified here for speed)
-                const clockIn = e.clockIn || e.shiftStart;
-                const clockOut = e.clockOut || e.shiftEnd;
-                // Basic diff
-                if (clockIn && clockOut) {
-                    const [h1, m1] = clockIn.split(':').map(Number);
-                    const [h2, m2] = clockOut.split(':').map(Number);
-                    let mins = (h2 * 60 + m2) - (h1 * 60 + m1) - (e.breakMinutes || 0);
-                    if (mins < 0) mins = 0;
-                    totalMinutes += mins;
+        // Daily breakdown
+        const dailyBreakdown = entries.map(e => {
+            const isPresent = (e.clockIn || e.shiftStart);
+            const clockIn = e.clockIn || e.shiftStart || '';
+            const clockOut = e.clockOut || e.shiftEnd || '';
+            const dayType = e.dayType || 'Work';
+
+            let mins = 0;
+            let overtimeMins = 0;
+
+            if (isPresent && clockIn && clockOut) {
+                const [h1, m1] = clockIn.split(':').map(Number);
+                const [h2, m2] = clockOut.split(':').map(Number);
+                mins = (h2 * 60 + m2) - (h1 * 60 + m1) - (e.breakMinutes || 0);
+                if (mins < 0) mins = 0;
+
+                // Calculate overtime (>8.75 hours)
+                const regularMinutes = 8.75 * 60;
+                if (mins > regularMinutes) {
+                    overtimeMins = mins - regularMinutes;
                 }
             }
-            if (e.dayType === 'Travel') travelDays++;
-        });
+
+            if (isPresent) {
+                presentDays++;
+                totalMinutes += mins;
+                totalOvertimeMinutes += overtimeMins;
+            }
+
+            if (dayType === 'Travel') travelDays++;
+            if (dayType === 'Work' || dayType === 'Travel') workDays++;
+
+            return {
+                date: e.date,
+                dayType,
+                clockIn: clockIn || '-',
+                clockOut: clockOut || '-',
+                breakMinutes: e.breakMinutes || 0,
+                totalHours: parseFloat((mins / 60).toFixed(2)),
+                overtimeHours: parseFloat((overtimeMins / 60).toFixed(2)),
+                isPresent
+            };
+        }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         const totalHours = parseFloat((totalMinutes / 60).toFixed(2));
-        const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
+        const totalOvertimeHours = parseFloat((totalOvertimeMinutes / 60).toFixed(2));
+        const avgHours = presentDays > 0 ? parseFloat((totalHours / presentDays).toFixed(2)) : 0;
+        const absentDays = totalWorkingDays - presentDays;
+        const attendanceRate = totalWorkingDays > 0 ? parseFloat(((presentDays / totalWorkingDays) * 100).toFixed(1)) : 0;
 
         // Scoring Algorithm (0-100)
-        // 1. Attendance: Up to 40 pts (assuming 26 working days max)
-        const attendanceScore = Math.min(40, (presentDays / 26) * 40);
+        // 1. Attendance: Up to 40 pts (based on attendance rate)
+        const attendanceScore = Math.min(40, (attendanceRate / 100) * 40);
 
         // 2. Performance (Avg Hours): Up to 40 pts (Target 9h/day)
         const performanceScore = Math.min(40, (avgHours / 9) * 40);
@@ -786,18 +824,40 @@ app.get('/api/reports/leaderboard', (req, res) => {
         const totalScore = Math.min(100, Math.round(attendanceScore + performanceScore + bonusScore));
 
         return {
-            employee: { id: emp.id, name: emp.name, role: emp.role, image: emp.image },
+            employee: {
+                id: emp.id,
+                name: emp.name,
+                role: emp.role,
+                image: emp.image
+            },
             score: totalScore,
-            stats: { totalHours, presentDays, travelDays, avgHours: avgHours.toFixed(1) }
+            scoreBreakdown: {
+                attendance: Math.round(attendanceScore),
+                performance: Math.round(performanceScore),
+                bonus: Math.round(bonusScore)
+            },
+            stats: {
+                totalHours,
+                totalOvertimeHours,
+                presentDays,
+                absentDays,
+                workDays,
+                travelDays,
+                avgHours: avgHours.toFixed(1),
+                attendanceRate,
+                totalWorkingDays
+            },
+            dailyBreakdown
         };
     });
 
-    // Rank and return Top 3
-    const ranked = scores.sort((a, b) => b.score - a.score).slice(0, 3);
+    // Rank all employees (no slice, show everyone)
+    const ranked = scores.sort((a, b) => b.score - a.score);
 
     res.json({
-        period: { month, year },
-        topPerformers: ranked
+        period: { startDate, endDate, totalWorkingDays },
+        topPerformers: ranked,
+        totalEmployees: ranked.length
     });
 });
 
@@ -1066,6 +1126,7 @@ app.post('/api/payroll/mark-paid', (req, res) => {
                     clockIn: clockIn || '-',
                     clockOut: clockOut || '-',
                     breakMinutes: e.breakMinutes || 0,
+                    dayType: dayType,  // Add dayType for travel highlighting
                     totalMinutes: calc.totalMinutes,
                     billableMinutes: calc.billableMinutes,
                     overtimeMinutes: calc.overtimeMinutes,

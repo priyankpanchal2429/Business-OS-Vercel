@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Save, User, Zap, RotateCcw, AlertCircle, Trash2, Briefcase, Plane } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import ConfirmationModal from './ConfirmationModal';
 
 const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isPaid, prefilledDate, onSave }) => {
     const { addToast } = useToast();
@@ -255,36 +256,63 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
             // Relaxed validation: Allow empty Clock In/Out to support resetting/clearing time
             // Previous strict checks removed.
         });
-
         return { errors, firstErrorKey, isValid: Object.keys(errors).length === 0 };
     };
 
-    const handleSave = async () => {
-        // Validate entries
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, details: null });
+
+    const handleSaveClick = () => {
+        // Validation
         const { errors, firstErrorKey, isValid } = validateEntries();
 
         if (!isValid) {
             setValidationErrors(errors);
-            // Focus first error field
             setTimeout(() => {
                 if (firstErrorRef.current) {
                     firstErrorRef.current.focus();
                     firstErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 100);
+            addToast('Please fix errors (highlighted in red) before saving.', 'error');
             return;
         }
 
-        // Safety Confirmation
-        const confirmSave = window.confirm(
-            `Are you sure you want to save timesheet for ${employee.name}?\n\nPeriod: ${formatDate(periodStart)} to ${formatDate(periodEnd)}\n\nExisting entries for these dates will be updated.`
-        );
-        if (!confirmSave) return;
+        // Calculate Summary for Confirmation
+        const workingDays = entries.filter(e => e.dayType === 'Work' && (e.clockIn || e.clockOut)).length;
+        const travelDays = entries.filter(e => e.dayType === 'Travel').length;
+        const totalMinutes = entries.reduce((sum, e) => {
+            // Quick estimation of hours for display
+            if (!e.clockIn || !e.clockOut) return sum;
+            // We don't have the full calculateShiftHours logic here easily without duplicating, 
+            // but we can just count days or trust the backend calc.
+            // Let's just show Day Counts which are accurate.
+            return sum;
+        }, 0);
 
+        setConfirmModal({
+            isOpen: true,
+            details: (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Working Days:</span> <strong>{workingDays}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Travel Days:</span> <strong>{travelDays}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Period:</span> <span style={{ fontSize: '0.85em' }}>{formatDate(periodStart)} - {formatDate(periodEnd)}</span>
+                    </div>
+                </div>
+            )
+        });
+    };
+
+    const confirmSave = async () => {
+        setConfirmModal({ isOpen: false, details: null });
         // Clear any previous errors
         setValidationErrors({});
         setSaving(true);
-
+        // Proceed with Save
         try {
             const res = await fetch('/api/timesheet', {
                 method: 'POST',
@@ -312,7 +340,6 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                 onSave(result);
                 onClose();
             } else if (result.errors) {
-                // Handle server-side field-level errors
                 const serverErrors = {};
                 result.errors.forEach((err, index) => {
                     if (err.field) {
@@ -320,9 +347,13 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                     }
                 });
                 setValidationErrors(serverErrors);
+                addToast('Server reported validation errors.', 'error');
+            } else {
+                addToast('Failed to save timesheet. Server returned an error.', 'error');
             }
         } catch (err) {
             console.error('Failed to save timesheet:', err);
+            addToast('Failed to save timesheet. connection error.', 'error');
             alert('Failed to save timesheet. Please try again.');
         } finally {
             setSaving(false);
@@ -698,7 +729,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                         Cancel
                     </button>
                     <button
-                        onClick={handleSave}
+                        onClick={handleSaveClick}
                         disabled={saving || entries.length === 0}
                         style={{
                             padding: '10px 24px',
@@ -718,8 +749,20 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                         {saving ? 'Saving...' : 'Save Timesheet'}
                     </button>
                 </div>
+
             </div>
-        </div>
+
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, details: null })}
+                onConfirm={confirmSave}
+                title="Save Timesheet?"
+                message={`Are you sure you want to save timesheet for ${employee.name}?`}
+                details={confirmModal.details}
+                confirmText="Yes, Save Timesheet"
+                cancelText="Review"
+            />
+        </div >
     );
 };
 

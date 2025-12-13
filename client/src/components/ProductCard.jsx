@@ -56,7 +56,7 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                objectFit: 'cover',
+                                objectFit: 'contain',
                                 padding: '8px'
                             }}
                         />
@@ -301,7 +301,8 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                         marginBottom: '16px',
                         overflow: 'hidden',
                         cursor: item.imageUrl ? 'zoom-in' : 'default',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        position: 'relative'
                     }}
                     onMouseEnter={(e) => {
                         if (item.imageUrl) {
@@ -319,46 +320,142 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                objectFit: 'cover',
+                                objectFit: 'contain',
                                 padding: '12px'
                             }}
                         />
                     ) : (
                         <Package size={48} color="#d1d5db" strokeWidth={1.5} />
                     )}
-                </div>
 
-                {/* Content Section - Below Image */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    {/* Product Name */}
-                    <h3 style={{
-                        margin: '0 0 8px 0',
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        color: 'var(--color-text-primary)',
-                        lineHeight: 1.3
-                    }}>
-                        {item.name}
-                    </h3>
-
-                    {/* Category Badge */}
+                    {/* Category Badge - Top Right Corner */}
                     {item.category && (
                         <div style={{
-                            display: 'inline-block',
-                            alignSelf: 'flex-start',
+                            position: 'absolute',
+                            top: '4px',
+                            right: '4px',
                             background: 'var(--color-accent)',
                             color: 'white',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
                             fontSize: '0.7rem',
                             fontWeight: 700,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px',
-                            marginBottom: '12px'
+                            boxShadow: '0 2px 8px rgba(0, 113, 227, 0.3)',
+                            zIndex: 2
                         }}>
                             {item.category}
                         </div>
                     )}
+                </div>
+
+                {/* Content Section - Below Image */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {/* Product Name with Three-Dot Menu */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <h3 style={{
+                            margin: 0,
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            color: 'var(--color-text-primary)',
+                            lineHeight: 1.3,
+                            flex: 1
+                        }}>
+                            {item.name}
+                        </h3>
+
+                        {/* Three-Dot Menu - Always Visible */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowActions(!showActions);
+                                }}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '6px',
+                                    borderRadius: '8px',
+                                    color: 'var(--color-text-secondary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <MoreVertical size={16} />
+                            </button>
+
+                            {showActions && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: 0,
+                                    marginTop: '4px',
+                                    background: 'white',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                    zIndex: 10,
+                                    minWidth: '140px',
+                                    overflow: 'hidden'
+                                }}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEdit(item);
+                                            setShowActions(false);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            padding: '12px 16px',
+                                            background: 'none',
+                                            border: 'none',
+                                            borderBottom: '1px solid var(--color-border)',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            fontSize: '0.875rem',
+                                            color: 'var(--color-text-primary)',
+                                            fontWeight: 500
+                                        }}
+                                        onMouseEnter={e => e.target.style.background = 'var(--color-background-subtle)'}
+                                        onMouseLeave={e => e.target.style.background = 'none'}
+                                    >
+                                        <Edit2 size={16} strokeWidth={2} /> Edit
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDelete(item);
+                                            setShowActions(false);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            padding: '12px 16px',
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            fontSize: '0.875rem',
+                                            color: 'var(--color-error)',
+                                            fontWeight: 500
+                                        }}
+                                        onMouseEnter={e => e.target.style.background = '#fef2f2'}
+                                        onMouseLeave={e => e.target.style.background = 'none'}
+                                    >
+                                        <Trash2 size={16} strokeWidth={2} /> Delete
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Description */}
                     {item.description && (
@@ -377,103 +474,7 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                     )}
                 </div>
 
-                {/* Three-Dot Menu - Top Right */}
-                {isHovered && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 12,
-                        right: 12
-                    }}>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowActions(!showActions);
-                            }}
-                            style={{
-                                background: 'var(--color-accent)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '6px',
-                                borderRadius: '8px',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 4px 12px rgba(0, 113, 227, 0.3)'
-                            }}
-                        >
-                            <MoreVertical size={16} />
-                        </button>
 
-                        {showActions && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                right: 0,
-                                marginTop: '4px',
-                                background: 'white',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                                zIndex: 10,
-                                minWidth: '140px',
-                                overflow: 'hidden'
-                            }}>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onEdit(item);
-                                        setShowActions(false);
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        padding: '12px 16px',
-                                        background: 'none',
-                                        border: 'none',
-                                        borderBottom: '1px solid var(--color-border)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        fontSize: '0.875rem',
-                                        color: 'var(--color-text-primary)',
-                                        fontWeight: 500
-                                    }}
-                                    onMouseEnter={e => e.target.style.background = 'var(--color-background-subtle)'}
-                                    onMouseLeave={e => e.target.style.background = 'none'}
-                                >
-                                    <Edit2 size={16} strokeWidth={2} /> Edit
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDelete(item);
-                                        setShowActions(false);
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        padding: '12px 16px',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        fontSize: '0.875rem',
-                                        color: 'var(--color-error)',
-                                        fontWeight: 500
-                                    }}
-                                    onMouseEnter={e => e.target.style.background = '#fef2f2'}
-                                    onMouseLeave={e => e.target.style.background = 'none'}
-                                >
-                                    <Trash2 size={16} strokeWidth={2} /> Delete
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* Bottom Section: Metadata */}
                 <div style={{

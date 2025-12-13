@@ -237,11 +237,11 @@ const Payslip = () => {
                     }}>
                         {/* Avatar & Identity */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, overflow: 'hidden', border: '2px solid white', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: 'linear-gradient(#f59e0b, #f59e0b) padding-box, linear-gradient(135deg, #0ea5e9, #3b82f6) border-box', border: '2.5px solid transparent', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', fontWeight: 700, overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}>
                                 {entry.employeeImage ? (
                                     <img src={entry.employeeImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
-                                    <User size={28} color="white" />
+                                    <User size={40} color="white" />
                                 )}
                             </div>
                             <div>
@@ -310,7 +310,7 @@ const Payslip = () => {
                                                 {isTravel ? 'Travel' : (showNightStatus ? 'Night' : '-')}
                                             </td>
                                             <td style={{ textAlign: 'right' }}>
-                                                {row.overtimeMinutes > 0 ? `${(row.overtimeMinutes / 60).toFixed(1)}h` : '-'}
+                                                {row.overtimeMinutes > 0 ? `${Math.floor(row.overtimeMinutes / 60)}h ${row.overtimeMinutes % 60}m` : '-'}
                                             </td>
                                             <td style={{ textAlign: 'right' }}>
                                                 {Math.floor(row.billableMinutes / 60)}h {(row.billableMinutes % 60)}m
