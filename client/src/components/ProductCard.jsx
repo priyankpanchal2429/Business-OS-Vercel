@@ -3,535 +3,233 @@ import { Package, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 
 const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
     const [showActions, setShowActions] = useState(false);
-    const [isHovered, setIsHovered] = useState(false);
     const [showImageModal, setShowImageModal] = useState(false);
 
-    // List View Layout
+    // List View Layout (Preserved with inline styles for backward compatibility, slightly cleaned up)
     if (viewMode === 'list') {
         return (
             <div
-                style={{
-                    background: 'white',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '20px',
-                    padding: '16px',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    minHeight: '120px'
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
-                    e.currentTarget.style.borderColor = 'var(--color-accent)';
-                    setIsHovered(true);
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                    setShowActions(false);
-                    setIsHovered(false);
-                }}
+                className="group bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-5 transition-all hover:shadow-lg hover:border-blue-500 cursor-pointer relative min-h-[120px]"
+                onMouseLeave={() => setShowActions(false)}
             >
                 {/* Image */}
-                <div style={{
-                    width: '90px',
-                    height: '90px',
-                    background: 'white',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                    border: '1px solid var(--color-border)'
-                }}>
+                <div className="w-[90px] h-[90px] bg-white rounded-xl border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
                     {item.imageUrl ? (
                         <img
                             src={item.imageUrl}
                             alt={item.name}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                                padding: '8px'
-                            }}
+                            className="w-full h-full object-contain p-2"
                         />
                     ) : (
-                        <Package size={36} color="#d1d5db" strokeWidth={1.5} />
+                        <Package size={36} className="text-gray-300" strokeWidth={1.5} />
                     )}
                 </div>
 
                 {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                        <h3 style={{
-                            margin: 0,
-                            fontSize: '1.1rem',
-                            fontWeight: 700,
-                            color: 'var(--color-text-primary)'
-                        }}>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                        <h3 className="m-0 text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                             {item.name}
                         </h3>
                         {item.category && (
-                            <span style={{
-                                background: 'var(--color-background-subtle)',
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                color: 'var(--color-text-secondary)',
-                                textTransform: 'uppercase'
-                            }}>
+                            <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 {item.category}
                             </span>
                         )}
                     </div>
 
                     {item.description && (
-                        <p style={{
-                            margin: '0 0 12px 0',
-                            fontSize: '0.875rem',
-                            color: 'var(--color-text-secondary)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                        }}>
+                        <p className="m-0 mb-3 text-sm text-gray-500 truncate">
                             {item.description}
                         </p>
                     )}
 
-                    <div style={{ display: 'flex', gap: '20px', fontSize: '0.875rem' }}>
+                    <div className="flex gap-5 text-sm">
                         {item.hsnCode && (
                             <div>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>HSN: </span>
-                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.hsnCode}</span>
+                                <span className="text-gray-400 mr-1">HSN:</span>
+                                <span className="font-semibold text-gray-700">{item.hsnCode}</span>
                             </div>
                         )}
                         {item.type && (
                             <div>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>Type: </span>
-                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.type}</span>
+                                <span className="text-gray-400 mr-1">Type:</span>
+                                <span className="font-semibold text-gray-700">{item.type}</span>
                             </div>
                         )}
                         {item.vendorName && (
                             <div>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>Vendor: </span>
-                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.vendorName}</span>
+                                <span className="text-gray-400 mr-1">Vendor:</span>
+                                <span className="font-semibold text-gray-700">{item.vendorName}</span>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Actions Menu */}
-                {isHovered && (
-                    <div style={{ position: 'relative' }}>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowActions(!showActions);
-                            }}
-                            style={{
-                                background: 'white',
-                                border: '1px solid var(--color-border)',
-                                cursor: 'pointer',
-                                padding: '8px',
-                                borderRadius: '8px',
-                                color: 'var(--color-text-secondary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                            }}
-                        >
-                            <MoreVertical size={18} />
-                        </button>
+                <div className="relative">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowActions(!showActions);
+                        }}
+                        className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <MoreVertical size={20} />
+                    </button>
 
-                        {showActions && (
-                            <div style={{
-                                position: 'absolute',
-                                right: 0,
-                                top: '110%',
-                                background: 'white',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                                zIndex: 10,
-                                minWidth: '140px',
-                                overflow: 'hidden'
-                            }}>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onEdit(item);
-                                        setShowActions(false);
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        padding: '12px 16px',
-                                        background: 'none',
-                                        border: 'none',
-                                        borderBottom: '1px solid var(--color-border)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        fontSize: '0.875rem',
-                                        color: 'var(--color-text-primary)',
-                                        fontWeight: 500
-                                    }}
-                                    onMouseEnter={e => e.target.style.background = 'var(--color-background-subtle)'}
-                                    onMouseLeave={e => e.target.style.background = 'none'}
-                                >
-                                    <Edit2 size={16} strokeWidth={2} /> Edit
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDelete(item);
-                                        setShowActions(false);
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        padding: '12px 16px',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        fontSize: '0.875rem',
-                                        color: 'var(--color-error)',
-                                        fontWeight: 500
-                                    }}
-                                    onMouseEnter={e => e.target.style.background = '#fef2f2'}
-                                    onMouseLeave={e => e.target.style.background = 'none'}
-                                >
-                                    <Trash2 size={16} strokeWidth={2} /> Delete
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                    {showActions && (
+                        <div className="absolute right-0 top-[110%] bg-white border border-gray-100 rounded-xl shadow-xl z-20 min-w-[140px] overflow-hidden">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(item);
+                                    setShowActions(false);
+                                }}
+                                className="w-full text-left px-4 py-3 bg-transparent border-0 border-b border-gray-100 cursor-pointer flex items-center gap-2 text-sm text-gray-700 font-medium hover:bg-gray-50"
+                            >
+                                <Edit2 size={16} /> Edit
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(item);
+                                    setShowActions(false);
+                                }}
+                                className="w-full text-left px-4 py-3 bg-transparent border-0 cursor-pointer flex items-center gap-2 text-sm text-red-600 font-medium hover:bg-red-50"
+                            >
+                                <Trash2 size={16} /> Delete
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
 
-    // Grid View Layout (Redesigned - Vertical with Image)
+    // Grid View Layout (Standard Card with Image Top)
     return (
         <>
             {/* Image Zoom Modal */}
             {showImageModal && item.imageUrl && (
                 <div
                     onClick={() => setShowImageModal(false)}
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0,0,0,0.85)',
-                        zIndex: 9999,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '40px',
-                        cursor: 'zoom-out'
-                    }}
+                    className="fixed inset-0 bg-black/85 z-[9999] flex items-center justify-center p-10 cursor-zoom-out backdrop-blur-sm"
                 >
                     <img
                         src={item.imageUrl}
                         alt={item.name}
-                        style={{
-                            maxWidth: '90%',
-                            maxHeight: '90%',
-                            objectFit: 'contain',
-                            borderRadius: '12px',
-                            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-                        }}
+                        className="max-w-[90%] max-h-[90%] object-contain rounded-xl shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     />
                 </div>
             )}
 
+            {/* Main Card */}
             <div
-                style={{
-                    background: 'white',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    height: '100%',
-                    cursor: 'pointer',
-                    padding: '16px'
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 113, 227, 0.15)';
-                    e.currentTarget.style.transform = 'translateY(-6px)';
-                    e.currentTarget.style.borderColor = 'var(--color-accent)';
-                    setIsHovered(true);
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                    setShowActions(false);
-                    setIsHovered(false);
-                }}
+                className="group w-full bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 relative flex flex-col h-full"
+                onMouseLeave={() => setShowActions(false)}
             >
-                {/* Image Section - Top */}
+                {/* Image Container - Taller Height */}
                 <div
+                    className="relative w-full h-64 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
                     onClick={() => item.imageUrl && setShowImageModal(true)}
-                    style={{
-                        width: '100%',
-                        height: '180px',
-                        background: 'white',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '16px',
-                        overflow: 'hidden',
-                        cursor: item.imageUrl ? 'zoom-in' : 'default',
-                        transition: 'all 0.2s',
-                        position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                        if (item.imageUrl) {
-                            e.currentTarget.style.transform = 'scale(1.02)';
-                        }
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                    }}
                 >
-                    {item.imageUrl ? (
-                        <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                                padding: '12px'
-                            }}
-                        />
-                    ) : (
-                        <Package size={48} color="#d1d5db" strokeWidth={1.5} />
-                    )}
-
-                    {/* Category Badge - Top Right Corner */}
+                    {/* Category Badge - Top Left Floating */}
                     {item.category && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '4px',
-                            right: '4px',
-                            background: 'var(--color-accent)',
-                            color: 'white',
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            boxShadow: '0 2px 8px rgba(0, 113, 227, 0.3)',
-                            zIndex: 2
-                        }}>
+                        <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm text-blue-600 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm z-10 border border-blue-50">
                             {item.category}
                         </div>
                     )}
+
+                    {/* Image Scale Effect */}
+                    <div className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+                        {item.imageUrl ? (
+                            <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <Package size={40} strokeWidth={1} />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Content Section - Below Image */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    {/* Product Name with Three-Dot Menu */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <h3 style={{
-                            margin: 0,
-                            fontSize: '1.1rem',
-                            fontWeight: 700,
-                            color: 'var(--color-text-primary)',
-                            lineHeight: 1.3,
-                            flex: 1
-                        }}>
+                {/* Content Section */}
+                <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
+                    {/* Header & Description Grouped Tightly */}
+                    <div className="flex flex-col gap-0.5 mb-1">
+                        <h2 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">
                             {item.name}
-                        </h3>
+                        </h2>
+                        {item.description && (
+                            <p className="text-gray-500 text-sm leading-tight line-clamp-2">
+                                {item.description}
+                            </p>
+                        )}
+                    </div>
 
-                        {/* Three-Dot Menu - Always Visible */}
-                        <div style={{ position: 'relative' }}>
+                    {/* Spacer to push footer to bottom */}
+                    <div className="mt-1 pt-2 border-t border-gray-100 flex items-end justify-between">
+                        {/* Vendor Info - At Bottom */}
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-0.5">
+                                Vendor
+                            </span>
+                            <span className="text-sm font-semibold text-gray-700 truncate max-w-[120px]" title={item.vendorName}>
+                                {item.vendorName || 'In House'}
+                            </span>
+                        </div>
+
+                        {/* Three-Dot Menu Action */}
+                        <div className="relative">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setShowActions(!showActions);
                                 }}
-                                style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    padding: '6px',
-                                    borderRadius: '8px',
-                                    color: 'var(--color-text-secondary)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400
+                                        transition-all duration-200 hover:bg-gray-100 hover:text-gray-900"
                             >
-                                <MoreVertical size={16} />
+                                <MoreVertical size={18} />
                             </button>
 
+                            {/* Dropdown Menu */}
                             {showActions && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    right: 0,
-                                    marginTop: '4px',
-                                    background: 'white',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: '12px',
-                                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                                    zIndex: 10,
-                                    minWidth: '140px',
-                                    overflow: 'hidden'
-                                }}>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onEdit(item);
-                                            setShowActions(false);
-                                        }}
-                                        style={{
-                                            width: '100%',
-                                            textAlign: 'left',
-                                            padding: '12px 16px',
-                                            background: 'none',
-                                            border: 'none',
-                                            borderBottom: '1px solid var(--color-border)',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '10px',
-                                            fontSize: '0.875rem',
-                                            color: 'var(--color-text-primary)',
-                                            fontWeight: 500
-                                        }}
-                                        onMouseEnter={e => e.target.style.background = 'var(--color-background-subtle)'}
-                                        onMouseLeave={e => e.target.style.background = 'none'}
-                                    >
-                                        <Edit2 size={16} strokeWidth={2} /> Edit
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onDelete(item);
-                                            setShowActions(false);
-                                        }}
-                                        style={{
-                                            width: '100%',
-                                            textAlign: 'left',
-                                            padding: '12px 16px',
-                                            background: 'none',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '10px',
-                                            fontSize: '0.875rem',
-                                            color: 'var(--color-error)',
-                                            fontWeight: 500
-                                        }}
-                                        onMouseEnter={e => e.target.style.background = '#fef2f2'}
-                                        onMouseLeave={e => e.target.style.background = 'none'}
-                                    >
-                                        <Trash2 size={16} strokeWidth={2} /> Delete
-                                    </button>
+                                <div className="absolute right-0 bottom-full mb-2 bg-white border border-gray-100 rounded-xl shadow-xl z-20 min-w-[140px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="p-1">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onEdit(item);
+                                                setShowActions(false);
+                                            }}
+                                            className="w-full text-left px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer flex items-center gap-2 text-xs text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                        >
+                                            <Edit2 size={14} className="text-blue-500" /> Edit
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete(item);
+                                                setShowActions(false);
+                                            }}
+                                            className="w-full text-left px-3 py-2 rounded-lg bg-transparent border-0 cursor-pointer flex items-center gap-2 text-xs text-red-600 font-medium hover:bg-red-50 transition-colors mt-0.5"
+                                        >
+                                            <Trash2 size={14} /> Delete
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
-                    </div>
-
-                    {/* Description */}
-                    {item.description && (
-                        <p style={{
-                            margin: '0 0 auto 0',
-                            fontSize: '0.85rem',
-                            color: 'var(--color-text-secondary)',
-                            lineHeight: 1.5,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
-                        }}>
-                            {item.description}
-                        </p>
-                    )}
-                </div>
-
-
-
-                {/* Bottom Section: Metadata */}
-                <div style={{
-                    paddingTop: '12px',
-                    borderTop: '1px solid var(--color-border)',
-                    marginTop: '12px'
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                    }}>
-                        {item.hsnCode && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontSize: '0.85rem'
-                            }}>
-                                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>HSN</span>
-                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.hsnCode}</span>
-                            </div>
-                        )}
-                        {item.type && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontSize: '0.85rem'
-                            }}>
-                                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>Type</span>
-                                <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{item.type}</span>
-                            </div>
-                        )}
-                        {item.vendorName && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontSize: '0.85rem'
-                            }}>
-                                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>Vendor</span>
-                                <span style={{
-                                    color: 'var(--color-text-primary)',
-                                    fontWeight: 600,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    maxWidth: '150px',
-                                    textAlign: 'right'
-                                }}>
-                                    {item.vendorName}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
         </>
     );
-};
+}
 
 export default ProductCard;

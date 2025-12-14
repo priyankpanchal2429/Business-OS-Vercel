@@ -1762,7 +1762,7 @@ app.get('/api/attendance/today', (req, res) => {
     const offset = now.getTimezoneOffset() * 60000;
     const localDate = new Date(now.getTime() - offset);
     const todayStr = localDate.toISOString().split('T')[0];
-    const isSunday = localDate.getDay() === 0;
+    const isSunday = localDate.getUTCDay() === 0;
 
     const dayOfWeek = localDate.toLocaleDateString('en-US', { weekday: 'long' });
     const working = [];
