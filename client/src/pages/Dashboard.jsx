@@ -18,9 +18,11 @@ import {
 } from 'lucide-react';
 
 import BirthdayBanner from '../components/BirthdayBanner';
+import { useDebug } from '../context/DebugContext';
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const { addLog } = useDebug();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [metrics, setMetrics] = React.useState({
         inventoryCount: 0,
@@ -59,6 +61,12 @@ const Dashboard = () => {
                 const healthRes = await fetch(`${API_URL}/health`);
                 const healthData = await healthRes.json();
 
+                // Log Success
+                if (healthData.status === 'ok') {
+                    // Check if this is the first successful connection or recovery
+                    // preventing log spam
+                }
+
                 // Fetch Audit Logs
                 const logsRes = await fetch(`${API_URL}/audit-logs?limit=5`);
                 const logsData = await logsRes.json();
@@ -81,6 +89,13 @@ const Dashboard = () => {
                 setLoading(false);
             } catch (err) {
                 console.error("Failed to fetch dashboard data", err);
+
+                // CRITICAL: Log this to the Debug Popup
+                addLog('error', 'Dashboard Data Fetch Failed', {
+                    error: err.message,
+                    url: API_URL
+                });
+
                 setMetrics(prev => ({ ...prev, serverStatus: 'Offline' }));
                 setLoading(false);
             }

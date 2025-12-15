@@ -11,25 +11,30 @@ import ResignedEmployeeHistory from './pages/ResignedEmployeeHistory';
 import Report from './pages/Report';
 
 import { ToastProvider } from './context/ToastContext';
+import { DebugProvider } from './context/DebugContext';
+import DebugPopup from './components/DebugPopup';
 
 function App() {
     return (
         <ToastProvider>
-            <Router>
-                <Layout>
-                    <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/inventory" element={<Inventory />} />
-                        <Route path="/vendors" element={<Vendors />} />
-                        <Route path="/employees" element={<Employees />} />
-                        <Route path="/payroll" element={<Payroll />} />
-                        <Route path="/payslip/:id" element={<Payslip />} />
-                        <Route path="/report" element={<Report />} />
-                        <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                </Layout>
-            </Router>
+            <DebugProvider>
+                <Router>
+                    <Layout>
+                        <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/inventory" element={<Inventory />} />
+                            <Route path="/vendors" element={<Vendors />} />
+                            <Route path="/employees" element={<Employees />} />
+                            <Route path="/payroll" element={<Payroll />} />
+                            <Route path="/payslip/:id" element={<Payslip />} />
+                            <Route path="/report" element={<Report />} />
+                            <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                    </Layout>
+                    <DebugPopup />
+                </Router>
+            </DebugProvider>
         </ToastProvider>
     );
 }
