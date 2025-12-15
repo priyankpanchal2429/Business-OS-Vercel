@@ -30,8 +30,10 @@ console.log('========================================\n');
 // CORS configuration - Allow frontend from Vercel and local development
 const allowedOrigins = process.env.NODE_ENV === 'production'
     ? [
-        'https://rebusinessos.vercel.app',  // Update this after deploying to Vercel
-        'https://api.rebusinessos.tk'       // Allow self-requests
+        'https://business-os-nu.vercel.app',  // Your Vercel frontend
+        'https://rebusinessos.vercel.app',    // Future proof
+        'https://api.rebusinessos.tk',        // Self-hosted domain
+        'https://ward-encourages-widespread-advanced.trycloudflare.com' // Current tunnel
     ]
     : [
         'http://localhost:5173',
