@@ -1,0 +1,34 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+server/.env
+server/.env.production
+server/.env.development
+client/.env
+client/.env.production
+client/.env.development
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Development Data (protect production data)
+server/data/data.development.json
+
+# Build outputs
+dist/
+build/
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Uploads (optional - exclude if you don't want to commit user uploads)
+# server/uploads/*
+# !server/uploads/.gitkeep

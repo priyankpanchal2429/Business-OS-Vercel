@@ -1,3 +1,10 @@
+// Load environment variables based on NODE_ENV
+require('dotenv').config({
+    path: process.env.NODE_ENV === 'production'
+        ? '.env.production'
+        : '.env.development'
+});
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -9,8 +16,16 @@ const { authMiddleware } = require('./middleware/auth');
 const { performBackup } = require('./utils/backup');
 
 const app = express();
-const PORT = 3000;
-const DATA_FILE = path.join(__dirname, 'data', 'data.json');
+const PORT = process.env.PORT || 3000;
+const DATA_FILE = path.join(__dirname, process.env.DATA_FILE || 'data/data.json');
+
+// Log environment on startup
+console.log('\n========================================');
+console.log(`🚀 Business-OS Server Starting`);
+console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🔌 Port: ${PORT}`);
+console.log(`📂 Data File: ${DATA_FILE}`);
+console.log('========================================\n');
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -30,7 +45,7 @@ app.use((req, res, next) => {
 app.use(authMiddleware);
 
 // Configure multer for file uploads
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const UPLOADS_DIR = path.join(__dirname, process.env.UPLOADS_DIR || 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
@@ -62,7 +77,7 @@ const upload = multer({
 });
 
 // Configure separate upload for PDFs (Payslips)
-const ARCHIVES_DIR = path.join(__dirname, 'archives', 'payslips');
+const ARCHIVES_DIR = path.join(__dirname, process.env.ARCHIVES_DIR || 'archives/payslips');
 if (!fs.existsSync(ARCHIVES_DIR)) {
     fs.mkdirSync(ARCHIVES_DIR, { recursive: true });
 }
