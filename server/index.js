@@ -33,7 +33,8 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
         'https://business-os-nu.vercel.app',  // Your Vercel frontend
         'https://rebusinessos.vercel.app',    // Future proof
         'https://api.rebusinessos.tk',        // Self-hosted domain
-        'https://ward-encourages-widespread-advanced.trycloudflare.com' // Current tunnel
+        'https://ward-encourages-widespread-advanced.trycloudflare.com', // Current tunnel
+        'https://*.trycloudflare.com'         // Allow ALL Cloudflare tunnels (Wildcard patch)
     ]
     : [
         'http://localhost:5173',
