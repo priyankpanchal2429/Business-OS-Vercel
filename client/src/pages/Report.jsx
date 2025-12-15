@@ -14,6 +14,7 @@ import '../index.css';
 
 const Report = () => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [dateRange, setDateRange] = useState({
@@ -46,7 +47,7 @@ const Report = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch('http://localhost:3000/api/employees');
+            const res = await fetch(`${API_URL.replace('/api', '')}/api/employees`);
             if (res.ok) {
                 const data = await res.json();
                 setEmployees(data.filter(e => e.status?.toLowerCase() === 'active'));
@@ -66,7 +67,7 @@ const Report = () => {
                 startDate: dateRange.start,
                 endDate: dateRange.end
             });
-            const res = await fetch(`http://localhost:3000/api/reports/performance?${query}`);
+            const res = await fetch(`${API_URL}/reports/performance?${query}`);
             if (res.ok) {
                 const data = await res.json();
                 setReportData(data);
@@ -89,7 +90,7 @@ const Report = () => {
                 endDate: dateRange.end
             });
 
-            const res = await fetch(`http://localhost:3000/api/reports/leaderboard?${query}`);
+            const res = await fetch(`${API_URL}/reports/leaderboard?${query}`);
             if (res.ok) {
                 const data = await res.json();
                 setLeaderboardData(data);

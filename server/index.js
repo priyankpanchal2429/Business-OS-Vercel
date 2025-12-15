@@ -27,7 +27,31 @@ console.log(`🔌 Port: ${PORT}`);
 console.log(`📂 Data File: ${DATA_FILE}`);
 console.log('========================================\n');
 
-app.use(cors());
+// CORS configuration - Allow frontend from Vercel and local development
+const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? [
+        'https://rebusinessos.vercel.app',  // Update this after deploying to Vercel
+        'https://api.rebusinessos.tk'       // Allow self-requests
+    ]
+    : [
+        'http://localhost:5173',
+        'http://localhost:3000'
+    ];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, Postman)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log(`⚠️  Blocked CORS request from: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(bodyParser.json({ limit: '50mb' }));
 
 // STRICT No-Cache Headers for Security
