@@ -5,6 +5,7 @@ const DeductionsModal = ({ isOpen, onClose, employee, periodStart, periodEnd, gr
     const [deductions, setDeductions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
     useEffect(() => {
         if (isOpen && employee) {
@@ -15,7 +16,7 @@ const DeductionsModal = ({ isOpen, onClose, employee, periodStart, periodEnd, gr
     const fetchDeductions = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/deductions/${employee.id}/${periodStart}/${periodEnd}`);
+            const res = await fetch(`${API_URL}/deductions/${employee.id}/${periodStart}/${periodEnd}`);
             const data = await res.json();
             setDeductions(data);
         } catch (err) {
@@ -56,7 +57,7 @@ const DeductionsModal = ({ isOpen, onClose, employee, periodStart, periodEnd, gr
 
         setSaving(true);
         try {
-            const res = await fetch('/api/deductions', {
+            const res = await fetch(`${API_URL}/deductions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

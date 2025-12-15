@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 
 const BirthdayCard = ({ employees = [] }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [celebrants, setCelebrants] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
     const [showWishModal, setShowWishModal] = useState(false);
@@ -35,7 +36,7 @@ const BirthdayCard = ({ employees = [] }) => {
             setIsVisible(true);
 
             // Log view
-            fetch('/api/logs', {
+            fetch(`${API_URL}/logs`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -56,7 +57,7 @@ const BirthdayCard = ({ employees = [] }) => {
 
     const handleSendWish = async (message) => {
         try {
-            await fetch('/api/logs', {
+            await fetch(`${API_URL}/logs`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -13,6 +13,7 @@ const getISOWeek = (dateStr) => {
 
 const WhatsAppPreviewModal = ({ isOpen, onClose, pdfBlob, employeeName, periodEnd, periodStart, employeeContact, netPay }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [sending, setSending] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [contact, setContact] = useState(employeeContact || '');
@@ -48,7 +49,7 @@ const WhatsAppPreviewModal = ({ isOpen, onClose, pdfBlob, employeeName, periodEn
             formData.append('netPay', netPay);
 
             // Attempt to archive (don't block UI on failure if offline, but good to try)
-            await fetch('/api/whatsapp/send', {
+            await fetch(`${API_URL}/whatsapp/send`, {
                 method: 'POST',
                 body: formData
             }).catch(err => console.error("Server archive failed", err));

@@ -11,6 +11,7 @@ import EmployeeQuickViewModal from '../components/EmployeeQuickViewModal';
 
 const Employees = () => {
     const navigate = useNavigate();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [employees, setEmployees] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [toasts, setToasts] = useState([]);
@@ -112,11 +113,11 @@ const Employees = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch('/api/employees');
+            const res = await fetch(`${API_URL}/employees`);
             const data = await res.json();
             setEmployees(data);
 
-            const bonusRes = await fetch('/api/bonus/stats');
+            const bonusRes = await fetch(`${API_URL}/bonus/stats`);
             if (bonusRes.ok) {
                 const bonusData = await bonusRes.json();
                 setBonusStats(bonusData.employees);
@@ -133,7 +134,7 @@ const Employees = () => {
         const isEditing = editingEmployee !== null;
 
         try {
-            const url = isEditing ? `/api/employees/ ${editingEmployee.id} ` : '/api/employees';
+            const url = isEditing ? `${API_URL}/employees/${editingEmployee.id}` : `${API_URL}/employees`;
             const method = isEditing ? 'PATCH' : 'POST';
 
             const res = await fetch(url, {
@@ -192,7 +193,7 @@ const Employees = () => {
         if (!deleteModal.employee) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/employees/${deleteModal.employee.id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_URL}/employees/${deleteModal.employee.id}`, { method: 'DELETE' });
             if (res.ok) {
                 setDeleteModal({ isOpen: false, employee: null });
                 fetchEmployees();
@@ -276,7 +277,7 @@ const Employees = () => {
         // Save new order to server
         try {
             const orderedIds = newEmployees.map(emp => emp.id);
-            const res = await fetch('/api/employees/reorder', {
+            const res = await fetch(`${API_URL}/employees/reorder`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ orderedIds })
@@ -302,7 +303,7 @@ const Employees = () => {
 
         setIsResigning(true);
         try {
-            const res = await fetch(`/api/employees/ ${resignModal.employee.id} `, {
+            const res = await fetch(`${API_URL}/employees/${resignModal.employee.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

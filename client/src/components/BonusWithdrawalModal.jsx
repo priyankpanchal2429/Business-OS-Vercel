@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 
 const BonusWithdrawalModal = ({ isOpen, onClose, employee, onSave }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [stats, setStats] = useState(null);
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');
@@ -21,7 +22,7 @@ const BonusWithdrawalModal = ({ isOpen, onClose, employee, onSave }) => {
     const fetchStats = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/bonus/stats');
+            const res = await fetch(`${API_URL}/bonus/stats`);
             if (res.ok) {
                 const data = await res.json();
                 const empStats = data.employees.find(e => e.employeeId === employee.id);
@@ -47,7 +48,7 @@ const BonusWithdrawalModal = ({ isOpen, onClose, employee, onSave }) => {
 
         setSubmitting(true);
         try {
-            const res = await fetch('/api/bonus/withdraw', {
+            const res = await fetch(`${API_URL}/bonus/withdraw`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

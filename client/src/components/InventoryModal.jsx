@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 
 const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [formData, setFormData] = useState({
         name: item?.name || '',
         category: item?.category || '',
@@ -80,7 +81,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                 const formDataUpload = new FormData();
                 formDataUpload.append('image', imageFile);
 
-                const uploadRes = await fetch('/api/upload/image', {
+                const uploadRes = await fetch(`${API_URL}/upload/image`, {
                     method: 'POST',
                     body: formDataUpload
                 });
@@ -96,7 +97,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
             }
 
             const method = item ? 'PATCH' : 'POST';
-            const url = item ? `/api/inventory/${item.id}` : '/api/inventory';
+            const url = item ? `${API_URL}/inventory/${item.id}` : `${API_URL}/inventory`;
 
             const res = await fetch(url, {
                 method,

@@ -5,6 +5,7 @@ import ConfirmationModal from './ConfirmationModal';
 
 const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isPaid, prefilledDate, onSave }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -41,7 +42,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
     const fetchTimesheet = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/timesheet/${employee.id}/${periodStart}/${periodEnd}`);
+            const res = await fetch(`${API_URL}/timesheet/${employee.id}/${periodStart}/${periodEnd}`);
             const data = await res.json();
             // Normalize data: map shiftStart/shiftEnd to clockIn/clockOut
             const normalizedEntries = data
@@ -314,7 +315,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
         setSaving(true);
         // Proceed with Save
         try {
-            const res = await fetch('/api/timesheet', {
+            const res = await fetch(`${API_URL}/timesheet`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

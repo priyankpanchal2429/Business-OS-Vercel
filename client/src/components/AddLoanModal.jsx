@@ -4,6 +4,7 @@ import { X, Save, AlertTriangle, Banknote, Calendar, IndianRupee, Edit3, Check }
 const AddLoanModal = ({ isOpen, onClose, employee, onSave }) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [loading, setLoading] = useState(false);
     const [existingLoan, setExistingLoan] = useState(null);
     const [checkingLoan, setCheckingLoan] = useState(false);
@@ -28,7 +29,7 @@ const AddLoanModal = ({ isOpen, onClose, employee, onSave }) => {
     const checkExistingLoan = async () => {
         setCheckingLoan(true);
         try {
-            const res = await fetch(`/api/loans?employeeId=${employee.id}`);
+            const res = await fetch(`${API_URL}/loans?employeeId=${employee.id}`);
             if (res.ok) {
                 const loans = await res.json();
                 const activeLoan = loans.find(l => l.status === 'active');
@@ -56,7 +57,7 @@ const AddLoanModal = ({ isOpen, onClose, employee, onSave }) => {
         setLoading(true);
 
         try {
-            const res = await fetch('/api/loans', {
+            const res = await fetch(`${API_URL}/loans`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -95,7 +96,7 @@ const AddLoanModal = ({ isOpen, onClose, employee, onSave }) => {
         setLoading(true);
 
         try {
-            const res = await fetch(`/api/loans/${existingLoan.id}`, {
+            const res = await fetch(`${API_URL}/loans/${existingLoan.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

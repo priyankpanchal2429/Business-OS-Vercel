@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 
 const BonusSettingsModal = ({ isOpen, onClose, onSave }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [settings, setSettings] = useState({
         startDate: '',
         endDate: '',
@@ -19,7 +20,7 @@ const BonusSettingsModal = ({ isOpen, onClose, onSave }) => {
 
     const fetchSettings = async () => {
         try {
-            const res = await fetch('/api/settings/bonus');
+            const res = await fetch(`${API_URL}/settings/bonus`);
             if (res.ok) {
                 const data = await res.json();
                 setSettings(data);
@@ -33,7 +34,7 @@ const BonusSettingsModal = ({ isOpen, onClose, onSave }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch('/api/settings/bonus', {
+            const res = await fetch(`${API_URL}/settings/bonus`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(settings)

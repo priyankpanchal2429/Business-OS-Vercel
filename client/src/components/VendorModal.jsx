@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 
 const VendorModal = ({ isOpen, onClose, vendor, onSave }) => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [formData, setFormData] = useState({
         name: vendor?.name || '',
         contactPerson: vendor?.contactPerson || '',
@@ -80,7 +81,7 @@ const VendorModal = ({ isOpen, onClose, vendor, onSave }) => {
                 const formDataUpload = new FormData();
                 formDataUpload.append('image', imageFile);
 
-                const uploadRes = await fetch('/api/upload/image', {
+                const uploadRes = await fetch(`${API_URL}/upload/image`, {
                     method: 'POST',
                     body: formDataUpload
                 });
@@ -96,7 +97,7 @@ const VendorModal = ({ isOpen, onClose, vendor, onSave }) => {
             }
 
             const method = vendor ? 'PATCH' : 'POST';
-            const url = vendor ? `/api/vendors/${vendor.id}` : '/api/vendors';
+            const url = vendor ? `${API_URL}/vendors/${vendor.id}` : `${API_URL}/vendors`;
 
             const res = await fetch(url, {
                 method,

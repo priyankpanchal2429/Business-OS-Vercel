@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 
 const Vendors = () => {
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [vendors, setVendors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,7 +17,7 @@ const Vendors = () => {
 
     const fetchVendors = () => {
         setLoading(true);
-        fetch('/api/vendors')
+        fetch(`${API_URL}/vendors`)
             .then(res => res.json())
             .then(data => {
                 setVendors(data);
@@ -41,7 +42,7 @@ const Vendors = () => {
         if (!deleteModal.vendor) return;
 
         try {
-            const res = await fetch(`/api/vendors/${deleteModal.vendor.id}`, {
+            const res = await fetch(`${API_URL}/vendors/${deleteModal.vendor.id}`, {
                 method: 'DELETE'
             });
 

@@ -49,6 +49,7 @@ const Inventory = () => {
     const [viewMode, setViewMode] = useState('grid');
     const [searchTerm, setSearchTerm] = useState('');
     const { addToast } = useToast();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
     // Stats
     const totalItems = items.length;
@@ -57,7 +58,7 @@ const Inventory = () => {
 
     const fetchItems = () => {
         setLoading(true);
-        fetch('/api/inventory')
+        fetch(`${API_URL}/inventory`)
             .then(res => res.json())
             .then(data => {
                 setItems(data);
@@ -93,7 +94,7 @@ const Inventory = () => {
     const handleDelete = async (item) => {
         if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
             try {
-                const res = await fetch(`/api/inventory/${item.id}`, { method: 'DELETE' });
+                const res = await fetch(`${API_URL}/inventory/${item.id}`, { method: 'DELETE' });
                 if (res.ok) {
                     addToast('Item deleted successfully', 'success');
                     fetchItems();

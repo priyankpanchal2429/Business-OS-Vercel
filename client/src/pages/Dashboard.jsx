@@ -21,6 +21,7 @@ import BirthdayBanner from '../components/BirthdayBanner';
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [metrics, setMetrics] = React.useState({
         inventoryCount: 0,
         lowStockCount: 0,
@@ -39,32 +40,32 @@ const Dashboard = () => {
             try {
                 setLoading(true);
                 // Fetch Employees (for Birthday Banner)
-                const empRes = await fetch('/api/employees');
+                const empRes = await fetch(`${API_URL}/employees`);
                 const empData = await empRes.json();
                 setEmployees(empData);
 
                 // Fetch Inventory
-                const invRes = await fetch('/api/inventory');
+                const invRes = await fetch(`${API_URL}/inventory`);
                 const invData = await invRes.json();
                 const inventoryCount = invData.length;
                 const lowStockCount = invData.filter(item => Number(item.quantity) < 10).length;
 
                 // Fetch Vendors
-                const vendorRes = await fetch('/api/vendors');
+                const vendorRes = await fetch(`${API_URL}/vendors`);
                 const vendorData = await vendorRes.json();
                 const activeVendors = vendorData.length;
 
                 // Check Health
-                const healthRes = await fetch('/api/health');
+                const healthRes = await fetch(`${API_URL}/health`);
                 const healthData = await healthRes.json();
 
                 // Fetch Audit Logs
-                const logsRes = await fetch('/api/audit-logs?limit=5');
+                const logsRes = await fetch(`${API_URL}/audit-logs?limit=5`);
                 const logsData = await logsRes.json();
                 setRecentLogs(logsData);
 
                 // Fetch Bonus Stats
-                const bonusRes = await fetch('/api/bonus/stats');
+                const bonusRes = await fetch(`${API_URL}/bonus/stats`);
                 if (bonusRes.ok) {
                     const bonusData = await bonusRes.json();
                     setBonusStats(bonusData);

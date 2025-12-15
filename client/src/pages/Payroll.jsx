@@ -10,6 +10,7 @@ import { ToastContainer } from '../components/Toast.jsx';
 
 const Payroll = () => {
     const navigate = useNavigate();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const [periodData, setPeriodData] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -67,7 +68,7 @@ const Payroll = () => {
         // Fetch locked period first
         const checkLockedPeriod = async () => {
             try {
-                const res = await fetch('/api/payroll/locked-period');
+                const res = await fetch(`${API_URL}/payroll/locked-period`);
                 const data = await res.json();
 
                 if (data.locked && data.period) {
@@ -112,7 +113,7 @@ const Payroll = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch('/api/employees');
+            const res = await fetch(`${API_URL}/employees`);
             const data = await res.json();
             setEmployees(data);
         } catch (err) {
@@ -123,7 +124,7 @@ const Payroll = () => {
     const fetchPeriodData = async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&t=${Date.now()}`);
+            const res = await fetch(`${API_URL}/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&t=${Date.now()}`);
             const data = await res.json();
             console.log('[Payroll] Period data received:', data);
             console.log('[Payroll] First item netPay:', data[0]?.netPay);
@@ -138,7 +139,7 @@ const Payroll = () => {
 
     const handleMarkAsPaid = async (items) => {
         try {
-            const res = await fetch('/api/payroll/mark-paid', {
+            const res = await fetch(`${API_URL}/payroll/mark-paid`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -159,7 +160,7 @@ const Payroll = () => {
 
     const handleMarkAsUnpaid = async (items) => {
         try {
-            const res = await fetch('/api/payroll/mark-unpaid', {
+            const res = await fetch(`${API_URL}/payroll/mark-unpaid`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -208,7 +209,7 @@ const Payroll = () => {
         if (!confirmLock) return;
 
         try {
-            const res = await fetch('/api/payroll/lock-period', {
+            const res = await fetch(`${API_URL}/payroll/lock-period`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -246,7 +247,7 @@ const Payroll = () => {
         if (!confirmUnlock) return;
 
         try {
-            const res = await fetch('/api/payroll/unlock-period', {
+            const res = await fetch(`${API_URL}/payroll/unlock-period`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
