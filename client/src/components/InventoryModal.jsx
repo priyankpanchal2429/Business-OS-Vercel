@@ -183,7 +183,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                                     <img
                                         src={imagePreview}
                                         alt="Preview"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                         onError={(e) => {
                                             e.target.style.display = 'none';
                                             e.target.parentElement.innerHTML = '<div style="color: var(--color-text-secondary); font-size: 0.9rem;">Invalid Image</div>';
@@ -273,25 +273,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                         </div>
 
                         {/* RIGHT COLUMN: Item Details */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
-                            {/* In Use - Top Right Corner */}
-                            <div style={{ position: 'absolute', top: -60, right: 0, width: '200px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                    In use *
-                                </label>
-                                <input
-                                    type="text"
-                                    name="category"
-                                    required
-                                    placeholder="e.g., Electronics"
-                                    value={formData.category}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                        fontSize: '0.95rem'
-                                    }}
-                                />
-                            </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                             {/* Item Name - Full Width */}
                             <div>
@@ -312,23 +294,79 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                                 />
                             </div>
 
-                            {/* Type (full width) */}
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                    Type *
-                                </label>
-                                <input
-                                    type="text"
-                                    name="type"
-                                    required
-                                    placeholder="e.g., Product"
-                                    value={formData.type}
-                                    onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
-                                        fontSize: '0.95rem'
-                                    }}
-                                />
+                            {/* Category & Type */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                        Category *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="category"
+                                        required
+                                        placeholder="e.g., Electronics"
+                                        value={formData.category}
+                                        onChange={handleChange}
+                                        style={{
+                                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                            fontSize: '0.95rem'
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                        Type *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="type"
+                                        required
+                                        placeholder="e.g., Product"
+                                        value={formData.type}
+                                        onChange={handleChange}
+                                        style={{
+                                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                            fontSize: '0.95rem'
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Stock & Price */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                        Stock
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="stock"
+                                        placeholder="0"
+                                        value={formData.stock}
+                                        onChange={handleChange}
+                                        style={{
+                                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                            fontSize: '0.95rem'
+                                        }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                        Price (₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="price"
+                                        placeholder="0.00"
+                                        value={formData.price}
+                                        onChange={handleChange}
+                                        style={{
+                                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                                            fontSize: '0.95rem'
+                                        }}
+                                    />
+                                </div>
                             </div>
 
 

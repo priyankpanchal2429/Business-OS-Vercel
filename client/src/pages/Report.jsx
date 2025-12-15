@@ -113,138 +113,7 @@ const Report = () => {
         }
     };
 
-    const handleDownloadAllPDF = async () => {
-        try {
-            addToast('Fetching data for all employees...', 'info');
 
-            // 1. Fetch Payroll Data for the period for ALL employees
-            const res = await fetch(`http://localhost:3000/api/payroll/period?start=${dateRange.start}&end=${dateRange.end}`);
-            if (!res.ok) throw new Error('Failed to fetch payroll data');
-            const data = await res.json();
-
-            if (!data || data.length === 0) {
-                addToast('No data found for this period.', 'warning');
-                return;
-            }
-
-            addToast(`Generating PDF for ${data.length} employees...`, 'info');
-
-            // 2. Prepare Data for Table
-            const tableRows = data.map(item => {
-                // Ensure values are numbers
-                const gross = Number(item.grossPay || 0);
-                const advance = Number(item.advanceDeductions || 0);
-                const deductions = Number(item.deductions || 0) - advance; // Other deductions
-
-                // For "Remaining Loan Amount", we need detailed data. 
-                const remainingLoan = item.details?.loanSummary?.remainingBalance || 0;
-
-                const bonusDays = item.details?.bonus?.currentCycleDays || 0;
-                const bonusAmount = item.details?.bonus?.currentCycleAmount || 0;
-
-                // OT
-                const otHours = (item.totalOvertimeMinutes || 0) / 60;
-                const otPay = Number(item.overtimePay || 0);
-
-                const netPay = Number(item.netPay || 0);
-
-                return [
-                    item.employeeName,
-                    `₹${gross.toLocaleString('en-IN')}`,
-                    advance > 0 ? `₹${advance.toLocaleString('en-IN')}` : '-', // Advance
-                    deductions > 0 ? `₹${deductions.toLocaleString('en-IN')}` : '-', // Other Deductions
-                    remainingLoan > 0 ? `₹${remainingLoan.toLocaleString('en-IN')}` : '-', // Remaining Loan
-                    otHours > 0 ? `${otHours.toFixed(1)}h` : '-',
-                    otPay > 0 ? `₹${otPay.toLocaleString('en-IN')}` : '-',
-                    bonusDays > 0 ? `${bonusDays}d` : '-',
-                    bonusAmount > 0 ? `₹${bonusAmount.toLocaleString('en-IN')}` : '-',
-                    `₹${netPay.toLocaleString('en-IN')}`
-                ];
-            });
-
-            // Calculate Totals
-            const totals = data.reduce((acc, item) => ({
-                gross: acc.gross + Number(item.grossPay || 0),
-                advance: acc.advance + Number(item.advanceDeductions || 0),
-                deductions: acc.deductions + (Number(item.deductions || 0) - Number(item.advanceDeductions || 0)),
-                remainingLoan: acc.remainingLoan + (item.details?.loanSummary?.remainingBalance || 0),
-                otPay: acc.otPay + Number(item.overtimePay || 0),
-                bonusAmt: acc.bonusAmt + (item.details?.bonus?.currentCycleAmount || 0),
-                netPay: acc.netPay + Number(item.netPay || 0)
-            }), { gross: 0, advance: 0, deductions: 0, remainingLoan: 0, otPay: 0, bonusAmt: 0, netPay: 0 });
-
-            const totalRow = [
-                'TOTAL',
-                `₹${totals.gross.toLocaleString('en-IN')}`,
-                `₹${totals.advance.toLocaleString('en-IN')}`,
-                `₹${totals.deductions.toLocaleString('en-IN')}`,
-                `₹${totals.remainingLoan.toLocaleString('en-IN')}`,
-                '-',
-                `₹${totals.otPay.toLocaleString('en-IN')}`,
-                '-',
-                `₹${totals.bonusAmt.toLocaleString('en-IN')}`,
-                `₹${totals.netPay.toLocaleString('en-IN')}`
-            ];
-
-            // 3. Generate PDF
-            const doc = new jsPDF();
-
-            // Header
-            doc.setFontSize(18);
-            doc.text('Business OS - Payroll Report', 14, 20);
-
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text(`Period: ${new Date(dateRange.start).toLocaleDateString()} to ${new Date(dateRange.end).toLocaleDateString()}`, 14, 28);
-            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
-
-            // Table
-            autoTable(doc, {
-                startY: 40,
-                head: [['Employee', 'Basic Salary', 'Advance', 'Deductions', 'Loan Bal', 'OT Hrs', 'OT Pay', 'Bonus Days', 'Bonus Amt', 'Net Pay']],
-                body: [...tableRows, totalRow],
-                theme: 'striped',
-                headStyles: { fillColor: [66, 66, 66], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-                bodyStyles: { fontSize: 8 },
-                footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
-                columnStyles: {
-                    0: { fontStyle: 'bold', cellWidth: 30 },
-                    9: { fontStyle: 'bold', fillColor: [240, 248, 255] }
-                },
-                didParseCell: function (data) {
-                    if (data.row.index === tableRows.length) {
-                        data.cell.styles.fontStyle = 'bold';
-                        data.cell.styles.fillColor = [220, 220, 220];
-                    }
-                }
-            });
-
-            // Total Summary Box at Bottom
-            const finalY = doc.lastAutoTable.finalY + 10;
-            doc.setFillColor(245, 245, 247);
-            doc.roundedRect(14, finalY, 180, 25, 3, 3, 'F');
-
-            doc.setFontSize(11);
-            doc.setTextColor(0);
-            doc.text(`Total Amount Paid: ₹${totals.netPay.toLocaleString('en-IN')}`, 20, finalY + 16);
-
-            // Footer with Page Numbers
-            const pageCount = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.setTextColor(150);
-                doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
-            }
-
-            doc.save(`Payroll_Report_${dateRange.start}_${dateRange.end}.pdf`);
-            addToast('PDF downloaded successfully!', 'success');
-
-        } catch (err) {
-            console.error('Failed to generate PDF:', err);
-            addToast('Failed to generate PDF report', 'error');
-        }
-    };
 
     const handleExportPDF = async () => {
         if (!reportRef.current) return;
@@ -377,13 +246,7 @@ const Report = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                    onClick={handleDownloadAllPDF}
-                    className="action-btn"
-                    style={{ background: '#111827', color: 'white', border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.1)' }}
-                >
-                    <Download size={18} /> Download All (PDF)
-                </button>
+
                 <button onClick={handleExportPDF} className="action-btn" style={{ background: 'white', border: '1px solid #eee' }}>
                     <Download size={18} /> Export Profile
                 </button>
