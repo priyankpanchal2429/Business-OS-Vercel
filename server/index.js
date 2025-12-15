@@ -46,7 +46,7 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.trycloudflare.com')) {
             callback(null, true);
         } else {
             console.log(`⚠️  Blocked CORS request from: ${origin}`);
