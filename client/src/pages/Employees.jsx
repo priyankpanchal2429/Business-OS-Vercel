@@ -8,6 +8,7 @@ import DeleteConfirmationModal from '../components/DeleteConfirmationModal.jsx';
 import BonusWithdrawalModal from '../components/BonusWithdrawalModal';
 import AddLoanModal from '../components/AddLoanModal';
 import EmployeeQuickViewModal from '../components/EmployeeQuickViewModal';
+import './Employees.css';
 
 const Employees = () => {
     const navigate = useNavigate();
@@ -126,6 +127,31 @@ const Employees = () => {
             setLoading(false);
         } catch (err) {
             console.error("Failed to fetch employees", err);
+        }
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const res = await fetch(`${API_URL}/upload/image`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                setNewEmployee(prev => ({ ...prev, image: data.imageUrl }));
+                addToast('Image uploaded successfully', 'success');
+            } else {
+                addToast('Failed to upload image', 'error');
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            addToast('Error uploading image', 'error');
         }
     };
 
@@ -510,116 +536,7 @@ const Employees = () => {
                 </div>
             )}
 
-            <style>{`
-    .employee-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--spacing-lg);
-    margin-top: var(--spacing-lg);
-}
-                .employee-card {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    background: var(--color-background-card);
-    box-shadow: var(--shadow-sm);
-}
-                .employee-card.avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: var(--color-background-subtle);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: var(--spacing-sm);
-    overflow: hidden;
-    border: 2px solid var(--color-border);
-}
-                .employee-card.avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-                .employee-card.name {
-    font-weight: 600;
-    font-size: 1.1rem;
-    margin-bottom: 4px;
-}
-                .employee-card.role {
-    color: var(--color-text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: var(--spacing-md);
-}
-                .employee-card.details {
-    width: 100%;
-    text-align: left;
-    font-size: 0.85rem;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-md);
-}
-                .employee-card.details div {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-                .employee-card.details div svg {
-    color: var(--color-text-tertiary);
-}
-                .employee-card.status {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    margin-bottom: var(--spacing-md);
-}
-                .employee-card.status.active {
-    background: rgba(52, 199, 89, 0.1);
-    color: var(--color-success);
-}
-                .employee-card.status.inactive {
-    background: rgba(255, 59, 48, 0.1);
-    color: var(--color-error);
-}
-                .employee-card.card-actions {
-    display: flex;
-    width: 100%;
-    gap: 8px;
-    margin-top: auto;
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-border);
-}
-                .employee-card.action-btn {
-    flex: 1;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-    background: var(--color-background-subtle);
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    transition: background 0.2s, border-color 0.2s;
-}
-                .employee-card.action-btn:hover {
-    background: var(--color-background-hover);
-    border-color: var(--color-border-hover);
-}
-                .employee-card.action-btn.edit {
-    color: var(--color-accent);
-}
-                .employee-card.action-btn.delete {
-    color: var(--color-error);
-}
-`}</style>
+
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
                 <div>
@@ -768,14 +685,7 @@ const Employees = () => {
                                     <input
                                         type="file"
                                         accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files[0];
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => setNewEmployee({ ...newEmployee, image: reader.result });
-                                                reader.readAsDataURL(file);
-                                            }
-                                        }}
+                                        onChange={handleImageUpload}
                                         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
                                     />
                                 </div>

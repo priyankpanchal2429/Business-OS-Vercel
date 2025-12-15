@@ -162,11 +162,22 @@ const readData = () => {
             audit_logs: []
         };
     }
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    // Ensure new fields exist
-    if (!data.bonus_withdrawals) data.bonus_withdrawals = [];
-    if (!data.settings) data.settings = {};
-    return data;
+    try {
+        const fileContent = fs.readFileSync(DATA_FILE, 'utf8');
+        try {
+            const data = JSON.parse(fileContent);
+            // Ensure new fields exist
+            if (!data.bonus_withdrawals) data.bonus_withdrawals = [];
+            if (!data.settings) data.settings = {};
+            return data;
+        } catch (parseError) {
+            console.error(`[CRITICAL] Failed to parse DATA_FILE (${DATA_FILE}):`, parseError);
+            throw new Error('Database file corrupted');
+        }
+    } catch (readError) {
+        console.error(`[CRITICAL] Failed to read DATA_FILE (${DATA_FILE}):`, readError);
+        throw readError;
+    }
 };
 
 const writeData = (data) => {
@@ -453,6 +464,65 @@ app.get('/api/payroll/history/:employeeId', (req, res) => {
     history.sort((a, b) => new Date(b.periodStart) - new Date(a.periodStart));
 
     res.json(history);
+});
+
+// --- ATTENDANCE ---
+
+// Get Today's Attendance
+app.get('/api/attendance/today', (req, res) => {
+    const data = readData();
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const isSunday = today.getDay() === 0;
+
+    // Use query param 't' to prevent caching if needed, though headers handle it
+    // const timestamp = req.query.t; 
+
+    if (isSunday) {
+        return res.json({
+            date: today.toISOString(),
+            isClosed: true,
+            summary: { working: 0, notWorking: 0 },
+            working: [],
+            notWorking: []
+        });
+    }
+
+    const activeEmployees = (data.employees || []).filter(e => e.status !== 'Resigned');
+    const todayEntries = (data.timesheet_entries || []).filter(e => e.date === todayStr && e.status === 'active');
+
+    const working = [];
+    const notWorking = [];
+
+    activeEmployees.forEach(emp => {
+        const entry = todayEntries.find(e => e.employeeId === emp.id);
+        // Consider working if they have a timesheet entry with clockIn/shiftStart
+        if (entry && (entry.clockIn || entry.shiftStart)) {
+            working.push({
+                employeeId: emp.id,
+                employeeName: emp.name,
+                employeeImage: emp.image,
+                status: 'working',
+                clockIn: entry.clockIn || entry.shiftStart,
+                clockOut: entry.clockOut || entry.shiftEnd
+            });
+        } else {
+            notWorking.push({
+                employeeId: emp.id,
+                employeeName: emp.name,
+                employeeImage: emp.image,
+                status: 'not-working'
+            });
+        }
+    });
+
+    res.json({
+        date: today.toISOString(),
+        isClosed: false,
+        summary: { working: working.length, notWorking: notWorking.length },
+        working,
+        notWorking
+    });
 });
 
 // --- BONUS SYSTEM ---
