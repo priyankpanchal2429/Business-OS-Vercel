@@ -24,6 +24,7 @@ const allowedOrigins = [
     'http://localhost:3001', // New Self
     'https://business-os-nu.vercel.app', // Vercel
     'https://*.serveo.net', // Serveo Tunnels
+    'https://*.serveousercontent.com', // Serveo Content Domain
     'https://*.trycloudflare.com' // Cloudflare Tunnels (Legacy)
 ];
 
