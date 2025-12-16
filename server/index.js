@@ -59,6 +59,11 @@ app.get('/', (req, res) => {
     res.send({ status: 'OK', message: 'Business-OS Backend Running', time: new Date().toISOString() });
 });
 
+// Health Check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', ip: req.ip, time: new Date().toISOString() });
+});
+
 // Inventory Routes
 app.get('/api/inventory', (req, res) => {
     try {

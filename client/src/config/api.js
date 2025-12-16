@@ -16,9 +16,11 @@ export const getBaseUrl = () => {
 
     // 2. Check for Vercel Environment Variable
     if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL.endsWith('/')
-            ? import.meta.env.VITE_API_URL.slice(0, -1)
-            : import.meta.env.VITE_API_URL;
+        let envUrl = import.meta.env.VITE_API_URL;
+        if (envUrl.endsWith('/')) envUrl = envUrl.slice(0, -1);
+        // Automatically ensure it ends with /api
+        if (!envUrl.endsWith('/api')) envUrl = `${envUrl}/api`;
+        return envUrl;
     }
 
     // 3. Fallback to Localhost (Development)
