@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, User, Phone, Mail, MapPin, Calendar, Clock, Download, Briefcase, Banknote, GripVertical, Eye, UserX, History, LogOut } from 'lucide-react';
 import Avatar from '../components/Avatar';
@@ -12,7 +13,7 @@ import './Employees.css';
 
 const Employees = () => {
     const navigate = useNavigate();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [employees, setEmployees] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [toasts, setToasts] = useState([]);

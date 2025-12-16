@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDebug } from '../context/DebugContext';
+import { getBaseUrl, setBaseUrl, isCustomUrl } from '../config/api';
 import {
     Terminal,
     X,
@@ -9,22 +10,56 @@ import {
     WifiOff,
     AlertCircle,
     CheckCircle2,
-    Activity
+    Activity,
+    Save,
+    Globe
 } from 'lucide-react';
 
 const DebugPopup = () => {
     const { isOpen, toggleDebug, logs, clearLogs, addLog } = useDebug();
     const [testing, setTesting] = useState(false);
+    const [apiUrl, setApiUrl] = useState('');
+    const [isCustom, setIsCustom] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    // Initialize state on load
+    useEffect(() => {
+        setApiUrl(getBaseUrl());
+        setIsCustom(isCustomUrl());
+    }, [isOpen]);
+
+    const handleSaveUrl = () => {
+        if (!apiUrl) return;
+
+        // Remove /api if the user typed it, to sanitize input for the helper which adds it back if needed
+        // Actually the helper handles it. Let's just pass what they typed.
+        // But better to be smart. If they paste the ".trycloudflare.com" part, we handle it.
+
+        setBaseUrl(apiUrl);
+        addLog('success', 'API URL Updated', `New URL: ${getBaseUrl()}`);
+        setIsCustom(true);
+
+        // Force reload to apply changes globally
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    };
+
+    const handleResetUrl = () => {
+        setBaseUrl(null); // Clear storage
+        addLog('info', 'API URL Reset', 'Reverting to environment defaults');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    };
 
     const testConnection = async () => {
         setTesting(true);
-        addLog('info', 'Testing connection to backend...', API_URL);
+        const currentUrl = getBaseUrl();
+        addLog('info', 'Testing connection to backend...', currentUrl);
 
         try {
             const start = Date.now();
-            const res = await fetch(`${API_URL}/health`);
+            const res = await fetch(`${currentUrl}/health`);
             const end = Date.now();
 
             if (res.ok) {
@@ -125,11 +160,65 @@ const DebugPopup = () => {
                 fontSize: '0.8rem',
                 color: '#aaa'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span>Target URL:</span>
-                    <span style={{ color: '#4da6ff' }}>{API_URL}</span>
+                {/* Connection Box */}
+                <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#fff' }}>
+                        <Globe size={14} />
+                        <span style={{ fontWeight: 600 }}>Backend Connection</span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                            type="text"
+                            value={apiUrl}
+                            onChange={(e) => setApiUrl(e.target.value)}
+                            placeholder="https://...trycloudflare.com"
+                            style={{
+                                flex: 1,
+                                background: '#333',
+                                border: isCustom ? '1px solid #4da6ff' : '1px solid #444',
+                                borderRadius: '4px',
+                                color: '#fff',
+                                padding: '6px 8px',
+                                fontSize: '0.75rem',
+                                outline: 'none'
+                            }}
+                        />
+                        <button
+                            onClick={handleSaveUrl}
+                            style={{
+                                background: '#4da6ff',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0 8px',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                fontWeight: 600
+                            }}
+                        >
+                            Save
+                        </button>
+                    </div>
+                    {isCustom && (
+                        <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={handleResetUrl}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#ff8888',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline'
+                                }}>
+                                Reset to Default
+                            </button>
+                        </div>
+                    )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Status:</span>
                     <button
                         onClick={testConnection}
@@ -175,8 +264,8 @@ const DebugPopup = () => {
                         background: '#252525',
                         borderRadius: '6px',
                         borderLeft: `3px solid ${log.type === 'error' ? '#ff3333' :
-                                log.type === 'success' ? '#00ff00' :
-                                    '#4da6ff'
+                            log.type === 'success' ? '#00ff00' :
+                                '#4da6ff'
                             }`
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>

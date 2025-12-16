@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Save, Calendar, DollarSign } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const BonusSettingsModal = ({ isOpen, onClose, onSave }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [settings, setSettings] = useState({
         startDate: '',
         endDate: '',

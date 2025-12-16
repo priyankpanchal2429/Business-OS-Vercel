@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Save, AlertTriangle, Banknote, Calendar, IndianRupee, Edit3, Check } from 'lucide-react';
 
 const AddLoanModal = ({ isOpen, onClose, employee, onSave }) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [loading, setLoading] = useState(false);
     const [existingLoan, setExistingLoan] = useState(null);
     const [checkingLoan, setCheckingLoan] = useState(false);

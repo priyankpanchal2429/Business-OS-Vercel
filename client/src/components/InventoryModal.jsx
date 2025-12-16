@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Save, Package, Upload, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [formData, setFormData] = useState({
         name: item?.name || '',
         category: item?.category || '',

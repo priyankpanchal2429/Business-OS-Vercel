@@ -19,11 +19,12 @@ import {
 
 import BirthdayBanner from '../components/BirthdayBanner';
 import { useDebug } from '../context/DebugContext';
+import { getBaseUrl } from '../config/api';
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const { addLog } = useDebug();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [metrics, setMetrics] = React.useState({
         inventoryCount: 0,
         lowStockCount: 0,

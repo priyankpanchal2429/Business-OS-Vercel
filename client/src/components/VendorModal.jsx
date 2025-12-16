@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Save, Store, Upload, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const VendorModal = ({ isOpen, onClose, vendor, onSave }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [formData, setFormData] = useState({
         name: vendor?.name || '',
         contactPerson: vendor?.contactPerson || '',

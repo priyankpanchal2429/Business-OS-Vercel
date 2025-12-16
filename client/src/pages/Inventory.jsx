@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import {
     Plus, Search, LayoutList, LayoutGrid,
     Package, Layers, ArrowUpRight, Filter
@@ -49,7 +50,7 @@ const Inventory = () => {
     const [viewMode, setViewMode] = useState('grid');
     const [searchTerm, setSearchTerm] = useState('');
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
 
     // Stats
     const totalItems = items.length;

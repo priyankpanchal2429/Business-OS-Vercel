@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Plus, Trash2, Save, User, Edit2 } from 'lucide-react';
 
 const DeductionsModal = ({ isOpen, onClose, employee, periodStart, periodEnd, grossPay, onSave }) => {
     const [deductions, setDeductions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
 
     useEffect(() => {
         if (isOpen && employee) {

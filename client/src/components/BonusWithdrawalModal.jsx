@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Save, IndianRupee, AlertCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const BonusWithdrawalModal = ({ isOpen, onClose, employee, onSave }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [stats, setStats] = useState(null);
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');

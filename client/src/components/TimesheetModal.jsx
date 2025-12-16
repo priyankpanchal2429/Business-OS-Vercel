@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, Plus, Save, User, Zap, RotateCcw, AlertCircle, Trash2, Briefcase, Plane } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
 
 const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isPaid, prefilledDate, onSave }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);

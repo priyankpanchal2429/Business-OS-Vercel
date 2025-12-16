@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { X, MessageCircle, FileText, Check, AlertCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -13,7 +14,7 @@ const getISOWeek = (dateStr) => {
 
 const WhatsAppPreviewModal = ({ isOpen, onClose, pdfBlob, employeeName, periodEnd, periodStart, employeeContact, netPay }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [sending, setSending] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [contact, setContact] = useState(employeeContact || '');

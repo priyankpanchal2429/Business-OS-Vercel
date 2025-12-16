@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '../config/api';
 import { Cake, Gift, X } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const BirthdayCard = ({ employees = [] }) => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = getBaseUrl();
     const [celebrants, setCelebrants] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
     const [showWishModal, setShowWishModal] = useState(false);
