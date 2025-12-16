@@ -24,4 +24,4 @@ echo.
 echo (Press Ctrl+C to stop the tunnel)
 echo ===================================================
 echo.
-ssh -o ServerAliveInterval=60 -R REBusinessOS:80:localhost:3001 serveo.net
+ssh -i C:\Users\Rajesh\.ssh\id_rsa -o ServerAliveInterval=60 -R business-os-master-server:80:localhost:3001 serveo.net
