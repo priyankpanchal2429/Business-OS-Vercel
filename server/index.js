@@ -9,7 +9,7 @@ const { authMiddleware } = require('./middleware/auth');
 const db = require('./database');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3001; // Hardcoded to bypass stuck process on 3000
 
 // --- CONFIGURATION ---
 
@@ -87,6 +87,68 @@ app.post('/api/inventory', (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// --- EMPLOYEES ---
+app.get('/api/employees', (req, res) => {
+    try {
+        const employees = db.prepare('SELECT * FROM employees').all();
+        const parsed = employees.map(e => ({
+            ...e,
+            workingDays: e.workingDays ? JSON.parse(e.workingDays) : [],
+            bankDetails: e.bankDetails ? JSON.parse(e.bankDetails) : {},
+            emergencyContact: e.emergencyContact ? JSON.parse(e.emergencyContact) : {},
+            documents: e.documents ? JSON.parse(e.documents) : []
+        }));
+        res.json(parsed);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/employees', (req, res) => {
+    try {
+        const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image } = req.body;
+        const stmt = db.prepare(`
+            INSERT INTO employees (name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, documents, status, image, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?)
+        `);
+        const info = stmt.run(
+            name, role, contact, email, address, salary || 0, perShiftAmount || 0, hourlyRate || 0, shiftStart, shiftEnd,
+            JSON.stringify(workingDays || []), JSON.stringify(bankDetails || {}), JSON.stringify(emergencyContact || {}),
+            status || 'Active', image, new Date().toISOString(), new Date().toISOString()
+        );
+        const newEmp = db.prepare('SELECT * FROM employees WHERE id = ?').get(info.lastInsertRowid);
+        res.json(newEmp);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- VENDORS ---
+app.get('/api/vendors', (req, res) => {
+    try {
+        const vendors = db.prepare('SELECT * FROM vendors').all();
+        res.json(vendors.map(v => ({ ...v, suppliedItems: v.suppliedItems ? JSON.parse(v.suppliedItems) : [] })));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/vendors', (req, res) => {
+    try {
+        const { name, category, contact, email, address, suppliedItems } = req.body;
+        const stmt = db.prepare(`INSERT INTO vendors (name, category, contact, email, address, suppliedItems, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+        const info = stmt.run(name, category, contact, email, address, JSON.stringify(suppliedItems || []), new Date().toISOString());
+        res.json(db.prepare('SELECT * FROM vendors WHERE id = ?').get(info.lastInsertRowid));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- AUDIT LOGS ---
+app.get('/api/audit-logs', (req, res) => {
+    try {
+        const logs = db.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 50').all();
+        res.json(logs);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- BONUS (Stub to prevent 404 on Dashboard) ---
+app.get('/api/bonus/stats', (req, res) => {
+    res.json({ companyTotalBalance: 0, employees: [] });
 });
 
 // Start Server
