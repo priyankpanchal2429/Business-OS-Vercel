@@ -20,7 +20,8 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 // CORS Setup
 const allowedOrigins = [
     'http://localhost:5173', // Vite Local
-    'http://localhost:3000', // Self
+    'http://localhost:3000', // Old Self
+    'http://localhost:3001', // New Self
     'https://business-os-nu.vercel.app', // Vercel
     'https://*.serveo.net', // Serveo Tunnels
     'https://*.trycloudflare.com' // Cloudflare Tunnels (Legacy)

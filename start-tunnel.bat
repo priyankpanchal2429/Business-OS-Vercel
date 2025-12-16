@@ -14,4 +14,4 @@ echo 4. Redeploy your project.
 echo.
 echo ===================================================
 echo.
-ssh -o ServerAliveInterval=60 -R 80:localhost:3000 serveo.net
+ssh -o ServerAliveInterval=60 -R 80:localhost:3001 serveo.net
