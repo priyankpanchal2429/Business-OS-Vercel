@@ -11,18 +11,17 @@ echo.
 start "Business-OS Backend" cmd /k "cd server && set NODE_ENV=production && node index.js"
 
 echo.
-echo [2/2] Starting Cloudflare Tunnel...
+echo [2/2] Starting Serveo Tunnel...
 echo.
 echo ===================================================
 echo    IMPORTANT: COPY THE URL BELOW
 echo ===================================================
-echo Search for the URL that ends with ".trycloudflare.com"
-echo Example: https://fluffy-rabbit-123.trycloudflare.com
+echo Search for the URL that ends with ".serveo.net"
+echo Example: https://random-name.serveo.net
 echo.
 echo PASTE this URL into your Vercel Settings -> Environment Variables -> VITE_API_URL
 echo.
 echo (Press Ctrl+C to stop the tunnel)
 echo ===================================================
 echo.
-server\cloudflared.exe tunnel --url http://localhost:3000
-pause
+ssh -o ServerAliveInterval=60 -R 80:localhost:3000 serveo.net
