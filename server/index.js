@@ -204,15 +204,15 @@ app.get('/api/employees', (req, res) => {
 
 app.post('/api/employees', (req, res) => {
     try {
-        const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image, birthday } = req.body;
+        const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image, birthday, breakTime } = req.body;
         const stmt = db.prepare(`
-            INSERT INTO employees (name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, documents, status, image, birthday, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?)
+            INSERT INTO employees (name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, documents, status, image, birthday, breakTime, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?, ?)
         `);
         const info = stmt.run(
             name, role, contact, email, address, salary || 0, perShiftAmount || 0, hourlyRate || 0, shiftStart, shiftEnd,
             JSON.stringify(workingDays || []), JSON.stringify(bankDetails || {}), JSON.stringify(emergencyContact || {}),
-            status || 'Active', image, birthday, new Date().toISOString(), new Date().toISOString()
+            status || 'Active', image, birthday, breakTime || 60, new Date().toISOString(), new Date().toISOString()
         );
         const newEmp = db.prepare('SELECT * FROM employees WHERE id = ?').get(info.lastInsertRowid);
         res.json(newEmp);
@@ -222,7 +222,7 @@ app.post('/api/employees', (req, res) => {
 app.patch('/api/employees/:id', (req, res) => {
     try {
         const { id } = req.params;
-        const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image, lastWorkingDay, resignationDate, birthday } = req.body;
+        const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image, lastWorkingDay, resignationDate, birthday, breakTime } = req.body;
 
         const stmt = db.prepare(`
             UPDATE employees 
@@ -233,7 +233,8 @@ app.patch('/api/employees/:id', (req, res) => {
                 workingDays = COALESCE(?, workingDays), bankDetails = COALESCE(?, bankDetails), 
                 emergencyContact = COALESCE(?, emergencyContact), status = COALESCE(?, status), 
                 image = COALESCE(?, image), lastWorkingDay = COALESCE(?, lastWorkingDay),
-                resignationDate = COALESCE(?, resignationDate), birthday = COALESCE(?, birthday), updatedAt = ?
+                resignationDate = COALESCE(?, resignationDate), birthday = COALESCE(?, birthday), 
+                breakTime = COALESCE(?, breakTime), updatedAt = ?
             WHERE id = ?
         `);
 
@@ -242,7 +243,7 @@ app.patch('/api/employees/:id', (req, res) => {
             workingDays ? JSON.stringify(workingDays) : null,
             bankDetails ? JSON.stringify(bankDetails) : null,
             emergencyContact ? JSON.stringify(emergencyContact) : null,
-            status, image, lastWorkingDay, resignationDate, birthday, new Date().toISOString(),
+            status, image, lastWorkingDay, resignationDate, birthday, breakTime, new Date().toISOString(),
             id
         );
 

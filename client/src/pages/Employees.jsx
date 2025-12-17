@@ -164,10 +164,19 @@ const Employees = () => {
             const url = isEditing ? `${API_URL}/employees/${editingEmployee.id}` : `${API_URL}/employees`;
             const method = isEditing ? 'PATCH' : 'POST';
 
+            // Construct payload with nested objects
+            const payload = {
+                ...newEmployee,
+                emergencyContact: {
+                    name: newEmployee.emergencyName,
+                    phone: newEmployee.emergencyPhone
+                }
+            };
+
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newEmployee)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
@@ -207,6 +216,10 @@ const Employees = () => {
         setEditingEmployee(employee);
         setNewEmployee({
             ...employee,
+            birthday: employee.birthday || '', // Map birthday explicitly
+            breakTime: employee.breakMinutes || employee.breakTime || 60, // Map breakTime/breakMinutes
+            emergencyName: employee.emergencyContact?.name || '',
+            emergencyPhone: employee.emergencyContact?.phone || '',
             age: employee.birthday ? Math.floor((new Date() - new Date(employee.birthday).getTime()) / 3.15576e+10) : ''
         });
         setShowAddForm(true);

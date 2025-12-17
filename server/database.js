@@ -59,6 +59,7 @@ db.exec(`
         emergencyContact TEXT, -- JSON
         documents TEXT, -- JSON
         birthday TEXT, -- ADDED
+        breakTime INTEGER DEFAULT 60, -- ADDED
         status TEXT DEFAULT 'Active',
         image TEXT,
         lastWorkingDay TEXT,
@@ -156,7 +157,8 @@ const migrations = [
     'ALTER TABLE vendors ADD COLUMN logoUrl TEXT',
     'ALTER TABLE vendors ADD COLUMN status TEXT DEFAULT "active"',
     'ALTER TABLE vendors ADD COLUMN phone TEXT',
-    'ALTER TABLE employees ADD COLUMN birthday TEXT'
+    'ALTER TABLE employees ADD COLUMN birthday TEXT',
+    'ALTER TABLE employees ADD COLUMN breakTime INTEGER DEFAULT 60'
 ];
 
 migrations.forEach(query => {
