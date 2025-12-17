@@ -223,7 +223,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                                     type="button"
                                     onClick={() => {
                                         setImageMode('upload');
-                                        setFormData(prev => ({ ...prev, imageUrl: '' }));
+                                        setImagePreview(imageFile ? URL.createObjectURL(imageFile) : '');
                                     }}
                                     style={{
                                         flex: 1, padding: '10px', borderRadius: '8px',
