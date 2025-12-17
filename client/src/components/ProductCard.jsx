@@ -127,12 +127,12 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
 
             {/* Main Card */}
             <div
-                className="group w-full bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 relative flex flex-col h-full"
+                className="group w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 relative flex flex-col h-full"
                 onMouseLeave={() => setShowActions(false)}
             >
                 {/* Image Container - Adjusted height for 6-up grid */}
                 <div
-                    className="relative w-full h-48 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
+                    className="relative w-full h-40 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
                     onClick={() => item.imageUrl && setShowImageModal(true)}
                 >
                     {/* Category Badge - Top Left Floating */}
@@ -159,10 +159,10 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                 </div>
 
                 {/* Content Section */}
-                <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
+                <div className="px-4 pb-4 pt-2 flex flex-col flex-1">
                     {/* Header & Description Grouped Tightly */}
                     <div className="flex flex-col gap-0.5 mb-1">
-                        <h2 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">
+                        <h2 className="text-base font-bold text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">
                             {item.name}
                         </h2>
                         {item.description && (
