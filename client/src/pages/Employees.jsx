@@ -216,7 +216,7 @@ const Employees = () => {
         setEditingEmployee(employee);
         setNewEmployee({
             ...employee,
-            birthday: employee.birthday || '', // Map birthday explicitly
+            birthday: employee.birthday ? employee.birthday.split('T')[0] : '', // Ensure YYYY-MM-DD
             breakTime: employee.breakMinutes || employee.breakTime || 60, // Map breakTime/breakMinutes
             emergencyName: employee.emergencyContact?.name || '',
             emergencyPhone: employee.emergencyContact?.phone || '',

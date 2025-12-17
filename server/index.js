@@ -233,10 +233,14 @@ app.patch('/api/employees/:id', (req, res) => {
                 workingDays = COALESCE(?, workingDays), bankDetails = COALESCE(?, bankDetails), 
                 emergencyContact = COALESCE(?, emergencyContact), status = COALESCE(?, status), 
                 image = COALESCE(?, image), lastWorkingDay = COALESCE(?, lastWorkingDay),
-                resignationDate = COALESCE(?, resignationDate), birthday = COALESCE(?, birthday), 
+                resignationDate = COALESCE(?, resignationDate), 
+                birthday = COALESCE(?, birthday), 
                 breakTime = COALESCE(?, breakTime), updatedAt = ?
             WHERE id = ?
         `);
+
+        // Check values being passed
+        console.log(`Updating Employee ${id}: Birthday=${birthday}, BreakTime=${breakTime}`);
 
         const result = stmt.run(
             name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd,
