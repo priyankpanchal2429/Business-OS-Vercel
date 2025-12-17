@@ -117,6 +117,29 @@ db.exec(`
         timestamp TEXT,
         details TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS payroll_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employeeId INTEGER,
+        periodStart TEXT,
+        periodEnd TEXT,
+        grossPay REAL,
+        deductions REAL,
+        advanceDeductions REAL,
+        netPay REAL,
+        paidAt TEXT,
+        status TEXT,
+        FOREIGN KEY(employeeId) REFERENCES employees(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS deductions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employeeId INTEGER,
+        amount REAL,
+        reason TEXT,
+        date TEXT,
+        FOREIGN KEY(employeeId) REFERENCES employees(id)
+    );
 `);
 
 console.log('✅ Database connected and initialized.');
