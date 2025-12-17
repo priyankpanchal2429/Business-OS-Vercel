@@ -24,6 +24,8 @@ db.exec(`
         description TEXT,
         vendorName TEXT,
         lowStockThreshold INTEGER DEFAULT 5,
+        imageUrl TEXT,
+        hsnCode TEXT,
         lastUpdated TEXT
     );
 
@@ -101,5 +103,25 @@ db.exec(`
 `);
 
 console.log('✅ Database connected and initialized.');
+
+// --- MIGRATIONS ---
+// Attempt to add new columns if they don't exist
+const migrations = [
+    'ALTER TABLE inventory ADD COLUMN imageUrl TEXT',
+    'ALTER TABLE inventory ADD COLUMN hsnCode TEXT'
+];
+
+migrations.forEach(query => {
+    try {
+        db.exec(query);
+        console.log(`✅ Applied migration: ${query}`);
+    } catch (err) {
+        // Prepare statement compilation checks syntax, execution checks logic.
+        // "duplicate column name" is the expected error if column exists.
+        if (!err.message.toLowerCase().includes('duplicate column name')) {
+            console.log(`ℹ️ Migration skipped/failed: ${err.message}`);
+        }
+    }
+});
 
 module.exports = db;

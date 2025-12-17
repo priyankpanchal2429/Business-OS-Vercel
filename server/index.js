@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const { authMiddleware } = require('./middleware/auth');
 const db = require('./database');
+const multer = require('multer');
 
 const app = express();
 const PORT = 3001; // Hardcoded to bypass stuck process on 3000
@@ -16,6 +17,23 @@ const PORT = 3001; // Hardcoded to bypass stuck process on 3000
 // Uploads Directory
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Multer Storage Configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, UPLOADS_DIR);
+    },
+    filename: (req, file, cb) => {
+        // Sanitize filename to remove special characters
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
+        cb(null, `${Date.now()}-${safeName}`);
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // CORS Setup
 const allowedOrigins = [
@@ -55,6 +73,32 @@ app.use(authMiddleware);
 
 // --- ROUTES ---
 
+// File Upload Endpoint
+app.post('/upload/image', upload.single('image'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // Construct absolute URL (important for frontend to display correctly)
+        // Note: In production with a tunnel, req.protocol + host might point to localhost
+        // Ideally we return a relative path or handle base URL in frontend, but user asked for absolute.
+        // We often rely on the frontend to prepend Base URL if we return relative.
+        // BUT, the plan says return absolute. Let's return a relative path that works with the static serve.
+
+        // Actually best practice for this setup: return full URL if possible, or relative /uploads/...
+        // Let's go with full URL using the request host.
+        const protocol = req.protocol;
+        const host = req.get('host');
+        const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+        res.json({ imageUrl: fileUrl });
+    } catch (err) {
+        console.error("Upload error:", err);
+        res.status(500).json({ error: 'File upload failed' });
+    }
+});
+
 app.get('/', (req, res) => {
     res.send({ status: 'OK', message: 'Business-OS Backend Running', time: new Date().toISOString() });
 });
@@ -76,14 +120,67 @@ app.get('/api/inventory', (req, res) => {
 
 app.post('/api/inventory', (req, res) => {
     try {
-        const { name, category, type, stock, price, description, vendorName, lowStockThreshold } = req.body;
+        const { name, category, type, stock, price, description, vendorName, lowStockThreshold, imageUrl, hsnCode } = req.body;
         const stmt = db.prepare(`
-            INSERT INTO inventory (name, category, type, stock, price, description, vendorName, lowStockThreshold, lastUpdated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO inventory (name, category, type, stock, price, description, vendorName, lowStockThreshold, imageUrl, hsnCode, lastUpdated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const info = stmt.run(name, category, type, stock || 0, price || 0, description, vendorName, lowStockThreshold || 5, new Date().toISOString());
+        const info = stmt.run(
+            name, category, type, stock || 0, price || 0, description, vendorName,
+            lowStockThreshold || 5, imageUrl || '', hsnCode || '', new Date().toISOString()
+        );
         const newItem = db.prepare('SELECT * FROM inventory WHERE id = ?').get(info.lastInsertRowid);
         res.json(newItem);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch('/api/inventory/:id', (req, res) => {
+    try {
+        const { name, category, type, stock, price, description, vendorName, lowStockThreshold, imageUrl, hsnCode } = req.body;
+        const { id } = req.params;
+
+        // Build dynamic query to only update provided fields
+        // For simplicity in this specific app, we often just update everything provided.
+        // Let's just update all common fields.
+
+        const stmt = db.prepare(`
+            UPDATE inventory 
+            SET name = ?, category = ?, type = ?, stock = ?, price = ?, 
+                description = ?, vendorName = ?, lowStockThreshold = ?, 
+                imageUrl = ?, hsnCode = ?, lastUpdated = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(
+            name, category, type, stock, price, description, vendorName,
+            lowStockThreshold, imageUrl, hsnCode, new Date().toISOString(),
+            id
+        );
+
+        if (result.changes === 0) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        const updatedItem = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
+        res.json(updatedItem);
+    } catch (err) {
+        console.error("Update error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/inventory/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = db.prepare('DELETE FROM inventory WHERE id = ?').run(id);
+
+        if (result.changes === 0) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        res.json({ message: 'Item deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

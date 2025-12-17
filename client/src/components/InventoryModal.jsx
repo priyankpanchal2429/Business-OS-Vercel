@@ -241,7 +241,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                             {/* URL Input */}
                             {imageMode === 'url' && (
                                 <input
-                                    type="url"
+                                    type="text"
                                     name="imageUrl"
                                     placeholder="https://example.com/image.jpg"
                                     value={formData.imageUrl}
