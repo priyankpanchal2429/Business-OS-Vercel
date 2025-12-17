@@ -319,9 +319,10 @@ const Inventory = () => {
             ) : (
                 <div style={{
                     display: 'grid',
-                    // Reduced to 160px to force 6 cards per row
-                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(160px, 1fr))' : '1fr',
-                    gap: '16px',
+                    // Optimized: 150px min-width + 12px gap allows 6 items to fit in ~960px width
+                    // This supports 1366px screens with sidebar open
+                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(150px, 1fr))' : '1fr',
+                    gap: '12px',
                     paddingBottom: '40px'
                 }}>
                     {filteredItems.map(item => (
