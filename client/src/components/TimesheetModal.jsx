@@ -208,55 +208,73 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
     // Helper: Format date to DD-MMM-YYYY
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
-        const day = d.getDate().toString().padStart(2, '0');
-        const month = d.toLocaleString('en-US', { month: 'short' });
-        const year = d.getFullYear();
-        return `${day}-${month}-${year}`;
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = d.getDate().toString().padStart(2, '0');
+            const month = d.toLocaleString('en-US', { month: 'short' });
+            const year = d.getFullYear();
+            return `${day}-${month}-${year}`;
+        } catch (e) {
+            return dateStr;
+        }
     };
 
     // Helper: Check if a date is Sunday
     const isSunday = (dateStr) => {
         if (!dateStr) return false;
-        const date = new Date(dateStr + 'T00:00:00');
-        return date.getDay() === 0;
+        try {
+            const date = new Date(dateStr + 'T00:00:00');
+            if (isNaN(date.getTime())) return false;
+            return date.getDay() === 0;
+        } catch (e) { return false; }
     };
 
     // Helper: Calculate Daily Earnings
     const calculateDailyEarnings = (entry) => {
-        if (!entry.clockIn || !entry.clockOut) return 0;
+        try {
+            if (!entry.clockIn || !entry.clockOut) return 0;
 
-        const start = new Date(`1970-01-01T${entry.clockIn}`);
-        const end = new Date(`1970-01-01T${entry.clockOut}`);
-        let diffMs = end - start;
-        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+            const start = new Date(`1970-01-01T${entry.clockIn}`);
+            const end = new Date(`1970-01-01T${entry.clockOut}`);
 
-        let totalMinutes = diffMs / (1000 * 60);
-        let billableMinutes = totalMinutes - (parseInt(entry.breakMinutes) || 0);
-        if (billableMinutes < 0) billableMinutes = 0;
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
 
-        const billableHours = billableMinutes / 60;
+            let diffMs = end - start;
+            if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
 
-        // Rate Logic
-        if (employee.perShiftAmount) {
-            // Calculate standard shift duration for proration
-            let standardHours = 8; // Default fallback
-            if (employee.shiftStart && employee.shiftEnd) {
-                const s = new Date(`1970-01-01T${employee.shiftStart}`);
-                const e = new Date(`1970-01-01T${employee.shiftEnd}`);
-                let d = (e - s) / (1000 * 60 * 60);
-                if (d < 0) d += 24;
-                standardHours = d - ((employee.breakTime || 60) / 60);
+            let totalMinutes = diffMs / (1000 * 60);
+            let billableMinutes = totalMinutes - (parseInt(entry.breakMinutes) || 0);
+            if (billableMinutes < 0) billableMinutes = 0;
+
+            const billableHours = billableMinutes / 60;
+
+            // Rate Logic
+            if (employee.perShiftAmount) {
+                // Calculate standard shift duration for proration
+                let standardHours = 8; // Default fallback
+                if (employee.shiftStart && employee.shiftEnd) {
+                    const s = new Date(`1970-01-01T${employee.shiftStart}`);
+                    const e = new Date(`1970-01-01T${employee.shiftEnd}`);
+                    if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+                        let d = (e - s) / (1000 * 60 * 60);
+                        if (d < 0) d += 24;
+                        standardHours = d - ((employee.breakTime || 60) / 60);
+                    }
+                }
+                if (standardHours <= 0) standardHours = 8;
+
+                return (parseFloat(employee.perShiftAmount) / standardHours) * billableHours;
+            } else if (employee.hourlyRate) {
+                return parseFloat(employee.hourlyRate) * billableHours;
+            } else if (employee.salary) {
+                // Derived hourly rate from monthly salary
+                const rate = parseFloat(employee.salary) / 30 / 8;
+                return rate * billableHours;
             }
-            if (standardHours <= 0) standardHours = 8;
-
-            return (parseFloat(employee.perShiftAmount) / standardHours) * billableHours;
-        } else if (employee.hourlyRate) {
-            return parseFloat(employee.hourlyRate) * billableHours;
-        } else if (employee.salary) {
-            // Derived hourly rate from monthly salary
-            const rate = parseFloat(employee.salary) / 30 / 8;
-            return rate * billableHours;
+        } catch (e) {
+            console.error('Error calculating earnings', e);
+            return 0;
         }
 
         return 0;
