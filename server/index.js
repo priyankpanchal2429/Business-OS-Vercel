@@ -10,7 +10,7 @@ const db = require('./database');
 const multer = require('multer');
 
 const app = express();
-const PORT = 3001; // Hardcoded to bypass stuck process on 3000
+const PORT = 3002; // Hardcoded to bypass stuck process on 3001
 
 // --- CONFIGURATION ---
 
@@ -39,7 +39,8 @@ const upload = multer({
 const allowedOrigins = [
     'http://localhost:5173', // Vite Local
     'http://localhost:3000', // Old Self
-    'http://localhost:3001', // New Self
+    'http://localhost:3001', // Old Self
+    'http://localhost:3002', // New Self
     'https://business-os-nu.vercel.app', // Vercel
     'https://*.serveo.net', // Serveo Tunnels
     'https://*.serveousercontent.com', // Serveo Content Domain

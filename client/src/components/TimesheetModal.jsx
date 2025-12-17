@@ -759,7 +759,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                 onClose={() => setConfirmModal({ isOpen: false, details: null })}
                 onConfirm={confirmSave}
                 title="Save Timesheet?"
-                message={`Are you sure you want to save timesheet for ${employee.name}?`}
+                message={`Are you sure you want to save timesheet for ${employee?.name}?`}
                 details={confirmModal.details}
                 confirmText="Yes, Save Timesheet"
                 cancelText="Review"
