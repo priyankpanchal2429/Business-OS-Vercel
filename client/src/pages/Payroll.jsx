@@ -593,12 +593,12 @@ const Payroll = () => {
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 color: 'var(--color-text-secondary)',
-                                                backgroundImage: employees.find(e => e.id === item.employeeId)?.image ? `url(${employees.find(e => e.id === item.employeeId).image})` : 'none',
+                                                backgroundImage: employees.find(e => String(e.id) === String(item.employeeId))?.image ? `url(${employees.find(e => String(e.id) === String(item.employeeId)).image})` : 'none',
                                                 backgroundSize: 'cover',
                                                 backgroundPosition: 'center',
                                                 overflow: 'hidden'
                                             }}>
-                                                {!employees.find(e => e.id === item.employeeId)?.image && (
+                                                {!employees.find(e => String(e.id) === String(item.employeeId))?.image && (
                                                     <span style={{ fontWeight: 600, fontSize: '1.2rem' }}>
                                                         {getInitials(item.employeeName)}
                                                     </span>
