@@ -127,7 +127,7 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
 
             {/* Main Card */}
             <div
-                className="group w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 relative flex flex-col h-full"
+                className="group w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-500 hover:-translate-y-1 relative flex flex-col h-full"
                 onMouseLeave={() => setShowActions(false)}
             >
                 {/* Image Container - Adjusted height for 6-up grid */}
@@ -148,7 +148,7 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                             <img
                                 src={item.imageUrl}
                                 alt={item.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-contain p-2"
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-300">

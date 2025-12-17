@@ -321,7 +321,7 @@ const Inventory = () => {
                     display: 'grid',
                     // Optimized: 150px min-width + 12px gap allows 6 items to fit in ~960px width
                     // This supports 1366px screens with sidebar open
-                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(6, 1fr)' : '1fr',
+                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(8, 1fr)' : '1fr',
                     gap: '24px',
                     paddingBottom: '40px'
                 }}>
