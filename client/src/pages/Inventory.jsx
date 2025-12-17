@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import InventoryModal from '../components/InventoryModal';
 import ProductCard from '../components/ProductCard';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { useToast } from '../context/ToastContext';
 
 // Simple Stat Card Component
@@ -47,6 +48,8 @@ const Inventory = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, item: null });
+    const [isDeleting, setIsDeleting] = useState(false);
     const [viewMode, setViewMode] = useState('grid');
     const [searchTerm, setSearchTerm] = useState('');
     const { addToast } = useToast();
@@ -92,20 +95,28 @@ const Inventory = () => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (item) => {
-        if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
-            try {
-                const res = await fetch(`${API_URL}/inventory/${item.id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    addToast('Item deleted successfully', 'success');
-                    fetchItems();
-                } else {
-                    addToast('Failed to delete item', 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                addToast('Error deleting item', 'error');
+    const handleDelete = (item) => {
+        setDeleteModal({ isOpen: true, item });
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteModal.item) return;
+
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`${API_URL}/inventory/${deleteModal.item.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                addToast('Item deleted successfully', 'success');
+                fetchItems();
+                setDeleteModal({ isOpen: false, item: null });
+            } else {
+                addToast('Failed to delete item', 'error');
             }
+        } catch (err) {
+            console.error(err);
+            addToast('Error deleting item', 'error');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -330,6 +341,15 @@ const Inventory = () => {
                 onClose={() => setIsModalOpen(false)}
                 item={selectedItem}
                 onSave={fetchItems}
+            />
+
+            <DeleteConfirmationModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, item: null })}
+                onConfirm={confirmDelete}
+                itemName={deleteModal.item?.name}
+                itemType="product"
+                isDeleting={isDeleting}
             />
         </div>
     );

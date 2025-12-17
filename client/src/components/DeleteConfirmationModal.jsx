@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isDeleting }) => {
+const DeleteConfirmationModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    itemName,
+    itemType = 'item',
+    employeeName, // Legacy prop support
+    isDeleting
+}) => {
     const [isConfirmed, setIsConfirmed] = useState(false);
 
     useEffect(() => {
@@ -32,6 +42,15 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
 
     if (!isOpen) return null;
 
+    // Determine display values
+    const displayTitle = title || 'Confirm Permanent Deletion';
+    const name = itemName || employeeName;
+    const displayMessage = message || (
+        <>
+            Are you sure you want to permanently delete <strong>{name}</strong>?
+        </>
+    );
+
     return (
         <div style={{
             position: 'fixed',
@@ -52,7 +71,8 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
                 padding: '32px',
                 maxWidth: '480px',
                 width: '90%',
-                boxShadow: '0 8px 40px rgba(0,0,0,0.2)'
+                boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
+                animation: 'scaleIn 0.2s ease-out'
             }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px' }}>
@@ -66,7 +86,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
                     </div>
                     <div style={{ flex: 1 }}>
                         <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
-                            Confirm Permanent Deletion
+                            {displayTitle}
                         </h2>
                         <button
                             onClick={onClose}
@@ -89,11 +109,11 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
 
                 {/* Body */}
                 <div style={{ marginBottom: '24px' }}>
-                    <p style={{ margin: '0 0 16px 0', color: 'var(--color-text-primary)', lineHeight: '1.5' }}>
-                        Are you sure you want to permanently delete <strong>{employeeName}</strong>?
-                    </p>
+                    <div style={{ margin: '0 0 16px 0', color: 'var(--color-text-primary)', lineHeight: '1.5' }}>
+                        {displayMessage}
+                    </div>
                     <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                        This action cannot be undone. All data associated with this employee will be lost.
+                        This action cannot be undone. All data associated with this {itemType} will be lost.
                     </p>
 
                     {/* Simple Checkbox Confirmation */}
@@ -158,7 +178,10 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, employeeName, isD
                             color: 'white',
                             fontWeight: 600,
                             cursor: isConfirmed && !isDeleting ? 'pointer' : 'not-allowed',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8
                         }}
                     >
                         {isDeleting ? 'Deleting...' : 'Delete Permanently'}
