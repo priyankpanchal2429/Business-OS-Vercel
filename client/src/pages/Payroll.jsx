@@ -305,7 +305,12 @@ const Payroll = () => {
     };
 
     const openTimesheet = (item) => {
-        const emp = employees.find(e => e.id === item.employeeId);
+        const emp = employees.find(e => String(e.id) === String(item.employeeId));
+        if (!emp) {
+            console.error('Core data mismatch: Employee not found', item);
+            addToast('Cannot open timesheet: Employee not found', 'error');
+            return;
+        }
         setTimesheetModal({ isOpen: true, employee: emp, item });
     };
 

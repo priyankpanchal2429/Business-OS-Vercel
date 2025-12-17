@@ -15,7 +15,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
 
     // Clear validation errors and entries when modal opens/closes
     useEffect(() => {
-        if (isOpen && employee) {
+        if (isOpen && employee && periodStart && periodEnd) {
             setValidationErrors({});
             fetchTimesheet();
         } else {
@@ -45,6 +45,15 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
         try {
             const res = await fetch(`${API_URL}/timesheet/${employee.id}/${periodStart}/${periodEnd}`);
             const data = await res.json();
+
+            if (!Array.isArray(data)) {
+                console.error('fetchTimesheet: Expected array but got:', data);
+                // Fallback to empty period generation
+                const preloadedEntries = generatePeriodDates(periodStart, periodEnd);
+                setEntries(preloadedEntries);
+                return;
+            }
+
             // Normalize data: map shiftStart/shiftEnd to clockIn/clockOut
             const normalizedEntries = data
                 .filter(e => e.status === 'active' || e.status === 'edited')
@@ -74,40 +83,55 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
 
     // Helper: Generate entries for all dates in the payroll period
     const generatePeriodDates = (startDate, endDate) => {
+        if (!startDate || typeof startDate !== 'string' || !endDate || typeof endDate !== 'string') {
+            console.error('generatePeriodDates: Invalid dates', { startDate, endDate });
+            return [];
+        }
+
         const entries = [];
 
-        // Parse dates properly to avoid timezone issues
-        // startDate and endDate are in YYYY-MM-DD format
-        const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-        const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+        try {
+            // Parse dates properly to avoid timezone issues
+            // startDate and endDate are in YYYY-MM-DD format
+            const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+            const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
 
-        const start = new Date(startYear, startMonth - 1, startDay);
-        const end = new Date(endYear, endMonth - 1, endDay);
+            const start = new Date(startYear, startMonth - 1, startDay);
+            const end = new Date(endYear, endMonth - 1, endDay);
 
-        let currentDate = new Date(start);
-        let counter = 0;
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                console.error('generatePeriodDates: Invalid date parsing', { startDate, endDate });
+                return [];
+            }
 
-        while (currentDate <= end) {
-            // Format as YYYY-MM-DD
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const day = String(currentDate.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
+            let currentDate = new Date(start);
+            let counter = 0;
 
-            entries.push({
-                id: `ts-preload-${counter}`,
-                employeeId: employee.id,
-                date: dateStr,
-                clockIn: '',
-                clockOut: '',
-                breakMinutes: 0,
-                dayType: 'Work', // Default to Work
-                notes: '',
-                status: 'new'
-            });
+            // Safety break to prevent infinite loops
+            while (currentDate <= end && counter < 60) {
+                // Format as YYYY-MM-DD
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
 
-            currentDate.setDate(currentDate.getDate() + 1);
-            counter++;
+                entries.push({
+                    id: `ts-preload-${counter}`,
+                    employeeId: employee?.id || 'unknown',
+                    date: dateStr,
+                    clockIn: '',
+                    clockOut: '',
+                    breakMinutes: 0,
+                    dayType: 'Work', // Default to Work
+                    notes: '',
+                    status: 'new'
+                });
+
+                currentDate.setDate(currentDate.getDate() + 1);
+                counter++;
+            }
+        } catch (err) {
+            console.error('Error generating period dates', err);
         }
 
         return entries;
