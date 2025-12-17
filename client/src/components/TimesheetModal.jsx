@@ -519,16 +519,22 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                                         fontSize: '0.9rem',
                                                         fontWeight: 500,
                                                         color: (() => {
-                                                            if (!entry.date) return 'var(--color-text-secondary)';
-                                                            const date = new Date(entry.date + 'T00:00:00');
-                                                            const day = date.getDay();
-                                                            return day === 0 ? 'var(--color-error)' : 'var(--color-text-primary)';
+                                                            try {
+                                                                if (!entry.date) return 'var(--color-text-secondary)';
+                                                                const date = new Date(entry.date + 'T00:00:00');
+                                                                if (isNaN(date.getTime())) return 'var(--color-text-secondary)';
+                                                                const day = date.getDay();
+                                                                return day === 0 ? 'var(--color-error)' : 'var(--color-text-primary)';
+                                                            } catch (e) { return 'var(--color-text-secondary)'; }
                                                         })()
                                                     }}>
                                                         {(() => {
-                                                            if (!entry.date) return '-';
-                                                            const date = new Date(entry.date + 'T00:00:00');
-                                                            return date.toLocaleDateString('en-US', { weekday: 'short' });
+                                                            try {
+                                                                if (!entry.date) return '-';
+                                                                const date = new Date(entry.date + 'T00:00:00');
+                                                                if (isNaN(date.getTime())) return '-';
+                                                                return date.toLocaleDateString('en-US', { weekday: 'short' });
+                                                            } catch (e) { return '-'; }
                                                         })()}
                                                     </div>
                                                 </td>
