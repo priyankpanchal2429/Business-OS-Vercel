@@ -121,7 +121,7 @@ const Inventory = () => {
     };
 
     return (
-        <div style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '40px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '40px' }}>
             {/* Header Section */}
             <div style={{
                 display: 'flex',
