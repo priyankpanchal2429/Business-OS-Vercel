@@ -56,9 +56,9 @@ db.exec(`
         shiftStart TEXT,
         shiftEnd TEXT,
         workingDays TEXT, -- JSON
-        bankDetails TEXT, -- JSON
         emergencyContact TEXT, -- JSON
         documents TEXT, -- JSON
+        birthday TEXT, -- ADDED
         status TEXT DEFAULT 'Active',
         image TEXT,
         lastWorkingDay TEXT,
@@ -155,7 +155,8 @@ const migrations = [
     'ALTER TABLE vendors ADD COLUMN contactPerson TEXT',
     'ALTER TABLE vendors ADD COLUMN logoUrl TEXT',
     'ALTER TABLE vendors ADD COLUMN status TEXT DEFAULT "active"',
-    'ALTER TABLE vendors ADD COLUMN phone TEXT'
+    'ALTER TABLE vendors ADD COLUMN phone TEXT',
+    'ALTER TABLE employees ADD COLUMN birthday TEXT'
 ];
 
 migrations.forEach(query => {
