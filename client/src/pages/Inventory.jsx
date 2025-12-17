@@ -121,7 +121,7 @@ const Inventory = () => {
     };
 
     return (
-        <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '40px' }}>
+        <div style={{ maxWidth: '1600px', margin: '0 auto', paddingBottom: '40px' }}>
             {/* Header Section */}
             <div style={{
                 display: 'flex',
@@ -319,8 +319,8 @@ const Inventory = () => {
             ) : (
                 <div style={{
                     display: 'grid',
-                    // Reduced to 260px for narrower product cards
-                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(260px, 1fr))' : '1fr',
+                    // Reduced to 200px to fit ~6 cards per row on standard screens
+                    gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(200px, 1fr))' : '1fr',
                     gap: '20px',
                     paddingBottom: '40px'
                 }}>
