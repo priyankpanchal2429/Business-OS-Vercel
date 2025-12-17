@@ -33,9 +33,12 @@ db.exec(`
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         category TEXT,
-        contact TEXT,
+        contactPerson TEXT,
+        phone TEXT,
         email TEXT,
         address TEXT,
+        status TEXT DEFAULT 'active',
+        logoUrl TEXT,
         suppliedItems TEXT, -- JSON
         createdAt TEXT
     );
@@ -59,8 +62,22 @@ db.exec(`
         status TEXT DEFAULT 'Active',
         image TEXT,
         lastWorkingDay TEXT,
+        resignationDate TEXT,
         createdAt TEXT,
-        updatedAt TEXT
+        updatedAt TEXT,
+        displayOrder INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS loans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employeeId INTEGER,
+        amount REAL,
+        date TEXT,
+        status TEXT DEFAULT 'active', -- active, paid, written_off
+        notes TEXT,
+        createdAt TEXT,
+        updatedAt TEXT,
+        FOREIGN KEY(employeeId) REFERENCES employees(id)
     );
 
     CREATE TABLE IF NOT EXISTS timesheet_entries (
@@ -108,7 +125,14 @@ console.log('✅ Database connected and initialized.');
 // Attempt to add new columns if they don't exist
 const migrations = [
     'ALTER TABLE inventory ADD COLUMN imageUrl TEXT',
-    'ALTER TABLE inventory ADD COLUMN hsnCode TEXT'
+    'ALTER TABLE inventory ADD COLUMN hsnCode TEXT',
+    'ALTER TABLE employees ADD COLUMN displayOrder INTEGER DEFAULT 0',
+    'ALTER TABLE employees ADD COLUMN resignationDate TEXT',
+    'CREATE TABLE IF NOT EXISTS loans (id INTEGER PRIMARY KEY AUTOINCREMENT, employeeId INTEGER, amount REAL, date TEXT, status TEXT DEFAULT "active", notes TEXT, createdAt TEXT, updatedAt TEXT, FOREIGN KEY(employeeId) REFERENCES employees(id))',
+    'ALTER TABLE vendors ADD COLUMN contactPerson TEXT',
+    'ALTER TABLE vendors ADD COLUMN logoUrl TEXT',
+    'ALTER TABLE vendors ADD COLUMN status TEXT DEFAULT "active"',
+    'ALTER TABLE vendors ADD COLUMN phone TEXT'
 ];
 
 migrations.forEach(query => {

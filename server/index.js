@@ -218,6 +218,47 @@ app.post('/api/employees', (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.patch('/api/employees/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image, lastWorkingDay, resignationDate } = req.body;
+
+        const stmt = db.prepare(`
+            UPDATE employees 
+            SET name = COALESCE(?, name), role = COALESCE(?, role), contact = COALESCE(?, contact), 
+                email = COALESCE(?, email), address = COALESCE(?, address), salary = COALESCE(?, salary), 
+                perShiftAmount = COALESCE(?, perShiftAmount), hourlyRate = COALESCE(?, hourlyRate), 
+                shiftStart = COALESCE(?, shiftStart), shiftEnd = COALESCE(?, shiftEnd), 
+                workingDays = COALESCE(?, workingDays), bankDetails = COALESCE(?, bankDetails), 
+                emergencyContact = COALESCE(?, emergencyContact), status = COALESCE(?, status), 
+                image = COALESCE(?, image), lastWorkingDay = COALESCE(?, lastWorkingDay),
+                resignationDate = COALESCE(?, resignationDate), updatedAt = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(
+            name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd,
+            workingDays ? JSON.stringify(workingDays) : null,
+            bankDetails ? JSON.stringify(bankDetails) : null,
+            emergencyContact ? JSON.stringify(emergencyContact) : null,
+            status, image, lastWorkingDay, resignationDate, new Date().toISOString(),
+            id
+        );
+
+        if (result.changes === 0) return res.status(404).json({ error: 'Employee not found' });
+        res.json(db.prepare('SELECT * FROM employees WHERE id = ?').get(id));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/employees/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = db.prepare('DELETE FROM employees WHERE id = ?').run(id);
+        if (result.changes === 0) return res.status(404).json({ error: 'Employee not found' });
+        res.json({ message: 'Employee deleted successfully' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // --- VENDORS ---
 app.get('/api/vendors', (req, res) => {
     try {
@@ -228,10 +269,60 @@ app.get('/api/vendors', (req, res) => {
 
 app.post('/api/vendors', (req, res) => {
     try {
-        const { name, category, contact, email, address, suppliedItems } = req.body;
-        const stmt = db.prepare(`INSERT INTO vendors (name, category, contact, email, address, suppliedItems, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-        const info = stmt.run(name, category, contact, email, address, JSON.stringify(suppliedItems || []), new Date().toISOString());
+        const { name, category, contact, email, address, suppliedItems, contactPerson, phone, status, logoUrl } = req.body;
+        const stmt = db.prepare(`
+            INSERT INTO vendors (name, category, contact, email, address, suppliedItems, contactPerson, phone, status, logoUrl, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const info = stmt.run(
+            name, category, contact, email, address,
+            JSON.stringify(suppliedItems || []),
+            contactPerson, phone, status || 'active', logoUrl,
+            new Date().toISOString()
+        );
         res.json(db.prepare('SELECT * FROM vendors WHERE id = ?').get(info.lastInsertRowid));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/vendors/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, category, contact, email, address, suppliedItems, contactPerson, phone, status, logoUrl } = req.body;
+
+        const stmt = db.prepare(`
+            UPDATE vendors 
+            SET name = COALESCE(?, name), 
+                category = COALESCE(?, category), 
+                contact = COALESCE(?, contact), 
+                email = COALESCE(?, email), 
+                address = COALESCE(?, address), 
+                suppliedItems = COALESCE(?, suppliedItems),
+                contactPerson = COALESCE(?, contactPerson),
+                phone = COALESCE(?, phone),
+                status = COALESCE(?, status),
+                logoUrl = COALESCE(?, logoUrl)
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(
+            name, category, contact, email, address,
+            suppliedItems ? JSON.stringify(suppliedItems) : null,
+            contactPerson, phone, status, logoUrl,
+            id
+        );
+
+        if (result.changes === 0) return res.status(404).json({ error: 'Vendor not found' });
+
+        res.json(db.prepare('SELECT * FROM vendors WHERE id = ?').get(id));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/vendors/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = db.prepare('DELETE FROM vendors WHERE id = ?').run(id);
+        if (result.changes === 0) return res.status(404).json({ error: 'Vendor not found' });
+        res.json({ message: 'Vendor deleted successfully' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -243,9 +334,115 @@ app.get('/api/audit-logs', (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- BONUS (Stub to prevent 404 on Dashboard) ---
+// --- BONUS ---
 app.get('/api/bonus/stats', (req, res) => {
-    res.json({ companyTotalBalance: 0, employees: [] });
+    try {
+        const employees = db.prepare('SELECT * FROM employees').all();
+        const withdrawals = db.prepare('SELECT * FROM bonus_withdrawals').all();
+
+        const stats = employees.map(emp => {
+            const empWithdrawals = withdrawals.filter(w => w.employeeId === emp.id).reduce((sum, w) => sum + (w.amount || 0), 0);
+            const totalAccrued = (emp.salary || 0) * 12 * 0.1; // Example: 10% of annual salary
+            return {
+                employeeId: emp.id,
+                name: emp.name,
+                totalAccrued: totalAccrued,
+                withdrawn: empWithdrawals,
+                balance: Math.max(0, totalAccrued - empWithdrawals)
+            };
+        });
+
+        res.json({
+            companyTotalBalance: stats.reduce((sum, s) => sum + s.balance, 0),
+            employees: stats
+        });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/bonus/withdraw', (req, res) => {
+    try {
+        const { employeeId, amount, date, notes } = req.body;
+        const id = Date.now().toString(); // Use timestamp as ID
+        const stmt = db.prepare(`
+            INSERT INTO bonus_withdrawals (id, employeeId, amount, date, notes, status, createdAt)
+            VALUES (?, ?, ?, ?, ?, 'approved', ?)
+        `);
+        stmt.run(id, employeeId, amount, date, notes, new Date().toISOString());
+        res.json({ success: true, id });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- LOANS ---
+app.get('/api/loans', (req, res) => {
+    try {
+        const { employeeId } = req.query;
+        let query = 'SELECT * FROM loans';
+        if (employeeId) query += ' WHERE employeeId = ?';
+
+        const loans = employeeId ? db.prepare(query).all(employeeId) : db.prepare(query).all();
+        res.json(loans);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/loans', (req, res) => {
+    try {
+        const { employeeId, amount, date, status, notes } = req.body;
+        const stmt = db.prepare(`
+            INSERT INTO loans (employeeId, amount, date, status, notes, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+        const info = stmt.run(
+            employeeId, amount, date, status || 'active', notes,
+            new Date().toISOString(), new Date().toISOString()
+        );
+        res.json(db.prepare('SELECT * FROM loans WHERE id = ?').get(info.lastInsertRowid));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/loans/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, date, status, notes } = req.body;
+        const stmt = db.prepare(`
+            UPDATE loans SET amount = COALESCE(?, amount), date = COALESCE(?, date), status = COALESCE(?, status), notes = COALESCE(?, notes), updatedAt = ? WHERE id = ?
+        `);
+        const result = stmt.run(amount, date, status, notes, new Date().toISOString(), id);
+        if (result.changes === 0) return res.status(404).json({ error: 'Loan not found' });
+        res.json(db.prepare('SELECT * FROM loans WHERE id = ?').get(id));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- TIMESHEETS ---
+app.get('/api/timesheet/:employeeId/:start/:end', (req, res) => {
+    try {
+        const { employeeId, start, end } = req.params;
+        const entries = db.prepare('SELECT * FROM timesheet_entries WHERE employeeId = ? AND date >= ? AND date <= ?').all(employeeId, start, end);
+        res.json(entries);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/timesheet', (req, res) => {
+    try {
+        const { employeeId, periodStart, periodEnd, entries } = req.body;
+
+        const deleteStmt = db.prepare('DELETE FROM timesheet_entries WHERE employeeId = ? AND date >= ? AND date <= ?');
+        const insertStmt = db.prepare('INSERT INTO timesheet_entries (employeeId, date, clockIn, clockOut, breakMinutes, status, dayType) VALUES (?, ?, ?, ?, ?, ?, ?)');
+
+        const transaction = db.transaction((entries) => {
+            deleteStmt.run(employeeId, periodStart, periodEnd);
+            for (const entry of entries) {
+                if (entry.date) {
+                    insertStmt.run(employeeId, entry.date, entry.clockIn, entry.clockOut, entry.breakMinutes, 'active', entry.dayType || 'Work');
+                }
+            }
+        });
+
+        transaction(entries);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Timesheet Error:', err);
+        res.status(500).json({ error: err.message, success: false });
+    }
 });
 
 // Start Server

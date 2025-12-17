@@ -24,7 +24,7 @@ export const getBaseUrl = () => {
     }
 
     // 3. Fallback to Localhost (Development)
-    return 'http://localhost:3000/api';
+    return 'http://localhost:3001/api';
 };
 
 // Helper to check if we are using a custom URL
