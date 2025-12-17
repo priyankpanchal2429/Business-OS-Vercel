@@ -130,9 +130,9 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                 className="group w-full bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 relative flex flex-col h-full"
                 onMouseLeave={() => setShowActions(false)}
             >
-                {/* Image Container - Taller Height */}
+                {/* Image Container - Adjusted height for 6-up grid */}
                 <div
-                    className="relative w-full h-64 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
+                    className="relative w-full h-48 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
                     onClick={() => item.imageUrl && setShowImageModal(true)}
                 >
                     {/* Category Badge - Top Left Floating */}
