@@ -214,13 +214,26 @@ const Employees = () => {
 
     const openEditForm = (employee) => {
         setEditingEmployee(employee);
+
+        let birthdayValue = '';
+        if (employee.birthday) {
+            // Check for valid date string and avoid any "1994-01-01" default if it exists
+            const dateStr = employee.birthday.split('T')[0];
+            // If the user specifically wants to kill the 1994 default, we should check for it
+            if (dateStr === '1994-01-01') {
+                birthdayValue = '';
+            } else {
+                birthdayValue = dateStr;
+            }
+        }
+
         setNewEmployee({
             ...employee,
-            birthday: employee.birthday ? employee.birthday.split('T')[0] : '', // Ensure YYYY-MM-DD
+            birthday: birthdayValue, // Ensure YYYY-MM-DD or empty
             breakTime: employee.breakMinutes || employee.breakTime || 60, // Map breakTime/breakMinutes
             emergencyName: employee.emergencyContact?.name || '',
             emergencyPhone: employee.emergencyContact?.phone || '',
-            age: employee.birthday ? Math.floor((new Date() - new Date(employee.birthday).getTime()) / 3.15576e+10) : ''
+            age: (birthdayValue) ? Math.floor((new Date() - new Date(birthdayValue).getTime()) / 3.15576e+10) : ''
         });
         setShowAddForm(true);
     };
