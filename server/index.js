@@ -519,25 +519,30 @@ app.get('/api/payroll/period', (req, res) => {
 
             // Base Pay Calculation
             let grossPay = 0;
-            const salary = Number(emp.salary) || 0; // Monthly Salary
-            // If hourly/daily logic exists, use it. For now, let's assume monthly pro-rated or shift-based.
-            // Using perShiftAmount if available, else salary/26 * days
+            const salary = Number(emp.salary) || 0;
             if (emp.perShiftAmount > 0) {
                 grossPay = daysWorked * emp.perShiftAmount;
             } else {
-                // Pro-rate monthly salary (assume 26 working days)
+                // Pro-rate monthly salary (assume 30 days for simplicity or strictly 26 working days)
+                // Let's stick to 26 working days standard for daily rate
                 const dailyRate = salary / 26;
                 grossPay = Math.round(dailyRate * daysWorked);
             }
 
             // Get Deductions
             const periodDeductions = db.prepare('SELECT * FROM deductions WHERE employeeId = ? AND date >= ? AND date <= ?').all(emp.id, start, end);
-            const totalDeductions = periodDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
 
-            // Get Advance Salary used for this period
-            // (Simulated logic: check if any advance was "applied" this period or just show outstanding?)
-            // For now 0
-            const advanceDeductions = 0;
+            // Separate Advance Deductions vs Standard Deductions
+            const advanceDeductions = periodDeductions
+                .filter(d => d.type === 'advance')
+                .reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
+            const otherDeductions = periodDeductions
+                .filter(d => d.type !== 'advance')
+                .reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
+            // Total deductions to subtract from Gross
+            const totalDeductions = advanceDeductions + otherDeductions;
 
             // Check if already marked as paid
             const paidRecord = db.prepare('SELECT * FROM payroll_history WHERE employeeId = ? AND periodStart = ?').get(emp.id, start);
@@ -546,11 +551,15 @@ app.get('/api/payroll/period', (req, res) => {
                 employeeId: emp.id,
                 employeeName: emp.name,
                 employeeRole: emp.role,
-                image: emp.image, // Include image for frontend
+                image: emp.image,
                 grossPay: paidRecord ? paidRecord.grossPay : grossPay,
-                deductions: paidRecord ? paidRecord.deductions : totalDeductions,
+                deductions: paidRecord ? paidRecord.deductions : totalDeductions, // This usually implies ALL deductions in frontend display??
+                // The frontend seems to expect 'deductions' to be total? 
+                // Or does it expect 'deductions' to be JUST the other ones?
+                // Looking at frontend: -₹{(Number(item.deductions) - (Number(item.advanceDeductions) || 0)).toLocaleString('en-IN')}
+                // This implies the frontend expects 'deductions' to include the advance.
                 advanceDeductions: paidRecord ? paidRecord.advanceDeductions : advanceDeductions,
-                netPay: paidRecord ? paidRecord.netPay : (grossPay - totalDeductions - advanceDeductions),
+                netPay: paidRecord ? paidRecord.netPay : (grossPay - totalDeductions),
                 status: paidRecord ? 'Paid' : 'Unpaid',
                 paidAt: paidRecord ? paidRecord.paidAt : null,
                 isAdjusted: false

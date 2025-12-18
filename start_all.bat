@@ -8,7 +8,7 @@ echo.
 cd /d "%~dp0"
 
 echo [1/2] Starting Backend Server...
-start "Business-OS Backend" cmd /k "cd server && npm start"
+start "Business-OS Backend" cmd /k "cd server && npm run dev"
 
 echo.
 echo [2/2] Starting Frontend Client...

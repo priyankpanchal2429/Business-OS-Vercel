@@ -31,7 +31,11 @@ const TimesheetPage = () => {
 
     const fetchEmployeeAndTimesheet = async () => {
         setLoading(true);
+        console.log('Fetching timesheet params:', { employeeId, periodStart, periodEnd });
+
         try {
+            if (!employeeId) throw new Error('Missing Employee ID');
+
             // Fetch Employee Details
             const empRes = await fetch(`${API_URL}/employees/${employeeId}`);
             if (!empRes.ok) throw new Error('Employee not found');
@@ -42,7 +46,7 @@ const TimesheetPage = () => {
             await fetchTimesheet(empData);
         } catch (err) {
             console.error('Initial fetch failed:', err);
-            addToast('Failed to load employee or timesheet data', 'error');
+            addToast(`Failed to load employee or timesheet data: ${err.message}`, 'error');
         } finally {
             setLoading(false);
         }
