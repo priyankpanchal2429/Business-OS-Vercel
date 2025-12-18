@@ -9,6 +9,7 @@ import Payroll from './pages/Payroll';
 import Payslip from './pages/Payslip';
 import ResignedEmployeeHistory from './pages/ResignedEmployeeHistory';
 import Report from './pages/Report';
+import TimesheetPage from './pages/TimesheetPage';
 
 import { ToastProvider } from './context/ToastContext';
 import { DebugProvider } from './context/DebugContext';
@@ -26,6 +27,7 @@ function App() {
                             <Route path="/vendors" element={<Vendors />} />
                             <Route path="/employees" element={<Employees />} />
                             <Route path="/payroll" element={<Payroll />} />
+                            <Route path="/timesheet/:employeeId/:start/:end" element={<TimesheetPage />} />
                             <Route path="/payslip/:id" element={<Payslip />} />
                             <Route path="/report" element={<Report />} />
                             <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />

@@ -202,6 +202,23 @@ app.get('/api/employees', (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/employees/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+        const parsed = {
+            ...employee,
+            workingDays: employee.workingDays ? JSON.parse(employee.workingDays) : [],
+            bankDetails: employee.bankDetails ? JSON.parse(employee.bankDetails) : {},
+            emergencyContact: employee.emergencyContact ? JSON.parse(employee.emergencyContact) : {},
+            documents: employee.documents ? JSON.parse(employee.documents) : []
+        };
+        res.json(parsed);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/employees', (req, res) => {
     try {
         const { name, role, contact, email, address, salary, perShiftAmount, hourlyRate, shiftStart, shiftEnd, workingDays, bankDetails, emergencyContact, status, image, birthday, breakTime } = req.body;

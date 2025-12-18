@@ -3,7 +3,7 @@ import { getBaseUrl } from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User, Settings } from 'lucide-react';
 import Card from '../components/Card';
-import TimesheetModal from '../components/TimesheetModal';
+import Card from '../components/Card';
 import DeductionsModal from '../components/DeductionsModal';
 import AdvanceSalaryModal from '../components/AdvanceSalaryModal';
 import BonusSettingsModal from '../components/BonusSettingsModal';
@@ -18,7 +18,7 @@ const Payroll = () => {
     const [filterStatus, setFilterStatus] = useState('All'); // All, Paid, Unpaid
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
-    const [timesheetModal, setTimesheetModal] = useState({ isOpen: false, employee: null, item: null });
+
     const [deductionsModal, setDeductionsModal] = useState({ isOpen: false, employee: null, item: null });
     const [advanceModal, setAdvanceModal] = useState({ isOpen: false, employee: null });
     const [isBonusSettingsOpen, setIsBonusSettingsOpen] = useState(false);
@@ -311,43 +311,7 @@ const Payroll = () => {
             addToast('Cannot open timesheet: Employee not found', 'error');
             return;
         }
-        setTimesheetModal({ isOpen: true, employee: emp, item });
-    };
-
-    const handleTimesheetSave = (result) => {
-        // Show enhanced toast
-        let message = 'Timesheet saved';
-        if (result.attendanceChanged) {
-            message += ' — attendance updated';
-        }
-        if (result.payrollUpdated) {
-            message += result.attendanceChanged ? ' & payroll recalculated' : ' — payroll recalculated';
-
-            // Check if adjustment was made on paid period
-            if (result.payrollUpdated.isAdjusted) {
-                addToast(`${message}. Adjustment: ₹${Math.abs(result.payrollUpdated.adjustmentAmount).toLocaleString('en-IN')} (${result.payrollUpdated.adjustmentAmount > 0 ? '+' : '-'})`, 'success');
-            } else {
-                addToast(message + '.', 'success');
-            }
-
-            // Update the specific row in periodData with new values
-            setPeriodData(prevData => prevData.map(item => {
-                if (item.employeeId === result.payrollUpdated.employeeId) {
-                    return {
-                        ...item,
-                        grossPay: result.payrollUpdated.grossPay,
-                        deductions: result.payrollUpdated.deductions,
-                        advanceDeductions: result.payrollUpdated.advanceDeductions,
-                        netPay: result.payrollUpdated.netPay,
-                        isAdjusted: result.payrollUpdated.isAdjusted
-                    };
-                }
-                return item;
-            }));
-        } else {
-            addToast(message + '.', 'success');
-            fetchPeriodData(); // Fallback to full refresh
-        }
+        navigate(`/timesheet/${emp.id}/${currentPeriod.start}/${currentPeriod.end}`);
     };
 
     const openDeductions = (item) => {
@@ -741,16 +705,7 @@ const Payroll = () => {
                 </table>
             </Card>
 
-            {/* Timesheet Modal */}
-            <TimesheetModal
-                isOpen={timesheetModal.isOpen}
-                onClose={() => setTimesheetModal({ isOpen: false, employee: null, item: null })}
-                employee={timesheetModal.employee}
-                periodStart={currentPeriod.start}
-                periodEnd={currentPeriod.end}
-                isPaid={timesheetModal.item?.status === 'Paid'}
-                onSave={handleTimesheetSave}
-            />
+
 
             {/* Deductions Modal */}
             <DeductionsModal
