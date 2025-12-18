@@ -3,7 +3,7 @@ import { getBaseUrl } from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User, Settings } from 'lucide-react';
 import Card from '../components/Card';
-import Card from '../components/Card';
+
 import DeductionsModal from '../components/DeductionsModal';
 import AdvanceSalaryModal from '../components/AdvanceSalaryModal';
 import BonusSettingsModal from '../components/BonusSettingsModal';
