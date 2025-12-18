@@ -43,7 +43,18 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
     const fetchTimesheet = async () => {
         setLoading(true);
         try {
+            if (!employee?.id || !periodStart || !periodEnd) {
+                console.warn('fetchTimesheet: Missing invalid parameters', { employee, periodStart, periodEnd });
+                setEntries([]);
+                return;
+            }
+
             const res = await fetch(`${API_URL}/timesheet/${employee.id}/${periodStart}/${periodEnd}`);
+
+            if (!res.ok) {
+                throw new Error(`Server returned ${res.status}`);
+            }
+
             const data = await res.json();
 
             if (!Array.isArray(data)) {
@@ -56,7 +67,7 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
 
             // Normalize data: map shiftStart/shiftEnd to clockIn/clockOut
             const normalizedEntries = data
-                .filter(e => e.status === 'active' || e.status === 'edited')
+                .filter(e => e && (e.status === 'active' || e.status === 'edited'))
                 .map(e => ({
                     ...e,
                     clockIn: e.clockIn || e.shiftStart || '',
@@ -93,14 +104,22 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
         try {
             // Parse dates properly to avoid timezone issues
             // startDate and endDate are in YYYY-MM-DD format
-            const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-            const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+            const startParts = startDate.split('-').map(Number);
+            const endParts = endDate.split('-').map(Number);
+
+            if (startParts.length !== 3 || endParts.length !== 3) {
+                console.error('generatePeriodDates: Invalid date format. Expected YYYY-MM-DD');
+                return [];
+            }
+
+            const [startYear, startMonth, startDay] = startParts;
+            const [endYear, endMonth, endDay] = endParts;
 
             const start = new Date(startYear, startMonth - 1, startDay);
             const end = new Date(endYear, endMonth - 1, endDay);
 
             if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                console.error('generatePeriodDates: Invalid date parsing', { startDate, endDate });
+                console.error('generatePeriodDates: Invalid date values', { startDate, endDate });
                 return [];
             }
 
@@ -530,200 +549,203 @@ const TimesheetModal = ({ isOpen, onClose, employee, periodStart, periodEnd, isP
                                             </td>
                                         </tr>
                                     ) : (
-                                        entries.map((entry, idx) => (
-                                            <tr key={entry.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                                <td style={{ padding: '12px', verticalAlign: 'middle' }}>
-                                                    <div style={{
-                                                        fontSize: '0.9rem',
-                                                        fontWeight: 500,
-                                                        color: (() => {
-                                                            try {
-                                                                if (!entry.date) return 'var(--color-text-secondary)';
-                                                                const date = new Date(entry.date + 'T00:00:00');
-                                                                if (isNaN(date.getTime())) return 'var(--color-text-secondary)';
-                                                                const day = date.getDay();
-                                                                return day === 0 ? 'var(--color-error)' : 'var(--color-text-primary)';
-                                                            } catch (e) { return 'var(--color-text-secondary)'; }
-                                                        })()
-                                                    }}>
-                                                        {(() => {
-                                                            try {
-                                                                if (!entry.date) return '-';
-                                                                const date = new Date(entry.date + 'T00:00:00');
-                                                                if (isNaN(date.getTime())) return '-';
-                                                                return date.toLocaleDateString('en-US', { weekday: 'short' });
-                                                            } catch (e) { return '-'; }
-                                                        })()}
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '12px' }}>
-                                                    <input
-                                                        ref={validationErrors[`${idx}-date`] ? firstErrorRef : null}
-                                                        type="date"
-                                                        value={entry.date}
-                                                        onChange={(e) => handleFieldChange(idx, 'date', e.target.value)}
-                                                        disabled={entry.status !== 'new' || entry.id?.startsWith('ts-preload-')}
-                                                        style={getInputStyle(idx, 'date', {
-                                                            padding: '6px 10px',
-                                                            border: '1px solid',
-                                                            borderRadius: 'var(--radius-sm)',
+                                        entries.map((entry, idx) => {
+                                            if (!entry) return null; // Safety check
+                                            return (
+                                                <tr key={entry.id || idx} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                    <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                                                        <div style={{
                                                             fontSize: '0.9rem',
-                                                            width: '165px',
-                                                            marginBottom: entry.date ? '4px' : '0',
-                                                            background: entry.id?.startsWith('ts-preload-') ? 'var(--color-background-subtle)' : 'white',
-                                                            cursor: entry.id?.startsWith('ts-preload-') ? 'not-allowed' : 'text'
-                                                        })}
-                                                    />
-                                                    {validationErrors[`${idx}-date`] && (
-                                                        <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
-                                                            {validationErrors[`${idx}-date`]}
+                                                            fontWeight: 500,
+                                                            color: (() => {
+                                                                try {
+                                                                    if (!entry.date) return 'var(--color-text-secondary)';
+                                                                    const date = new Date(entry.date + 'T00:00:00');
+                                                                    if (isNaN(date.getTime())) return 'var(--color-text-secondary)';
+                                                                    const day = date.getDay();
+                                                                    return day === 0 ? 'var(--color-error)' : 'var(--color-text-primary)';
+                                                                } catch (e) { return 'var(--color-text-secondary)'; }
+                                                            })()
+                                                        }}>
+                                                            {(() => {
+                                                                try {
+                                                                    if (!entry.date) return '-';
+                                                                    const date = new Date(entry.date + 'T00:00:00');
+                                                                    if (isNaN(date.getTime())) return '-';
+                                                                    return date.toLocaleDateString('en-US', { weekday: 'short' });
+                                                                } catch (e) { return '-'; }
+                                                            })()}
                                                         </div>
-                                                    )}
-                                                </td>
-                                                {/* Day Type Column */}
-                                                <td style={{ padding: '12px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <select
-                                                            value={entry.dayType || 'Work'}
-                                                            onChange={(e) => handleFieldChange(idx, 'dayType', e.target.value)}
+                                                    </td>
+                                                    <td style={{ padding: '12px' }}>
+                                                        <input
+                                                            ref={validationErrors[`${idx}-date`] ? firstErrorRef : null}
+                                                            type="date"
+                                                            value={entry.date}
+                                                            onChange={(e) => handleFieldChange(idx, 'date', e.target.value)}
+                                                            disabled={entry.status !== 'new' || entry.id?.startsWith('ts-preload-')}
+                                                            style={getInputStyle(idx, 'date', {
+                                                                padding: '6px 10px',
+                                                                border: '1px solid',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                fontSize: '0.9rem',
+                                                                width: '165px',
+                                                                marginBottom: entry.date ? '4px' : '0',
+                                                                background: entry.id?.startsWith('ts-preload-') ? 'var(--color-background-subtle)' : 'white',
+                                                                cursor: entry.id?.startsWith('ts-preload-') ? 'not-allowed' : 'text'
+                                                            })}
+                                                        />
+                                                        {validationErrors[`${idx}-date`] && (
+                                                            <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                                {validationErrors[`${idx}-date`]}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    {/* Day Type Column */}
+                                                    <td style={{ padding: '12px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <select
+                                                                value={entry.dayType || 'Work'}
+                                                                onChange={(e) => handleFieldChange(idx, 'dayType', e.target.value)}
+                                                                style={{
+                                                                    padding: '6px 8px',
+                                                                    border: '1px solid var(--color-border)',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    fontSize: '0.9rem',
+                                                                    width: '110px',
+                                                                    cursor: 'pointer',
+                                                                    background: entry.dayType === 'Travel' ? 'rgba(0, 122, 255, 0.05)' : 'white'
+                                                                }}
+                                                            >
+                                                                <option value="Work">Work</option>
+                                                                <option value="Travel">Travel</option>
+                                                            </select>
+                                                            {entry.dayType === 'Travel' ? (
+                                                                <Plane size={16} color="var(--color-accent)" title="Travel Day" />
+                                                            ) : (
+                                                                <Briefcase size={16} color="var(--color-text-secondary)" title="Work Day" />
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '12px' }}>
+                                                        <input
+                                                            ref={validationErrors[`${idx}-clockIn`] && !validationErrors[`${idx}-date`] ? firstErrorRef : null}
+                                                            type="time"
+                                                            value={entry.clockIn || ''}
+                                                            onChange={(e) => handleFieldChange(idx, 'clockIn', e.target.value)}
+                                                            style={getInputStyle(idx, 'clockIn', {
+                                                                padding: '6px 10px',
+                                                                border: '1px solid',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                fontSize: '0.9rem',
+                                                                width: '100%'
+                                                            })}
+                                                        />
+                                                        {validationErrors[`${idx}-clockIn`] && (
+                                                            <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                                {validationErrors[`${idx}-clockIn`]}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '12px' }}>
+                                                        <input
+                                                            ref={validationErrors[`${idx}-clockOut`] && !validationErrors[`${idx}-date`] && !validationErrors[`${idx}-clockIn`] ? firstErrorRef : null}
+                                                            type="time"
+                                                            value={entry.clockOut || ''}
+                                                            onChange={(e) => handleFieldChange(idx, 'clockOut', e.target.value)}
+                                                            style={getInputStyle(idx, 'clockOut', {
+                                                                padding: '6px 10px',
+                                                                border: '1px solid',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                fontSize: '0.9rem',
+                                                                width: '100%'
+                                                            })}
+                                                        />
+                                                        {validationErrors[`${idx}-clockOut`] && (
+                                                            <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                                {validationErrors[`${idx}-clockOut`]}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                        <input
+                                                            type="number"
+                                                            value={entry.breakMinutes}
+                                                            onChange={(e) => handleFieldChange(idx, 'breakMinutes', e.target.value)}
+                                                            min="0"
                                                             style={{
-                                                                padding: '6px 8px',
+                                                                padding: '6px 10px',
                                                                 border: '1px solid var(--color-border)',
                                                                 borderRadius: 'var(--radius-sm)',
                                                                 fontSize: '0.9rem',
-                                                                width: '110px',
-                                                                cursor: 'pointer',
-                                                                background: entry.dayType === 'Travel' ? 'rgba(0, 122, 255, 0.05)' : 'white'
+                                                                width: '80px',
+                                                                textAlign: 'center'
                                                             }}
-                                                        >
-                                                            <option value="Work">Work</option>
-                                                            <option value="Travel">Travel</option>
-                                                        </select>
-                                                        {entry.dayType === 'Travel' ? (
-                                                            <Plane size={16} color="var(--color-accent)" title="Travel Day" />
-                                                        ) : (
-                                                            <Briefcase size={16} color="var(--color-text-secondary)" title="Work Day" />
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '12px' }}>
-                                                    <input
-                                                        ref={validationErrors[`${idx}-clockIn`] && !validationErrors[`${idx}-date`] ? firstErrorRef : null}
-                                                        type="time"
-                                                        value={entry.clockIn || ''}
-                                                        onChange={(e) => handleFieldChange(idx, 'clockIn', e.target.value)}
-                                                        style={getInputStyle(idx, 'clockIn', {
-                                                            padding: '6px 10px',
-                                                            border: '1px solid',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            fontSize: '0.9rem',
-                                                            width: '100%'
-                                                        })}
-                                                    />
-                                                    {validationErrors[`${idx}-clockIn`] && (
-                                                        <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
-                                                            {validationErrors[`${idx}-clockIn`]}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '12px' }}>
-                                                    <input
-                                                        ref={validationErrors[`${idx}-clockOut`] && !validationErrors[`${idx}-date`] && !validationErrors[`${idx}-clockIn`] ? firstErrorRef : null}
-                                                        type="time"
-                                                        value={entry.clockOut || ''}
-                                                        onChange={(e) => handleFieldChange(idx, 'clockOut', e.target.value)}
-                                                        style={getInputStyle(idx, 'clockOut', {
-                                                            padding: '6px 10px',
-                                                            border: '1px solid',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            fontSize: '0.9rem',
-                                                            width: '100%'
-                                                        })}
-                                                    />
-                                                    {validationErrors[`${idx}-clockOut`] && (
-                                                        <div style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '2px' }}>
-                                                            {validationErrors[`${idx}-clockOut`]}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '12px', textAlign: 'center' }}>
-                                                    <input
-                                                        type="number"
-                                                        value={entry.breakMinutes}
-                                                        onChange={(e) => handleFieldChange(idx, 'breakMinutes', e.target.value)}
-                                                        min="0"
-                                                        style={{
-                                                            padding: '6px 10px',
-                                                            border: '1px solid var(--color-border)',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            fontSize: '0.9rem',
-                                                            width: '80px',
-                                                            textAlign: 'center'
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td style={{ padding: '12px', textAlign: 'center' }}>
-                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                                        {/* Autofill Shift Time */}
-                                                        <button
-                                                            onClick={() => autofillShift(idx)}
-                                                            title="Autofill Shift Time"
-                                                            style={{
-                                                                border: 'none',
-                                                                background: 'transparent',
-                                                                color: 'var(--color-accent)',
-                                                                cursor: 'pointer',
-                                                                padding: '8px',
-                                                                borderRadius: 'var(--radius-sm)',
-                                                                transition: 'background 0.2s'
-                                                            }}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 122, 255, 0.1)'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        >
-                                                            <Zap size={16} />
-                                                        </button>
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                            {/* Autofill Shift Time */}
+                                                            <button
+                                                                onClick={() => autofillShift(idx)}
+                                                                title="Autofill Shift Time"
+                                                                style={{
+                                                                    border: 'none',
+                                                                    background: 'transparent',
+                                                                    color: 'var(--color-accent)',
+                                                                    cursor: 'pointer',
+                                                                    padding: '8px',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    transition: 'background 0.2s'
+                                                                }}
+                                                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 122, 255, 0.1)'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            >
+                                                                <Zap size={16} />
+                                                            </button>
 
-                                                        {/* Reset Time */}
-                                                        <button
-                                                            onClick={() => resetTime(idx)}
-                                                            title="Reset Time"
-                                                            style={{
-                                                                border: 'none',
-                                                                background: 'transparent',
-                                                                color: 'var(--color-text-secondary)',
-                                                                cursor: 'pointer',
-                                                                padding: '8px',
-                                                                borderRadius: 'var(--radius-sm)',
-                                                                transition: 'background 0.2s'
-                                                            }}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        >
-                                                            <RotateCcw size={16} />
-                                                        </button>
+                                                            {/* Reset Time */}
+                                                            <button
+                                                                onClick={() => resetTime(idx)}
+                                                                title="Reset Time"
+                                                                style={{
+                                                                    border: 'none',
+                                                                    background: 'transparent',
+                                                                    color: 'var(--color-text-secondary)',
+                                                                    cursor: 'pointer',
+                                                                    padding: '8px',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    transition: 'background 0.2s'
+                                                                }}
+                                                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            >
+                                                                <RotateCcw size={16} />
+                                                            </button>
 
-                                                        {/* Delete Day */}
-                                                        <button
-                                                            onClick={() => deleteDay(idx)}
-                                                            title="Delete Day"
-                                                            style={{
-                                                                border: 'none',
-                                                                background: 'transparent',
-                                                                color: 'var(--color-error)',
-                                                                cursor: 'pointer',
-                                                                padding: '8px',
-                                                                borderRadius: 'var(--radius-sm)',
-                                                                transition: 'background 0.2s'
-                                                            }}
-                                                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 59, 48, 0.1)'}
-                                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
+                                                            {/* Delete Day */}
+                                                            <button
+                                                                onClick={() => deleteDay(idx)}
+                                                                title="Delete Day"
+                                                                style={{
+                                                                    border: 'none',
+                                                                    background: 'transparent',
+                                                                    color: 'var(--color-error)',
+                                                                    cursor: 'pointer',
+                                                                    padding: '8px',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    transition: 'background 0.2s'
+                                                                }}
+                                                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 59, 48, 0.1)'}
+                                                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     )}
                                 </tbody>
                             </table>

@@ -14,4 +14,4 @@ echo 4. Redeploy your project.
 echo.
 echo ===================================================
 echo.
-ssh -i C:\Users\Rajesh\.ssh\id_rsa -o ServerAliveInterval=60 -R business-os-master-server:80:localhost:3001 serveo.net
+ssh -i C:\Users\Rajesh\.ssh\id_rsa -o ServerAliveInterval=60 -R business-os-master-server:80:localhost:3002 serveo.net
