@@ -10,7 +10,7 @@ const db = require('./database');
 const multer = require('multer');
 
 const app = express();
-const PORT = 3002; // Hardcoded to bypass stuck process on 3001
+const PORT = process.env.PORT || 3000;
 
 // --- CONFIGURATION ---
 
