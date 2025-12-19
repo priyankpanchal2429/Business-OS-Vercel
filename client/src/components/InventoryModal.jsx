@@ -13,7 +13,7 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
         description: item?.description || '',
         hsnCode: item?.hsnCode || '',
         vendorName: item?.vendorName || '',
-        imageUrl: item?.imageUrl || ''
+        imageUrl: item?.imageUrl || item?.image || ''
     });
     const [loading, setLoading] = useState(false);
     const [imageMode, setImageMode] = useState('url'); // 'url' or 'upload'
@@ -32,9 +32,9 @@ const InventoryModal = ({ isOpen, onClose, item, onSave }) => {
                 description: item?.description || '',
                 hsnCode: item?.hsnCode || '',
                 vendorName: item?.vendorName || '',
-                imageUrl: item?.imageUrl || ''
+                imageUrl: item?.imageUrl || item?.image || ''
             });
-            setImagePreview(item?.imageUrl || '');
+            setImagePreview(item?.imageUrl || item?.image || '');
             setImageFile(null);
             setImageMode('url');
         }
