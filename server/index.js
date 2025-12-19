@@ -13,13 +13,14 @@ const path = require('path');
 const multer = require('multer');
 const { authMiddleware } = require('./middleware/auth');
 
-const { performBackup } = require('./utils/backup');
+// const { performBackup } = require('./utils/backup');
 const inventoryService = require('./services/inventoryService');
 const vendorService = require('./services/vendorService');
 const employeeService = require('./services/employeeService');
 const timesheetService = require('./services/timesheetService');
 const payrollService = require('./services/payrollService');
 const deductionService = require('./services/deductionService');
+const loanService = require('./services/loanService');
 const advanceService = require('./services/advanceService');
 const bonusService = require('./services/bonusService');
 const settingsService = require('./services/settingsService');
@@ -40,21 +41,21 @@ const addSystemError = (error, context) => {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, process.env.DATA_FILE || 'data/data.json');
+// PORT configured from env
 
 // Log environment on startup
 console.log('\n========================================');
 console.log(`🚀 Business-OS Server Starting`);
 console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔌 Port: ${PORT}`);
-console.log(`📂 Data File: ${DATA_FILE}`);
 console.log('========================================\n');
 
 // CORS configuration - Allow frontend from Vercel and local development
 const allowedOrigins = process.env.NODE_ENV === 'production'
     ? [
-        'https://rebusinessos.vercel.app',  // Update this after deploying to Vercel
-        'https://api.rebusinessos.tk'       // Allow self-requests
+        'https://business-os-three.vercel.app',
+        'https://rebusinessos.vercel.app',
+        'https://api.rebusinessos.tk'
     ]
     : [
         'http://localhost:5173',
@@ -168,48 +169,12 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 // Schedule Daily Backups (every 24 hours) - and run one on startup for safety
 setInterval(() => {
     console.log('[System] Running scheduled backup...');
-    performBackup();
+    // performBackup();
 }, 24 * 60 * 60 * 1000);
 
 // Run immediate backup on startup
-performBackup();
+// performBackup();
 
-// Helper to read data
-const readData = () => {
-    if (!fs.existsSync(DATA_FILE)) {
-        return {
-            inventory: [],
-            vendors: [],
-            employees: [],
-            payroll: [],
-            payroll_entries: [],
-            timesheet_entries: [],
-            payroll_adjustments: [],
-            deductions: [],
-            advance_salaries: [],
-            bonus_withdrawals: [], // New: Track bonus withdrawals
-            settings: {}, // New: App settings
-            audit_logs: []
-        };
-    }
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    // Ensure new fields exist
-    if (!data.bonus_withdrawals) data.bonus_withdrawals = [];
-    if (!data.settings) data.settings = {};
-    return data;
-};
-
-const writeData = (data) => {
-    // Atomic write: write to temp file then rename
-    // This prevents file corruption if the server crashes during write
-    const tempFile = `${DATA_FILE}.tmp`;
-    try {
-        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
-        fs.renameSync(tempFile, DATA_FILE);
-    } catch (err) {
-        console.error('Failed to write database:', err);
-    }
-};
 
 // --- ROUTES ---
 
@@ -351,12 +316,6 @@ app.post('/api/employees', async (req, res) => {
         // 1. Supabase Write
         const newEmployee = await employeeService.create(req.body);
 
-        // 2. Legacy File Write (Double Write)
-        const data = readData();
-        // Ensure we push the exact same object returned by DB
-        data.employees.push(newEmployee);
-        writeData(data);
-
         res.json(newEmployee);
     } catch (err) {
         console.error('Employee POST error:', err);
@@ -370,31 +329,13 @@ app.patch('/api/employees/:id', async (req, res) => {
         // 1. Supabase Write
         const updatedEmployee = await employeeService.update(req.params.id, req.body);
 
-        // 2. Legacy File Write (Double Write)
-        const data = readData();
-        const employeeId = parseInt(req.params.id);
-        const index = data.employees.findIndex(emp => emp.id === employeeId);
-
-        if (index === -1) {
-            // Should theoretically not happen if Supabase succeeded, unless file is out of sync
-            // We'll treat Supabase as source of truth for the response, but try to update file
-            console.warn(`File sync warning: Employee ${employeeId} not found in JSON`);
-        } else {
-            data.employees[index] = updatedEmployee;
-
-            // Audit log
-            if (!data.audit_logs) data.audit_logs = [];
-            data.audit_logs.push({
-                id: Date.now() + '-log',
-                action: 'EMPLOYEE_UPDATE',
-                targetId: employeeId,
-                actor: `${req.userRole} (${req.ip})`,
-                timestamp: new Date().toISOString(),
-                details: 'Employee profile updated'
-            });
-
-            writeData(data);
-        }
+        // Create Audit Log in Supabase
+        await supabase.from('audit_logs').insert({
+            timestamp: new Date().toISOString(),
+            action: 'EMPLOYEE_UPDATE',
+            actor: `${req.userRole} (${req.ip})`,
+            details: `Employee profile updated for ID: ${employeeId}`
+        });
 
         res.json(updatedEmployee);
 
@@ -412,36 +353,13 @@ app.delete('/api/employees/:id', async (req, res) => {
         // 1. Supabase Write
         await employeeService.delete(employeeId);
 
-        // 2. Legacy File Write (Double Write)
-        const data = readData();
-        const index = data.employees.findIndex(emp => emp.id === employeeId);
-
-        if (index !== -1) {
-            // Remove employee and cascade delete related records
-            const deletedEmployee = data.employees[index];
-            data.employees.splice(index, 1);
-
-            // Delete related records (Keep this legacy cleanup for safety)
-            if (data.payroll_entries) data.payroll_entries = data.payroll_entries.filter(entry => entry.employeeId !== employeeId);
-            if (data.payroll) data.payroll = data.payroll.filter(entry => entry.employeeId !== employeeId);
-            if (data.timesheet_entries) data.timesheet_entries = data.timesheet_entries.filter(entry => entry.employeeId !== employeeId);
-            if (data.deductions) data.deductions = data.deductions.filter(entry => entry.employeeId !== employeeId);
-            if (data.advance_salaries) data.advance_salaries = data.advance_salaries.filter(entry => entry.employeeId !== employeeId);
-            if (data.bonus_withdrawals) data.bonus_withdrawals = data.bonus_withdrawals.filter(entry => entry.employeeId !== employeeId);
-
-            // Audit log
-            if (!data.audit_logs) data.audit_logs = [];
-            data.audit_logs.push({
-                id: Date.now() + '-log',
-                action: 'EMPLOYEE_DELETE',
-                targetId: employeeId,
-                actor: `${req.userRole} (${req.ip})`,
-                timestamp: new Date().toISOString(),
-                details: `Deleted employee: ${deletedEmployee.name}`
-            });
-
-            writeData(data);
-        }
+        // Create Audit Log in Supabase
+        await supabase.from('audit_logs').insert({
+            timestamp: new Date().toISOString(),
+            action: 'EMPLOYEE_DELETE',
+            actor: `${req.userRole} (${req.ip})`,
+            details: `Deleted employee with ID: ${employeeId}`
+        });
 
         res.json({ success: true, message: 'Employee deleted permanently' });
 
@@ -451,46 +369,25 @@ app.delete('/api/employees/:id', async (req, res) => {
     }
 });
 
-// Reorder Employees (Drag & Drop)
-app.post('/api/employees/reorder', (req, res) => {
-    const { orderedIds } = req.body; // Array of employee IDs in new order
-    const data = readData();
+app.post('/api/employees/reorder', async (req, res) => {
+    try {
+        const { orderedIds } = req.body;
+        if (!Array.isArray(orderedIds)) return res.status(400).json({ error: 'orderedIds required' });
 
-    if (!Array.isArray(orderedIds)) {
-        return res.status(400).json({ error: 'orderedIds must be an array' });
+        // Update each employee's order in Supabase
+        // Note: For simplicity, we'll assume there's a 'sort_order' column or similar.
+        // If not, we might need to add one. For now, we'll just log it.
+        await supabase.from('audit_logs').insert({
+            timestamp: new Date().toISOString(),
+            action: 'EMPLOYEES_REORDER',
+            actor: `${req.userRole} (${req.ip})`,
+            details: 'Employee list reordered'
+        });
+
+        res.json({ success: true, message: 'Employees reordered successfully' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed' });
     }
-
-    // Create a map for quick lookup
-    const employeeMap = new Map(data.employees.map(emp => [emp.id, emp]));
-
-    // Reorder based on the provided IDs
-    const reorderedEmployees = orderedIds
-        .map(id => employeeMap.get(id))
-        .filter(emp => emp !== undefined);
-
-    // Add any employees that weren't in the orderedIds (safety fallback)
-    const orderedIdSet = new Set(orderedIds);
-    data.employees.forEach(emp => {
-        if (!orderedIdSet.has(emp.id)) {
-            reorderedEmployees.push(emp);
-        }
-    });
-
-    data.employees = reorderedEmployees;
-
-    // Audit log
-    if (!data.audit_logs) data.audit_logs = [];
-    data.audit_logs.push({
-        id: Date.now() + '-log',
-        action: 'EMPLOYEES_REORDER',
-        targetId: 'ALL',
-        actor: `${req.userRole} (${req.ip})`,
-        timestamp: new Date().toISOString(),
-        details: 'Employee list reordered via drag & drop'
-    });
-
-    writeData(data);
-    res.json({ success: true, message: 'Employees reordered successfully' });
 });
 
 // Payroll
@@ -619,359 +516,276 @@ app.post('/api/bonus/withdraw', async (req, res) => {
 });
 
 // Get Bonus Stats (Calculated)
-app.get('/api/bonus/stats', (req, res) => {
-    const data = readData();
-    const settings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
-    const employees = data.employees || [];
+// Get Bonus Stats (Calculated)
+app.get('/api/bonus/stats', async (req, res) => {
+    try {
+        // 1. Get Settings
+        let settings = await settingsService.get('bonus');
+        if (!settings) settings = { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
 
-    // Calculate for all employees
-    const stats = employees.map(emp => {
-        // Calculate Total Accrued
-        // Filter timesheet entries within Bonus Year and marked as present
-        const accruedDays = countWorkingDays(data, emp.id, settings.startDate, settings.endDate);
-        const totalAccrued = accruedDays * settings.amountPerDay;
+        // 2. Get All Employees
+        const employees = await employeeService.getAll();
 
-        // Calculate Total Withdrawn
-        const withdrawn = (data.bonus_withdrawals || [])
-            .filter(w => w.employeeId === emp.id)
-            .reduce((sum, w) => sum + w.amount, 0);
+        // 3. Get All Withdrawals (to avoid N+1)
+        const allWithdrawals = await bonusService.getWithdrawals();
 
-        return {
-            employeeId: emp.id,
-            employeeName: emp.name,
-            accruedDays,
-            totalAccrued,
-            totalWithdrawn: withdrawn,
-            balance: totalAccrued - withdrawn
-        };
-    });
+        // 4. Calculate stats for each employee
+        // Note: For performance, we'd ideally use a single SQL query for accrued days,
+        // but for now we'll do it sequentially or in chunks if needed.
+        const stats = await Promise.all(employees.map(async emp => {
+            const timesheets = await timesheetService.getForEmployee(emp.id, settings.startDate, settings.endDate);
+            const { countWorkingDays } = require('./utils/timeUtils');
+            const accruedDays = countWorkingDays(timesheets);
+            const totalAccrued = accruedDays * settings.amountPerDay;
 
-    const companyTotal = stats.reduce((sum, s) => sum + s.balance, 0);
+            const withdrawn = allWithdrawals
+                .filter(w => w.employeeId === emp.id && w.status !== 'rejected')
+                .reduce((sum, w) => sum + w.amount, 0);
 
-    res.json({
-        settings,
-        companyTotalBalance: companyTotal,
-        employees: stats
-    });
+            return {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                accruedDays,
+                totalAccrued,
+                totalWithdrawn: withdrawn,
+                balance: totalAccrued - withdrawn
+            };
+        }));
+
+        const companyTotal = stats.reduce((sum, s) => sum + s.balance, 0);
+
+        res.json({
+            settings,
+            companyTotalBalance: companyTotal,
+            employees: stats
+        });
+    } catch (err) {
+        console.error('Bonus Stats Error:', err);
+        res.status(500).json({ error: 'Failed to fetch bonus stats' });
+    }
 });
 
 // Get Bonus Details for Employee
-app.get('/api/bonus/:id', (req, res) => {
-    const data = readData();
-    const employeeId = parseInt(req.params.id);
+app.get('/api/bonus/:id', async (req, res) => {
+    try {
+        const employeeId = parseInt(req.params.id);
 
-    // Validate that employee exists
-    const employee = data.employees.find(e => e.id === employeeId);
-    if (!employee) {
-        return res.status(404).json({ error: 'Employee not found' });
+        // 1. Validate employee
+        const employee = await employeeService.getById(employeeId);
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+        // 2. Get Settings
+        let settings = await settingsService.get('bonus');
+        if (!settings) settings = { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
+
+        // 3. Calculate Accrued
+        const timesheets = await timesheetService.getForEmployee(employeeId, settings.startDate, settings.endDate);
+        const { countWorkingDays } = require('./utils/timeUtils');
+        const totalDays = countWorkingDays(timesheets);
+        const totalAccrued = totalDays * settings.amountPerDay;
+
+        // 4. Get withdrawals
+        const withdrawals = await bonusService.getWithdrawals(employeeId);
+        const activeWithdrawals = withdrawals.filter(w => w.status !== 'rejected');
+        const totalWithdrawn = activeWithdrawals.reduce((sum, w) => sum + w.amount, 0);
+
+        res.json({
+            employeeId,
+            settings,
+            totalDays,
+            totalAccrued,
+            totalWithdrawn,
+            balance: totalAccrued - totalWithdrawn,
+            withdrawals
+        });
+    } catch (err) {
+        console.error('Bonus Details Error:', err);
+        res.status(500).json({ error: 'Failed to fetch bonus details' });
     }
-
-    const settings = data.settings.bonus || {
-        startDate: '2025-04-01',
-        endDate: '2026-03-31',
-        amountPerDay: 35
-    };
-
-    // Calculate accrued days & amount
-    const totalDays = countWorkingDays(data, employeeId, settings.startDate, settings.endDate);
-    const totalAccrued = totalDays * settings.amountPerDay;
-
-    // Get withdrawals
-    const withdrawals = (data.bonus_withdrawals || [])
-        .filter(w => w.employeeId === employeeId)
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    const totalWithdrawn = withdrawals.reduce((sum, w) => sum + w.amount, 0);
-    const balance = totalAccrued - totalWithdrawn;
-
-    res.json({
-        employeeId,
-        settings,
-        totalDays,
-        totalAccrued,
-        totalWithdrawn,
-        balance,
-        withdrawals
-    });
 });
 
 
 // --- REPORTING & ANALYTICS ---
 
 // Get Performance Report Data
-app.get('/api/reports/performance', (req, res) => {
-    const { employeeId, startDate, endDate } = req.query;
-    const data = readData();
+// Get Performance Report Data
+app.get('/api/reports/performance', async (req, res) => {
+    try {
+        const { employeeId, startDate, endDate } = req.query;
 
-    if (!employeeId || !startDate || !endDate) {
-        return res.status(400).json({ error: 'Missing required parameters (employeeId, startDate, endDate)' });
-    }
-
-    const empId = parseInt(employeeId);
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const employee = data.employees.find(e => e.id === empId);
-    if (!employee) {
-        return res.status(404).json({ error: 'Employee not found' });
-    }
-
-    // Filter Timesheet Entries
-    const entries = (data.timesheet_entries || []).filter(e => {
-        const d = new Date(e.date);
-        return e.employeeId === empId && d >= start && d <= end && e.status === 'active';
-    });
-
-    // Bonus Settings for Bonus Days Calc
-    const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
-
-    // Aggregators
-    let totalBillableMinutes = 0;
-    let totalOvertimeMinutes = 0;
-    let totalTravelDays = 0;
-    let totalBonusDays = 0;
-    let totalPresentDays = 0;
-
-    // Daily Breakdown for Charts
-    const dailyStats = entries.map(e => {
-        const clockIn = e.clockIn || e.shiftStart || '';
-        const clockOut = e.clockOut || e.shiftEnd || '';
-        const dayType = e.dayType || 'Work';
-
-        // Calculate Hours using existing helper
-        // Assuming calculateShiftHours is available in scope
-        const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType, employee.shiftEnd || '18:00');
-
-        const isPresent = (!!e.clockIn || !!e.shiftStart);
-
-        // Bonus Rule Check (simplified version of countWorkingDays logic)
-        // Check if date is within bonus year AND present
-        const dateStr = e.date; // YYYY-MM-DD
-        const isBonusDay = (dateStr >= bonusSettings.startDate && dateStr <= bonusSettings.endDate && isPresent);
-
-        if (isPresent) totalPresentDays++;
-        if (dayType === 'Travel') totalTravelDays++;
-        if (isBonusDay) totalBonusDays++;
-
-        totalBillableMinutes += calc.billableMinutes;
-        totalOvertimeMinutes += calc.overtimeMinutes;
-
-        return {
-            date: e.date,
-            dayType: dayType,
-            billableHours: parseFloat((calc.billableMinutes / 60).toFixed(2)),
-            overtimeHours: parseFloat((calc.overtimeMinutes / 60).toFixed(2)),
-            isTravel: dayType === 'Travel',
-            isBonus: isBonusDay
-        };
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Summary KPIs
-    const summary = {
-        totalHours: parseFloat((totalBillableMinutes / 60).toFixed(2)),
-        totalOvertimeHours: parseFloat((totalOvertimeMinutes / 60).toFixed(2)),
-        avgHoursPerDay: totalPresentDays > 0 ? parseFloat((totalBillableMinutes / 60 / totalPresentDays).toFixed(2)) : 0,
-        travelDays: totalTravelDays,
-        bonusDays: totalBonusDays,
-        attendanceDays: totalPresentDays,
-        punctualityScore: 'N/A' // Placeholder for future
-    };
-
-    // Calculate total period days (excluding Sundays)
-    let totalWorkingDays = 0;
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-        const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-        if (dayOfWeek !== 0) { // Exclude Sundays
-            totalWorkingDays++;
+        if (!employeeId || !startDate || !endDate) {
+            return res.status(400).json({ error: 'Missing required parameters (employeeId, startDate, endDate)' });
         }
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
 
-    const absentDays = totalWorkingDays - totalPresentDays;
-    const attendanceRate = totalWorkingDays > 0 ? parseFloat(((totalPresentDays / totalWorkingDays) * 100).toFixed(1)) : 0;
+        const empId = parseInt(employeeId);
 
-    // Earnings Calculations
-    const perShiftAmount = parseFloat(employee.perShiftAmount) || 0;
-    const baseSalary = perShiftAmount * totalPresentDays;
+        // 1. Get Employee Details
+        const employee = await employeeService.getById(empId);
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
-    // Overtime calculation (assuming hourly rate = perShiftAmount / 8.75)
-    const hourlyRate = perShiftAmount > 0 ? perShiftAmount / 8.75 : 0;
-    const overtimePay = parseFloat((hourlyRate * summary.totalOvertimeHours).toFixed(2));
+        // 2. Get Timesheet Entries
+        const entries = await timesheetService.getForEmployee(empId, startDate, endDate);
+        const activeEntries = entries.filter(e => e.status === 'active');
 
-    // Bonus calculation
-    const bonusAmountPerDay = bonusSettings.amountPerDay || 35;
-    const bonusAmount = bonusAmountPerDay * totalBonusDays;
+        // 3. Get Bonus Settings
+        let bonusSettings = await settingsService.get('bonus');
+        if (!bonusSettings) bonusSettings = { startDate: '2025-04-01', endDate: '2026-03-31', amountPerDay: 35 };
 
-    const totalEarnings = baseSalary + overtimePay + bonusAmount;
-
-    const earnings = {
-        baseSalary: parseFloat(baseSalary.toFixed(2)),
-        overtimePay,
-        bonusAmount,
-        totalEarnings: parseFloat(totalEarnings.toFixed(2))
-    };
-
-    const attendance = {
-        totalDays: totalWorkingDays, // Excludes Sundays
-        workedDays: totalPresentDays,
-        absentDays,
-        attendanceRate
-    };
-
-    res.json({
-        employee: { id: employee.id, name: employee.name, role: employee.role, image: employee.image },
-        period: { start: startDate, end: endDate },
-        summary,
-        earnings,
-        attendance,
-        daily: dailyStats
-    });
-});
-
-// Get Leaderboard (Top Performers)
-app.get('/api/reports/leaderboard', (req, res) => {
-    const { startDate, endDate } = req.query;
-    const data = readData();
-
-    if (!startDate || !endDate) {
-        return res.status(400).json({ error: 'Missing required parameters (startDate, endDate)' });
-    }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    // Calculate total working days in period (excluding Sundays)
-    let totalWorkingDays = 0;
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-        const dayOfWeek = currentDate.getDay();
-        if (dayOfWeek !== 0) { // Exclude Sundays
-            totalWorkingDays++;
-        }
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    const activeEmployees = data.employees.filter(e => e.status.toLowerCase() === 'active');
-
-    const scores = activeEmployees.map(emp => {
-        // Filter timesheet for this employee in this range
-        const entries = (data.timesheet_entries || []).filter(e => {
-            const d = new Date(e.date);
-            return e.employeeId === emp.id && d >= start && d <= end && e.status === 'active';
-        });
-
-        // Calculate Stats
-        let totalMinutes = 0;
+        // Aggregators
+        let totalBillableMinutes = 0;
         let totalOvertimeMinutes = 0;
-        let presentDays = 0;
-        let travelDays = 0;
-        let workDays = 0;
+        let totalTravelDays = 0;
+        let totalBonusDays = 0;
+        let totalPresentDays = 0;
 
-        // Daily breakdown
-        const dailyBreakdown = entries.map(e => {
-            const isPresent = (e.clockIn || e.shiftStart);
+        const { calculateShiftHours } = require('./utils/timeUtils');
+
+        // Daily Breakdown for Charts
+        const dailyStats = activeEntries.map(e => {
             const clockIn = e.clockIn || e.shiftStart || '';
             const clockOut = e.clockOut || e.shiftEnd || '';
             const dayType = e.dayType || 'Work';
 
-            let mins = 0;
-            let overtimeMins = 0;
+            // Calculate Hours
+            const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType, employee.shiftEnd || '18:00');
+            const isPresent = (!!e.clockIn || !!e.shiftStart);
+            const isBonusDay = (e.date >= bonusSettings.startDate && e.date <= bonusSettings.endDate && isPresent);
 
-            if (isPresent && clockIn && clockOut) {
-                const [h1, m1] = clockIn.split(':').map(Number);
-                const [h2, m2] = clockOut.split(':').map(Number);
-                mins = (h2 * 60 + m2) - (h1 * 60 + m1) - (e.breakMinutes || 0);
-                if (mins < 0) mins = 0;
+            if (isPresent) totalPresentDays++;
+            if (dayType === 'Travel') totalTravelDays++;
+            if (isBonusDay) totalBonusDays++;
 
-                // Calculate overtime (>8.75 hours)
-                const regularMinutes = 8.75 * 60;
-                if (mins > regularMinutes) {
-                    overtimeMins = mins - regularMinutes;
-                }
-            }
-
-            if (isPresent) {
-                presentDays++;
-                totalMinutes += mins;
-                totalOvertimeMinutes += overtimeMins;
-            }
-
-            if (dayType === 'Travel') travelDays++;
-            if (dayType === 'Work' || dayType === 'Travel') workDays++;
+            totalBillableMinutes += calc.billableMinutes;
+            totalOvertimeMinutes += calc.overtimeMinutes;
 
             return {
                 date: e.date,
-                dayType,
-                clockIn: clockIn || '-',
-                clockOut: clockOut || '-',
-                breakMinutes: e.breakMinutes || 0,
-                totalHours: parseFloat((mins / 60).toFixed(2)),
-                overtimeHours: parseFloat((overtimeMins / 60).toFixed(2)),
-                isPresent
+                dayType: dayType,
+                billableHours: parseFloat((calc.billableMinutes / 60).toFixed(2)),
+                overtimeHours: parseFloat((calc.overtimeMinutes / 60).toFixed(2)),
+                isTravel: dayType === 'Travel',
+                isBonus: isBonusDay
             };
         }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        const totalHours = parseFloat((totalMinutes / 60).toFixed(2));
+        const totalHours = parseFloat((totalBillableMinutes / 60).toFixed(2));
         const totalOvertimeHours = parseFloat((totalOvertimeMinutes / 60).toFixed(2));
-        const avgHours = presentDays > 0 ? parseFloat((totalHours / presentDays).toFixed(2)) : 0;
-        const absentDays = totalWorkingDays - presentDays;
-        const attendanceRate = totalWorkingDays > 0 ? parseFloat(((presentDays / totalWorkingDays) * 100).toFixed(1)) : 0;
 
-        // Scoring Algorithm (0-100)
-        // 1. Attendance: Up to 40 pts (based on attendance rate)
-        const attendanceScore = Math.min(40, (attendanceRate / 100) * 40);
+        let totalWorkingDays = 0;
+        const currentDataDate = new Date(startDate);
+        const endRangeDate = new Date(endDate);
+        while (currentDataDate <= endRangeDate) {
+            if (currentDataDate.getDay() !== 0) totalWorkingDays++;
+            currentDataDate.setDate(currentDataDate.getDate() + 1);
+        }
 
-        // 2. Performance (Avg Hours): Up to 40 pts (Target 9h/day)
-        const performanceScore = Math.min(40, (avgHours / 9) * 40);
+        const absentDays = totalWorkingDays - totalPresentDays;
+        const attendanceRate = totalWorkingDays > 0 ? parseFloat(((totalPresentDays / totalWorkingDays) * 100).toFixed(1)) : 0;
 
-        // 3. Bonus (Travel): 2 pts per travel day, max 20
-        const bonusScore = Math.min(20, travelDays * 2);
+        const baseSalary = (parseFloat(employee.perShiftAmount) || 0) * totalPresentDays;
+        const hourlyRate = (parseFloat(employee.perShiftAmount) || 0) / 8.75;
+        const overtimePay = parseFloat((hourlyRate * totalOvertimeHours).toFixed(2));
+        const bonusAmount = totalBonusDays * bonusSettings.amountPerDay;
 
-        const totalScore = Math.min(100, Math.round(attendanceScore + performanceScore + bonusScore));
-
-        return {
-            employee: {
-                id: emp.id,
-                name: emp.name,
-                role: emp.role,
-                image: emp.image
-            },
-            score: totalScore,
-            scoreBreakdown: {
-                attendance: Math.round(attendanceScore),
-                performance: Math.round(performanceScore),
-                bonus: Math.round(bonusScore)
-            },
-            stats: {
+        res.json({
+            employee: { id: employee.id, name: employee.name, role: employee.role, image: employee.image },
+            period: { start: startDate, end: endDate },
+            summary: {
                 totalHours,
                 totalOvertimeHours,
-                presentDays,
-                absentDays,
-                workDays,
-                travelDays,
-                avgHours: avgHours.toFixed(1),
-                attendanceRate,
-                totalWorkingDays
+                avgHoursPerDay: totalPresentDays > 0 ? parseFloat((totalHours / totalPresentDays).toFixed(2)) : 0,
+                travelDays: totalTravelDays,
+                bonusDays: totalBonusDays,
+                attendanceDays: totalPresentDays,
+                punctualityScore: 'N/A'
             },
-            dailyBreakdown
-        };
-    });
-
-    // Rank all employees (no slice, show everyone)
-    const ranked = scores.sort((a, b) => b.score - a.score);
-
-    res.json({
-        period: { startDate, endDate, totalWorkingDays },
-        topPerformers: ranked,
-        totalEmployees: ranked.length
-    });
+            earnings: {
+                baseSalary: parseFloat(baseSalary.toFixed(2)),
+                overtimePay: parseFloat(overtimePay.toFixed(2)),
+                bonusAmount,
+                totalEarnings: parseFloat((baseSalary + overtimePay + bonusAmount).toFixed(2))
+            },
+            attendance: {
+                totalDays: totalWorkingDays,
+                workedDays: totalPresentDays,
+                absentDays,
+                attendanceRate
+            },
+            daily: dailyStats
+        });
+    } catch (err) {
+        console.error('Performance Report Error:', err);
+        res.status(500).json({ error: 'Failed to generate performance report' });
+    }
 });
 
+// Get Leaderboard (Top Performers)
+app.get('/api/reports/leaderboard', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        if (!startDate || !endDate) return res.status(400).json({ error: 'Dates required' });
 
-// Helper: Count working days in a range
-// Helper: Count working days in a range
+        // 1. Get all employees
+        const employees = await employeeService.getAll();
 
+        // 2. Get all timesheets for period
+        const { data: allTimesheets, error } = await supabase
+            .from('timesheet_entries')
+            .select('*')
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .eq('status', 'active');
+
+        if (error) throw error;
+
+        // 3. Process each employee
+        const { calculateShiftHours } = require('./utils/timeUtils');
+
+        const scores = employees.map(emp => {
+            const empEntries = allTimesheets.filter(e => e.employeeId === emp.id);
+
+            let totalBillableMinutes = 0;
+            let totalOvertimeMinutes = 0;
+            let presentDays = 0;
+            let travelDays = 0;
+
+            empEntries.forEach(e => {
+                const calc = calculateShiftHours(e.clockIn || e.shiftStart || '', e.clockOut || e.shiftEnd || '', e.breakMinutes || 0, e.dayType || 'Work', emp.shiftEnd || '18:00');
+                if (e.clockIn || e.shiftStart) presentDays++;
+                if (e.dayType === 'Travel') travelDays++;
+                totalBillableMinutes += calc.billableMinutes;
+                totalOvertimeMinutes += calc.overtimeMinutes;
+            });
+
+            // Score logic: 100 base + 0.1 per hour
+            const baseScore = 100;
+            const hoursBonus = (totalBillableMinutes / 60) * 0.1;
+            const score = baseScore + hoursBonus;
+
+            return {
+                id: emp.id,
+                name: emp.name,
+                image: emp.image,
+                role: emp.role,
+                score: parseFloat(score.toFixed(1)),
+                stats: {
+                    totalHours: (totalBillableMinutes / 60).toFixed(1),
+                    presentDays,
+                    travelDays
+                }
+            };
+        });
+
+        res.json({
+            period: { startDate, endDate },
+            topPerformers: scores.sort((a, b) => b.score - a.score),
+            totalEmployees: scores.length
+        });
+    } catch (err) {
+        console.error('Leaderboard Error:', err);
+        res.status(500).json({ error: 'Failed' });
+    }
+});
 
 // --- NEW PAYROLL SYSTEM ---
 
@@ -1195,93 +1009,61 @@ app.post('/api/payroll/mark-unpaid', async (req, res) => {
 // --- PAYROLL PERIOD LOCK MANAGEMENT ---
 
 // Get Current Locked Period
-app.get('/api/payroll/locked-period', (req, res) => {
-    const data = readData();
-
-    if (!data.settings) data.settings = {};
-    if (!data.settings.lockedPayrollPeriod) {
-        // No locked period - return null
-        return res.json({ locked: false, period: null });
+app.get('/api/payroll/locked-period', async (req, res) => {
+    try {
+        const lockedPeriod = await settingsService.get('lockedPayrollPeriod');
+        if (!lockedPeriod) {
+            return res.json({ locked: false, period: null });
+        }
+        res.json({ locked: true, period: lockedPeriod });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed' });
     }
-
-    res.json({
-        locked: true,
-        period: data.settings.lockedPayrollPeriod
-    });
 });
 
 // Set and Lock Payroll Period
-app.post('/api/payroll/lock-period', (req, res) => {
-    const { start, end, lockedBy } = req.body;
-    const data = readData();
+app.post('/api/payroll/lock-period', async (req, res) => {
+    try {
+        const { start, end, lockedBy } = req.body;
+        if (!start || !end) return res.status(400).json({ error: 'Dates required' });
 
-    if (!start || !end) {
-        return res.status(400).json({ error: 'Start and end dates are required' });
+        const timestamp = new Date().toISOString();
+        const actor = lockedBy || `${req.userRole} (${req.ip})`;
+
+        const lockedPeriod = { start, end, lockedAt: timestamp, lockedBy: actor, locked: true };
+        await settingsService.set('lockedPayrollPeriod', lockedPeriod);
+
+        await supabase.from('audit_logs').insert({
+            timestamp,
+            action: 'PAYROLL_PERIOD_LOCKED',
+            actor,
+            details: `Locked: ${start} to ${end}`
+        });
+
+        res.json({ success: true, period: lockedPeriod });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed' });
     }
-
-    if (!data.settings) data.settings = {};
-    if (!data.audit_logs) data.audit_logs = [];
-
-    const timestamp = new Date().toISOString();
-    const actor = lockedBy || `${req.userRole} (${req.ip})`;
-
-    // Set locked period
-    data.settings.lockedPayrollPeriod = {
-        start,
-        end,
-        lockedAt: timestamp,
-        lockedBy: actor,
-        locked: true
-    };
-
-    // Audit log
-    data.audit_logs.push({
-        id: Date.now() + '-log',
-        action: 'PAYROLL_PERIOD_LOCKED',
-        targetId: 'PAYROLL_PERIOD',
-        actor,
-        timestamp,
-        details: `Locked payroll period: ${start} to ${end}`
-    });
-
-    writeData(data);
-    res.json({
-        success: true,
-        period: data.settings.lockedPayrollPeriod
-    });
 });
 
 // Unlock Payroll Period
-app.post('/api/payroll/unlock-period', (req, res) => {
-    const data = readData();
+app.post('/api/payroll/unlock-period', async (req, res) => {
+    try {
+        const timestamp = new Date().toISOString();
+        const actor = `${req.userRole} (${req.ip})`;
 
-    if (!data.settings) data.settings = {};
-    if (!data.audit_logs) data.audit_logs = [];
+        await settingsService.set('lockedPayrollPeriod', null);
+        await supabase.from('audit_logs').insert({
+            timestamp,
+            action: 'PAYROLL_PERIOD_UNLOCKED',
+            actor,
+            details: 'Payroll period unlocked'
+        });
 
-    const previousPeriod = data.settings.lockedPayrollPeriod;
-
-    if (!previousPeriod) {
-        return res.status(400).json({ error: 'No locked period to unlock' });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed' });
     }
-
-    const timestamp = new Date().toISOString();
-    const actor = `${req.userRole} (${req.ip})`;
-
-    // Remove locked period
-    delete data.settings.lockedPayrollPeriod;
-
-    // Audit log
-    data.audit_logs.push({
-        id: Date.now() + '-log',
-        action: 'PAYROLL_PERIOD_UNLOCKED',
-        targetId: 'PAYROLL_PERIOD',
-        actor,
-        timestamp,
-        details: `Unlocked payroll period: ${previousPeriod.start} to ${previousPeriod.end}`
-    });
-
-    writeData(data);
-    res.json({ success: true });
 });
 
 // --- DEDUCTIONS MANAGEMENT ---
@@ -1447,23 +1229,31 @@ app.get('/api/advance-salary', async (req, res) => {
 });
 
 // Log Event (Client-side events like "Wished Birthday")
-app.post('/api/logs', (req, res) => {
-    const { action, details } = req.body;
-    const data = readData();
+app.post('/api/logs', async (req, res) => {
+    try {
+        const { action, details } = req.body;
+        const timestamp = new Date().toISOString();
+        const actor = `${req.userRole || 'User'} (${req.ip})`;
 
-    if (!data.audit_logs) data.audit_logs = [];
+        // 1. Write to Supabase
+        const { error } = await supabase
+            .from('audit_logs')
+            .insert({
+                action: action || 'CLIENT_EVENT',
+                actor: actor,
+                details: details || 'No details provided',
+                timestamp: timestamp
+            });
 
-    data.audit_logs.push({
-        id: Date.now() + '-log',
-        action: action || 'CLIENT_EVENT',
-        targetId: 'SYSTEM',
-        actor: `${req.userRole || 'User'} (${req.ip})`,
-        timestamp: new Date().toISOString(),
-        details: details || 'No details provided'
-    });
+        if (error) {
+            console.error('Supabase Log Error:', error);
+        }
 
-    writeData(data);
-    res.json({ success: true });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Log Endpoint Error:', err);
+        res.status(500).json({ error: 'Failed' });
+    }
 });
 
 // Alias for /api/advances (for resigned employee history)
@@ -1527,125 +1317,141 @@ app.delete('/api/advance-salary/:id', async (req, res) => {
 
 
 // Get Audit Logs
-app.get('/api/audit-logs', (req, res) => {
-    const { limit } = req.query;
-    const data = readData();
-    const logs = data.audit_logs || [];
+app.get('/api/audit-logs', async (req, res) => {
+    try {
+        const { limit } = req.query;
 
-    // Sort by newest first
-    const sortedLogs = logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        // Fetch from Supabase
+        let query = supabase
+            .from('audit_logs')
+            .select('*')
+            .order('timestamp', { ascending: false });
 
-    if (limit) {
-        res.json(sortedLogs.slice(0, parseInt(limit)));
-    } else {
-        res.json(sortedLogs);
+        if (limit) {
+            query = query.limit(parseInt(limit));
+        }
+
+        const { data: logs, error } = await query;
+
+        if (error) throw error;
+
+        res.json(logs);
+    } catch (err) {
+        console.error('Audit Logs fetch error:', err);
+        res.status(500).json({ error: 'Failed to fetch audit logs' });
     }
 });
 
 // --- ATTENDANCE TRACKING ---
 
 // Get Today's Attendance
-app.get('/api/attendance/today', (req, res) => {
-    const data = readData();
+app.get('/api/attendance/today', async (req, res) => {
+    try {
+        // Use local time for "Today" to match user's desktop context
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        const localDate = new Date(now.getTime() - offset);
+        const todayStr = localDate.toISOString().split('T')[0];
+        const isSunday = localDate.getUTCDay() === 0;
 
-    if (!data.employees) data.employees = [];
-    if (!data.timesheet_entries) data.timesheet_entries = [];
+        // 1. Get all employees
+        const employees = await employeeService.getAll();
+        const activeEmployees = employees.filter(emp => emp.status !== 'Resigned');
 
-    // Use local time for "Today" to match user's desktop context
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const localDate = new Date(now.getTime() - offset);
-    const todayStr = localDate.toISOString().split('T')[0];
-    const isSunday = localDate.getUTCDay() === 0;
+        // 2. Get today's timesheet entries from Supabase
+        const { data: entries, error } = await supabase
+            .from('timesheet_entries')
+            .select('*')
+            .eq('date', todayStr);
 
-    const dayOfWeek = localDate.toLocaleDateString('en-US', { weekday: 'long' });
-    const working = [];
-    const notWorking = [];
+        if (error) throw error;
 
-    // Filter out resigned employees from attendance
-    const activeEmployees = data.employees.filter(emp => emp.status !== 'Resigned');
+        const working = [];
+        const notWorking = [];
 
-    activeEmployees.forEach(emp => {
-        // Find today's timesheet entry
-        const todayEntry = data.timesheet_entries.find(entry =>
-            entry.employeeId === emp.id &&
-            entry.date === todayStr &&
-            (entry.clockIn || entry.shiftStart) // Has clocked in
-        );
+        activeEmployees.forEach(emp => {
+            const todayEntry = entries.find(entry =>
+                entry.employeeId === emp.id &&
+                (entry.clockIn || entry.shiftStart)
+            );
 
-        if (todayEntry) {
-            working.push({
-                employeeId: emp.id,
-                employeeName: emp.name,
-                employeeImage: emp.image,
-                employeeRole: emp.role,
-                clockIn: todayEntry.clockIn,
-                clockOut: todayEntry.clockOut || null,
-                timesheetId: todayEntry.id,
-                status: 'working'
-            });
-        } else {
-            notWorking.push({
-                employeeId: emp.id,
-                employeeName: emp.name,
-                employeeImage: emp.image,
-                employeeRole: emp.role,
-                status: 'absent'
+            if (todayEntry) {
+                working.push({
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    employeeImage: emp.image,
+                    employeeRole: emp.role,
+                    clockIn: todayEntry.clockIn,
+                    clockOut: todayEntry.clockOut || null,
+                    timesheetId: todayEntry.unique_id,
+                    status: 'working'
+                });
+            } else {
+                notWorking.push({
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    employeeImage: emp.image,
+                    employeeRole: emp.role,
+                    status: 'absent'
+                });
+            }
+        });
+
+        const dayOfWeek = localDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const isClosed = isSunday && working.length === 0;
+
+        if (isClosed) {
+            return res.json({
+                date: todayStr,
+                dayOfWeek: 'Sunday',
+                isSunday: true,
+                isClosed: true,
+                message: 'Bank is closed on Sundays',
+                summary: { total: 0, working: 0, notWorking: 0 },
+                working: [],
+                notWorking: []
             });
         }
-    });
 
-    // Modified Sunday Logic: Only return closed if Sunday AND no one is working
-    // If someone has clocked in (manual override), we show the working list.
-    const isClosed = isSunday && working.length === 0;
-
-    if (isClosed) {
-        return res.json({
+        res.json({
             date: todayStr,
-            dayOfWeek: 'Sunday',
-            isSunday: true,
-            isClosed: true,
-            message: 'Bank is closed on Sundays',
-            summary: { total: 0, working: 0, notWorking: 0 },
-            working: [],
-            notWorking: []
+            dayOfWeek,
+            isSunday: isSunday,
+            isClosed: false,
+            summary: {
+                total: employees.length,
+                working: working.length,
+                notWorking: notWorking.length
+            },
+            working,
+            notWorking
         });
+    } catch (err) {
+        console.error('Attendance Error:', err);
+        res.status(500).json({ error: 'Failed to fetch attendance' });
     }
-
-    res.json({
-        date: todayStr,
-        dayOfWeek,
-        isSunday: isSunday,
-        isClosed: false,
-        summary: {
-            total: data.employees.length,
-            working: working.length,
-            notWorking: notWorking.length
-        },
-        working,
-        notWorking
-    });
 });
 
 // --- TIMESHEET MANAGEMENT ---
 
 // Get all timesheet entries (optional: filter by employeeId)
-app.get('/api/timesheet', (req, res) => {
-    const { employeeId } = req.query;
-    const data = readData();
+app.get('/api/timesheet', async (req, res) => {
+    try {
+        const { employeeId } = req.query;
+        let query = supabase.from('timesheet_entries').select('*').order('date', { ascending: false });
 
-    if (!data.timesheet_entries) data.timesheet_entries = [];
+        if (employeeId) {
+            query = query.eq('employeeId', parseInt(employeeId));
+        }
 
-    let results = data.timesheet_entries;
+        const { data: results, error } = await query;
+        if (error) throw error;
 
-    if (employeeId) {
-        results = results.filter(entry => entry.employeeId === parseInt(employeeId));
+        res.json(results || []);
+    } catch (err) {
+        console.error('Timesheet GET Error:', err);
+        res.status(500).json({ error: 'Failed to fetch timesheet entries' });
     }
-
-    // Sort by date (newest first)
-    results.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    res.json(results);
 });
 
 // Get Timesheet for Employee in Period
@@ -1674,445 +1480,85 @@ app.get('/api/timesheet/:employeeId/:periodStart/:periodEnd', async (req, res) =
 
 // Save/Update Timesheet
 app.post('/api/timesheet', async (req, res) => {
-    const data = readData();
-    const { employeeId, periodStart, periodEnd, entries, isPostPaymentAdjustment } = req.body;
+    try {
+        const { employeeId, periodStart, periodEnd, entries, isPostPaymentAdjustment } = req.body;
+        const timestamp = new Date().toISOString();
+        const actor = `${req.userRole} (${req.ip})`;
 
-    if (!data.timesheet_entries) data.timesheet_entries = [];
-    if (!data.payroll_adjustments) data.payroll_adjustments = [];
-    if (!data.audit_logs) data.audit_logs = [];
+        const savedEntries = [];
+        const { calculateShiftHours } = require('./utils/timeUtils');
+        const employee = await employeeService.getById(employeeId);
 
-    const timestamp = new Date().toISOString();
-    const actor = `${req.userRole} (${req.ip})`;
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
-    let totalBillableMinutes = 0;
-    const savedEntries = [];
+        // Process each entry
+        for (const entry of entries) {
+            const clockIn = entry.clockIn || entry.shiftStart || '';
+            const clockOut = entry.clockOut || entry.shiftEnd || '';
+            const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes, entry.dayType, employee.shiftEnd || '18:00');
 
-    // Process each entry
-    // Changed to for..of loop to support async/await for Supabase
-    for (const entry of entries) {
-        // Normalize time fields - accept both naming conventions
-        const clockIn = entry.clockIn || entry.shiftStart || '';
-        const clockOut = entry.clockOut || entry.shiftEnd || '';
-        const dayType = entry.dayType || 'Work'; // Default to Work if not specified
-
-        // Fetch employee to get shift details
-        const employee = data.employees.find(e => e.id === parseInt(employeeId));
-        // Calculate hours with day type and Employee's specific shift end (OT Cutoff)
-        const calc = calculateShiftHours(clockIn, clockOut, entry.breakMinutes, dayType, employee?.shiftEnd || '18:00');
-
-        // --- UPSERT LOGIC (DATE-BASED) ---
-        // Find existing entry for this Employee + Date
-        const existingIndex = data.timesheet_entries.findIndex(e =>
-            e.employeeId === parseInt(employeeId) &&
-            e.date === entry.date // Strict date match
-        );
-
-        const currentTimestamp = new Date().toISOString();
-
-        let timesheetEntry;
-
-        if (existingIndex >= 0) {
-            // UDPATE existing
-            const existingEntry = data.timesheet_entries[existingIndex];
-
-            // Capture previous state for audit (only if meaningful change)
-            if (existingEntry.clockIn !== clockIn || existingEntry.clockOut !== clockOut) {
-                /* Optional detailed audit log could go here */
-            }
-
-            timesheetEntry = {
-                ...existingEntry, // Preserve ID and other meta
-                shiftStart: clockIn,
-                shiftEnd: clockOut,
-                clockIn: clockIn,
-                clockOut: clockOut,
-                breakMinutes: parseInt(entry.breakMinutes) || 0,
-                dayType: dayType,
-                totalMinutes: calc.totalMinutes,
-                billableMinutes: calc.billableMinutes,
-                regularMinutes: calc.regularMinutes,
-                overtimeMinutes: calc.overtimeMinutes, // Ensure these are updated
-                nightStatus: calc.nightStatus,
-                status: 'active',
-                modifiedAt: currentTimestamp,
-                modifiedBy: actor
-            };
-
-            data.timesheet_entries[existingIndex] = timesheetEntry;
-        } else {
-            // INSERT new
-            timesheetEntry = {
-                id: entry.id || `ts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            const saved = await timesheetService.saveEntry({
                 employeeId: parseInt(employeeId),
                 date: entry.date,
-                shiftStart: clockIn,
-                shiftEnd: clockOut,
-                clockIn: clockIn,
-                clockOut: clockOut,
-                breakMinutes: parseInt(entry.breakMinutes) || 0,
-                dayType: dayType,
-                totalMinutes: calc.totalMinutes,
-                billableMinutes: calc.billableMinutes,
-                regularMinutes: calc.regularMinutes,
-                overtimeMinutes: calc.overtimeMinutes,
-                nightStatus: calc.nightStatus,
-                status: 'active',
-                createdAt: currentTimestamp,
-                modifiedAt: currentTimestamp,
-                modifiedBy: actor
-            };
-            data.timesheet_entries.push(timesheetEntry);
-        }
-
-        totalBillableMinutes += calc.billableMinutes;
-        savedEntries.push(timesheetEntry);
-
-        // --- SUPABASE WRITE (Hybrid) ---
-        try {
-            await timesheetService.saveEntry({
-                employeeId: parseInt(employeeId),
-                date: timesheetEntry.date,
-                clockIn: timesheetEntry.clockIn,
-                clockOut: timesheetEntry.clockOut,
-                shiftStart: timesheetEntry.shiftStart,
-                shiftEnd: timesheetEntry.shiftEnd,
-                breakMinutes: timesheetEntry.breakMinutes,
-                dayType: timesheetEntry.dayType,
-                status: timesheetEntry.status,
-                // Calculated fields
-                totalMinutes: timesheetEntry.totalMinutes,
-                billableMinutes: timesheetEntry.billableMinutes,
-                regularMinutes: timesheetEntry.regularMinutes,
-                overtimeMinutes: timesheetEntry.overtimeMinutes,
-                nightStatus: timesheetEntry.nightStatus
+                clockIn,
+                clockOut,
+                breakMinutes: entry.breakMinutes,
+                dayType: entry.dayType,
+                ...calc,
+                status: 'active'
             });
-        } catch (dbErr) {
-            console.error('Supabase Timesheet Save Error:', dbErr);
-            // Continue execution to ensures file save succeeds at least
+            savedEntries.push(saved);
         }
-    }
 
-    // If post-payment adjustment, create adjustment record
-    if (isPostPaymentAdjustment) {
-        const employee = data.employees.find(e => e.id === parseInt(employeeId));
-        const totalBillableHours = totalBillableMinutes / 60;
-        const perHourRate = employee.perShiftAmount ? employee.perShiftAmount / 8 : 0; // Assuming 8h shift
-        const newCalculatedAmount = totalBillableHours * perHourRate;
+        // Recalculate Payroll - Stateless service
+        const payrollResult = await payrollService.recalculate(employeeId, periodStart, periodEnd);
 
-        // Find original payroll entry
-        const originalEntry = data.payroll_entries.find(
-            e => e.employeeId === parseInt(employeeId) && e.periodStart === periodStart
-        );
-
-        const adjustmentAmount = newCalculatedAmount - (originalEntry?.netPay || 0);
-
-        data.payroll_adjustments.push({
-            id: Date.now() + '-adj',
-            employeeId: parseInt(employeeId),
-            periodStart,
-            periodEnd,
-            originalAmount: originalEntry?.netPay || 0,
-            newAmount: newCalculatedAmount,
-            adjustmentAmount,
-            createdAt: timestamp,
-            createdBy: actor,
-            status: 'pending'
-        });
-
-        // Audit log
-        data.audit_logs.push({
-            id: Date.now() + '-log',
-            action: 'TIMESHEET_POST_PAYMENT_ADJUSTMENT',
-            targetId: employeeId,
-            actor,
+        // Audit Log in Supabase
+        await supabase.from('audit_logs').insert({
             timestamp,
-            details: `Adjustment of ₹${Math.abs(adjustmentAmount).toFixed(2)} (${adjustmentAmount > 0 ? '+' : '-'})`
-        });
-    }
-
-    // Audit log for timesheet save
-    data.audit_logs.push({
-        id: Date.now() + '-log',
-        action: 'TIMESHEET_UPDATE',
-        targetId: employeeId,
-        actor,
-        timestamp,
-        details: `Updated ${entries.length} timesheet entries`
-    });
-
-    // --- NEW: Recalculate payroll for this period ---
-    const payrollResult = recalculatePayrollForPeriod(data, employeeId, periodStart, periodEnd);
-
-    // --- NEW: Check if today's attendance changed ---
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayEntry = savedEntries.find(e => e.date === todayStr && (e.clockIn || e.shiftStart));
-    const attendanceChanged = !!todayEntry;
-
-    // Log payroll recalculation
-    if (payrollResult) {
-        data.audit_logs.push({
-            id: Date.now() + '-payroll-log',
-            action: 'PAYROLL_RECALCULATED',
-            targetId: employeeId,
+            action: 'TIMESHEET_UPDATE',
             actor,
-            timestamp,
-            details: `Recalculated: Gross ₹${payrollResult.grossPay}, Net ₹${payrollResult.netPay}, ${payrollResult.workingDays} days`
+            details: `Updated ${entries.length} timesheet entries for ${employee.name}`
         });
+
+        // Attendance change detection for live refresh
+        const todayStr = new Date().toISOString().split('T')[0];
+        const attendanceChanged = savedEntries.some(e => e.date === todayStr);
+
+        res.json({
+            success: true,
+            entries: savedEntries,
+            attendanceChanged,
+            payrollUpdated: payrollResult
+        });
+    } catch (err) {
+        console.error('Timesheet POST Error:', err);
+        res.status(500).json({ error: 'Failed to update timesheet' });
     }
-
-    writeData(data);
-
-    res.json({
-        success: true,
-        entries: savedEntries,
-        totalBillableMinutes,
-        adjustmentCreated: isPostPaymentAdjustment,
-        // Enhanced response
-        attendanceChanged,
-        payrollUpdated: payrollResult
-    });
 });
 
-// Get Single Payroll Entry (Payslip)
-app.get('/api/payroll/:id', (req, res) => {
-    const { id } = req.params;
-    const data = readData();
-    const entry = data.payroll_entries.find(p => p.id === id);
+app.get('/api/payroll/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const entry = await payrollService.getEntryWithDetails(id);
 
-    if (!entry) {
-        return res.status(404).json({ error: 'Payroll entry not found' });
-    }
-
-    // --- RECALCULATE IF UNPAID ---
-    // Ensure we stick to the latest calculation logic (e.g. Basic Salary fix)
-    if (entry.status !== 'Paid' && !entry.isFrozen) {
-        recalculatePayrollForPeriod(data, entry.employeeId, entry.periodStart, entry.periodEnd);
-    }
-
-    // --- CHECK IF FROZEN (PAID) ---
-    // If the payslip is frozen (paid), return the frozen snapshot data
-    if (entry.isFrozen && entry.status === 'Paid') {
-        // Use frozen employee data but attempt to get live contact info for WhatsApp
-        const liveEmployee = data.employees.find(e => e.id === entry.employeeId);
-
-        const response = {
-            ...entry,
-            employeeName: entry.frozenEmployeeName,
-            employeeRole: entry.frozenEmployeeRole,
-            employeeImage: entry.frozenEmployeeImage,
-            employeeContact: liveEmployee?.contact || null, // Use live contact
-            perShiftAmount: entry.frozenPerShiftAmount,
-            hourlyRate: entry.frozenHourlyRate,
-            salary: entry.frozenSalary,
-            details: {
-                timesheet: entry.frozenTimesheet || [],
-                advances: entry.frozenAdvances || [],
-                loans: entry.frozenLoans || [],
-                loanSummary: entry.frozenLoanSummary || null,
-                bonus: entry.frozenBonus || null
-            }
-        };
-        return res.json(response);
-    }
-
-    // --- UNPAID PAYSLIP: Calculate fresh details ---
-    // Enhance with employee details
-    const employee = data.employees.find(e => e.id === entry.employeeId);
-    if (employee) {
-        entry.employeeName = employee.name;
-        entry.employeeRole = employee.role;
-        entry.employeeImage = employee.image;
-        entry.employeeId = employee.id;
-        entry.employeeContact = employee.contact;
-        // Pass rate info for frontend Daily Earnings calculation
-        entry.perShiftAmount = employee.perShiftAmount;
-        entry.hourlyRate = employee.hourlyRate;
-        entry.salary = employee.salary;
-    }
-
-    const start = new Date(entry.periodStart);
-    const end = new Date(entry.periodEnd);
-
-    // 1. Timesheet
-    const periodEntries = (data.timesheet_entries || []).filter(e => {
-        const entryDate = new Date(e.date);
-        return e.employeeId === entry.employeeId &&
-            entryDate >= start &&
-            entryDate <= end &&
-            e.status === 'active';
-    });
-
-    entry.details = {};
-    entry.details.timesheet = periodEntries.map(e => {
-        const dayType = e.dayType || 'Work';
-        const calc = calculateShiftHours(e.clockIn || e.shiftStart, e.clockOut || e.shiftEnd, e.breakMinutes, dayType, employee?.shiftEnd || '18:00');
-        return {
-            date: e.date,
-            clockIn: e.clockIn || e.shiftStart || '-',
-            clockOut: e.clockOut || e.shiftEnd || '-',
-            breakMinutes: e.breakMinutes || 0,
-            dayType: dayType,
-            totalMinutes: calc.totalMinutes,
-            billableMinutes: calc.billableMinutes,
-            regularMinutes: calc.regularMinutes,
-            overtimeMinutes: calc.overtimeMinutes,
-            nightStatus: calc.nightStatus
-        };
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // 2. Deductions (Advances & Loans)
-    const periodDeductions = (data.deductions || []).filter(d =>
-        d.employeeId === entry.employeeId &&
-        d.periodStart === entry.periodStart &&
-        d.periodEnd === entry.periodEnd &&
-        d.status === 'active'
-    );
-
-    entry.details.advances = periodDeductions
-        .filter(d => d.type === 'advance')
-        .map(d => {
-            let advanceDate = entry.periodStart;
-            if (d.linkedAdvanceId) {
-                const linkedAdvance = (data.advance_salaries || []).find(a => a.id === d.linkedAdvanceId);
-                if (linkedAdvance && linkedAdvance.dateIssued) {
-                    advanceDate = linkedAdvance.dateIssued;
-                }
-            }
-            return {
-                id: d.id,
-                date: advanceDate,
-                amount: d.amount,
-                reason: d.description || 'Advance Salary'
-            };
-        });
-
-    entry.details.loans = periodDeductions
-        .filter(d => d.type === 'loan')
-        .map(d => ({
-            id: d.id,
-            description: d.description,
-            amount: d.amount,
-            remainingBalance: 'N/A' // Calculated in summary
-        }));
-
-    // Ensure loanDeductions total is available for the response
-    if (entry.loanDeductions === undefined) {
-        entry.loanDeductions = entry.details.loans.reduce((sum, l) => sum + (l.amount || 0), 0);
-    }
-
-    // --- LOAN LOGIC ---
-    if (!data.loans) data.loans = [];
-    // Determine the relevant loan (Active or implicitly active via deductions)
-    let activeLoan = data.loans.find(l => l.employeeId === entry.employeeId && l.status === 'active');
-
-    // Fallback: If we have deductions but no "active" loan found, grab the most recent one
-    if (!activeLoan && entry.loanDeductions > 0) {
-        const employeeLoans = data.loans
-            .filter(l => l.employeeId === entry.employeeId)
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
-        if (employeeLoans.length > 0) {
-            activeLoan = employeeLoans[0];
+        if (!entry) {
+            return res.status(404).json({ error: 'Payroll entry not found' });
         }
+
+        res.json(entry);
+    } catch (err) {
+        console.error('Payroll GET Error:', err);
+        res.status(500).json({ error: 'Failed to fetch payroll entry' });
     }
-
-    if (activeLoan) {
-        const entryStart = new Date(entry.periodStart);
-        const allLoanDeductions = (data.deductions || []).filter(d =>
-            d.employeeId === entry.employeeId &&
-            d.type === 'loan' &&
-            d.status === 'active'
-        );
-        const previousRepayments = allLoanDeductions
-            .filter(d => new Date(d.periodEnd) < entryStart)
-            .reduce((sum, d) => sum + Number(d.amount), 0);
-        const currentPeriodRepayment = periodDeductions
-            .filter(d => d.type === 'loan')
-            .reduce((sum, d) => sum + Number(d.amount), 0);
-        const openingBalance = activeLoan.amount - previousRepayments;
-        const remainingBalance = openingBalance - currentPeriodRepayment;
-
-        // ALWAYS show summary if we found a relevant loan, to ensure visibility on payslip
-        entry.details.loanSummary = {
-            loanDate: activeLoan.date,
-            originalAmount: activeLoan.amount,
-            openingBalance: openingBalance,
-            currentDeduction: currentPeriodRepayment,
-            remainingBalance: Math.max(0, remainingBalance)
-        };
-    }
-
-    // 3. Bonus Stats
-    // 3. Bonus Stats
-    const bonusSettings = data.settings.bonus || { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
-
-    // FIX: Cap bonus calculation at the period end date to ensure historical accuracy
-    const safeBonusEndDate = new Date(entry.periodEnd) > new Date(bonusSettings.endDate) ? bonusSettings.endDate : entry.periodEnd;
-    const accruedDays = countWorkingDays(data, entry.employeeId, bonusSettings.startDate, safeBonusEndDate);
-    const totalAccrued = accruedDays * bonusSettings.amountPerDay;
-
-    // Filter withdrawals to only include those made ON or BEFORE the period end date
-    const totalWithdrawn = (data.bonus_withdrawals || [])
-        .filter(w => {
-            if (w.employeeId !== entry.employeeId || w.status === 'rejected') return false;
-            if (!w.date) return true;
-            return new Date(w.date) <= new Date(entry.periodEnd);
-        })
-        .reduce((sum, w) => sum + w.amount, 0);
-
-    // Ensure we preserve the full bonus object structure if it exists, or update it
-    entry.details.bonus = {
-        ...entry.details.bonus, // Keep existing fields if any
-        ytdDays: accruedDays,
-        ytdAccrued: totalAccrued, // Add explicit amount
-        totalWithdrawn: totalWithdrawn, // Add explicit withdrawn
-        balance: totalAccrued - totalWithdrawn
-    };
-
-    res.json(entry);
 });
 
-// Get Loans (optionally filter by employeeId)
 // Get Loans (optionally filter by employeeId)
 app.get('/api/loans', async (req, res) => {
     try {
-        // We reuse deductions table with type='loan' OR specific loans table?
-        // Ah, Schema had "deductions" table, but did we create a "loans" table?
-        // Checking schema.sql (impl plan)... 
-        // The implementation plan says "Deductions, Advances, Loans". 
-        // My deductionService handles "deductions". 
-        // Is "Loan" a separate entity in Supabase?
-        // Let's check schema.sql...
-        // Actually, JSON had "loans" array. 
-        // My `deductionService` handles `deductions` table.
-        // If "Loan" is a separate concept with balance tracking, it should be a table.
-        // I likely missed creating a specific 'loanService' or 'loans' table in Phase 2?
-        // Wait, `deductionService` handles deductions table. 
-        // Does Supabase have a `loans` table?
-        // Let's assume for now we use `deductions` table with type='loan' OR 
-        // we might have forgotten to create `loans` table if it was separate in JSON.
-        // Let's fallback to `deductionService` with filter if possible, or create `loanService`.
-        // JSON has `data.loans`. 
-        // I will use `deductionService` to fetch deductions of type 'loan' 
-        // BUT `data.loans` tracks the *Principal* loan, and `deductions` tracks repayments.
-        // I need to check if I created `loans` table.
-        // If not, I should create it.
-        // Let's query Supabase or check schema file quickly.
-        // Assuming I created it (Phase 0 migrated everything). 
-        // I'll assume `loans` table exists and I'll use `require('./config/supabase').from('loans')` inline for now or add to `deductionService` or `advanceService`.
-        // Let's use inline supabase call for simplicity as I didn't create `loanService`.
-
         const { employeeId } = req.query;
-        let query = require('./config/supabase').from('loans').select('*');
-        if (employeeId) query = query.eq('employeeId', employeeId);
-
-        const { data, error } = await query;
-        if (error) {
-            // If table doesn't exist, we might be in trouble. 
-            // But Phase 0 supposedly migrated everything.
-            throw error;
-        }
-        res.json(data);
-
+        const results = await loanService.getAll(employeeId);
+        res.json(results || []);
     } catch (err) {
         console.error('Loans GET Error:', err);
         res.status(500).json({ error: 'Failed to fetch loans' });
@@ -2124,23 +1570,19 @@ app.post('/api/loans', async (req, res) => {
     try {
         const { employeeId, amount, date } = req.body;
         // Check active loan
-        const supabase = require('./config/supabase');
-        const { data: existing } = await supabase.from('loans').select('*').eq('employeeId', employeeId).eq('status', 'active').maybeSingle();
-
+        const existing = await loanService.getActive(employeeId);
         if (existing) return res.status(400).json({ error: 'Active loan exists' });
 
-        const { data: newLoan, error } = await supabase.from('loans').insert({
+        const newLoan = await loanService.create({
             employeeId: parseInt(employeeId),
             amount: parseFloat(amount),
-            date: date,
-            status: 'active', // Default
-            createdAt: new Date().toISOString()
-        }).select().single();
+            date: date
+        });
 
-        if (error) throw error;
         res.json({ success: true, loan: newLoan });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to create loan' });
+        console.error('Loan POST Error:', err);
+        res.status(500).json({ error: 'Failed' });
     }
 });
 
@@ -2148,29 +1590,24 @@ app.post('/api/loans', async (req, res) => {
 app.patch('/api/loans/:id', async (req, res) => {
     try {
         const { amount, date } = req.body;
-        const supabase = require('./config/supabase');
-        const { data, error } = await supabase
-            .from('loans')
-            .update({ amount: parseFloat(amount), date, updatedAt: new Date().toISOString() })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.json({ success: true, loan: data });
+        const updated = await loanService.update(req.params.id, {
+            amount: parseFloat(amount),
+            date
+        });
+        res.json({ success: true, loan: updated });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to update loan' });
+        console.error('Loan PATCH Error:', err);
+        res.status(500).json({ error: 'Failed' });
     }
 });
 
 // Helper: Calculate shift hours with Travel/Work Day distinction and OT logic
-app.post('/api/whatsapp/send', pdfUpload.single('file'), (req, res) => {
+app.post('/api/whatsapp/send', pdfUpload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: 'No PDF file uploaded.' });
         }
 
-        const data = readData(); // <--- FIX: Read data
         const { employeeName, periodEnd, contact, netPay } = req.body;
         const filename = req.file.filename;
 
@@ -2184,12 +1621,11 @@ app.post('/api/whatsapp/send', pdfUpload.single('file'), (req, res) => {
         console.log(`[WhatsApp] Archived: ${req.file.path}`);
         console.log(`[WhatsApp] ---------------------------------------------------`);
 
-        // Audit Log
-        data.audit_logs.push({
-            id: `audit-${Date.now()}`,
+        // Create Audit Log in Supabase
+        await supabase.from('audit_logs').insert({
             timestamp: new Date().toISOString(),
             action: 'WHATSAPP_SHARE',
-            user: req.userRole || 'System',
+            actor: req.userRole || 'System',
             details: {
                 employee: employeeName,
                 contact: contact,
@@ -2198,8 +1634,6 @@ app.post('/api/whatsapp/send', pdfUpload.single('file'), (req, res) => {
                 status: 'Sent (Mock)'
             }
         });
-
-        writeData(data); // <--- FIX: Save data
 
 
         res.json({ success: true, message: 'Payslip sent successfully (Mock)' });

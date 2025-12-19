@@ -3,7 +3,10 @@ const supabase = require('../config/supabase');
 const employeeService = require('./employeeService');
 const timesheetService = require('./timesheetService');
 const deductionService = require('./deductionService');
-const { calculateShiftHours } = require('../utils/timeUtils');
+const loanService = require('./loanService');
+const bonusService = require('./bonusService');
+const settingsService = require('./settingsService');
+const { calculateShiftHours, countWorkingDays } = require('../utils/timeUtils');
 
 const payrollService = {
     // Get single payroll entry
@@ -432,6 +435,116 @@ const payrollService = {
 
         console.log(`✅ Bulk Recalculate Complete. Mode: ${idsToCalculate.length} calculated, ${results.length - idsToCalculate.length} cached. Took ${Date.now() - startTime}ms`);
         return results;
+    },
+
+    // Get Rich Entry with full details for Payslip
+    async getEntryWithDetails(id) {
+        console.log(`📄 Fetching Rich Details for Entry: ${id}`);
+
+        // 1. Get Base Entry
+        const entry = await this.getEntry(id);
+        if (!entry) return null;
+
+        // 2. If Unpaid, Recalculate to ensure fresh data
+        let currentEntry = entry;
+        if (entry.status !== 'Paid') {
+            currentEntry = await this.recalculate(entry.employeeId, entry.periodStart, entry.periodEnd);
+        }
+
+        // 3. Aggregate Details for the Frontend
+        const [employee, timesheets, deductions, allWithdrawals, bonusSettings, activeLoan] = await Promise.all([
+            employeeService.getById(currentEntry.employeeId),
+            timesheetService.getForEmployee(currentEntry.employeeId, currentEntry.periodStart, currentEntry.periodEnd),
+            deductionService.getForEmployee(currentEntry.employeeId, currentEntry.periodStart, currentEntry.periodEnd),
+            bonusService.getWithdrawals(currentEntry.employeeId),
+            settingsService.get('bonus'),
+            loanService.getActive(currentEntry.employeeId)
+        ]);
+
+        const settings = bonusSettings || { startDate: '2025-04-01', endDate: '2026-03-31', amountPerDay: 35 };
+
+        // Process Timesheets enrichment
+        const enrichedTimesheets = timesheets.map(e => {
+            const clockIn = e.clockIn || e.shiftStart;
+            const clockOut = e.clockOut || e.shiftEnd;
+            const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes, e.dayType, employee?.shiftEnd || '18:00');
+            return {
+                ...e,
+                ...calc,
+                clockIn: clockIn || '-',
+                clockOut: clockOut || '-'
+            };
+        }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Loan Summary Logic
+        let loanSummary = null;
+        if (activeLoan) {
+            // Calculate previous repayments
+            const { data: allLoanDeductions } = await supabase
+                .from('deductions')
+                .select('amount, periodEnd')
+                .eq('employeeId', currentEntry.employeeId)
+                .eq('type', 'loan')
+                .eq('status', 'active');
+
+            const previousRepayments = (allLoanDeductions || [])
+                .filter(d => new Date(d.periodEnd) < new Date(currentEntry.periodStart))
+                .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+            const currentPeriodRepayment = deductions
+                .filter(d => d.type === 'loan')
+                .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+            const openingBalance = activeLoan.amount - previousRepayments;
+            loanSummary = {
+                loanDate: activeLoan.date,
+                originalAmount: activeLoan.amount,
+                openingBalance: openingBalance,
+                currentDeduction: currentPeriodRepayment,
+                remainingBalance: Math.max(0, openingBalance - currentPeriodRepayment)
+            };
+        }
+
+        // Bonus Stats
+        const historicalTimesheets = await timesheetService.getForEmployee(currentEntry.employeeId, settings.startDate, currentEntry.periodEnd);
+        const ytdDays = countWorkingDays(historicalTimesheets);
+        const ytdAccrued = ytdDays * settings.amountPerDay;
+        const totalWithdrawn = allWithdrawals
+            .filter(w => w.status !== 'rejected' && new Date(w.date) <= new Date(currentEntry.periodEnd))
+            .reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+
+        const bonusData = {
+            ytdDays,
+            ytdAccrued,
+            totalWithdrawn,
+            balance: ytdAccrued - totalWithdrawn
+        };
+
+        // Construct final rich payload
+        return {
+            ...currentEntry,
+            employeeName: employee?.name,
+            employeeRole: employee?.role,
+            employeeImage: employee?.image,
+            employeeContact: employee?.contact,
+            perShiftAmount: employee?.perShiftAmount,
+            salary: employee?.salary,
+            details: {
+                timesheet: enrichedTimesheets,
+                advances: deductions.filter(d => d.type === 'advance').map(d => ({
+                    id: d.id,
+                    amount: d.amount,
+                    reason: d.description || 'Advance Salary'
+                })),
+                loans: deductions.filter(d => d.type === 'loan').map(d => ({
+                    id: d.id,
+                    amount: d.amount,
+                    description: d.description
+                })),
+                loanSummary,
+                bonus: bonusData
+            }
+        };
     }
 };
 
