@@ -14,7 +14,7 @@ import '../index.css';
 
 const Report = () => {
     const { addToast } = useToast();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:3000/api');
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [dateRange, setDateRange] = useState({

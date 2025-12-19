@@ -10,7 +10,7 @@ const SystemDiagnostics = () => {
     const runDiagnostics = async () => {
         setLoading(true);
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:3000');
             const response = await fetch(`${API_URL}/api/diagnostics`);
             const data = await response.json();
             setResults(data);
@@ -93,8 +93,8 @@ const SystemDiagnostics = () => {
 
                     {results.checks?.dataHealth && (
                         <div className={`md:col-span-2 p-6 rounded-xl border shadow-sm flex items-start gap-4 ${results.checks.dataHealth.status === 'warning'
-                                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                                : 'bg-blue-50 border-blue-200 text-blue-900'
+                            ? 'bg-amber-50 border-amber-200 text-amber-900'
+                            : 'bg-blue-50 border-blue-200 text-blue-900'
                             }`}>
                             <div className={`p-3 rounded-lg ${results.checks.dataHealth.status === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
                                 }`}>
