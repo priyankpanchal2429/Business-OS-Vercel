@@ -120,10 +120,10 @@ const Payroll = () => {
         }
     };
 
-    const fetchPeriodData = async (silent = false) => {
+    const fetchPeriodData = async (silent = false, forceRefresh = false) => {
         if (!silent) setLoading(true);
         try {
-            const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&t=${Date.now()}`);
+            const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&refresh=${forceRefresh}&t=${Date.now()}`);
             const data = await res.json();
             console.log('[Payroll] Period data received:', data);
             console.log('[Payroll] First item netPay:', data[0]?.netPay);
@@ -448,6 +448,29 @@ const Payroll = () => {
                             </div>
                         )}
                     </div>
+
+                    <button
+                        onClick={() => fetchPeriodData(false, true)}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'var(--color-success)';
+                            e.currentTarget.style.borderColor = 'var(--color-success)';
+                            e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'white';
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        }}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
+                            background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500,
+                            height: '68px',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <Clock size={18} /> Refresh Calculations
+                    </button>
 
                     <button
                         onClick={() => setIsBonusSettingsOpen(true)}
