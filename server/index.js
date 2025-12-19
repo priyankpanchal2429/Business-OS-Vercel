@@ -43,7 +43,17 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        // Check if origin is allowed
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (allowed.includes('*')) {
+                // Handle wildcard: replace * with regex wildcard and test
+                const regex = new RegExp('^' + allowed.replace(/\./g, '\\.').replace('*', '.*') + '$');
+                return regex.test(origin);
+            }
+            return allowed === origin;
+        });
+
+        if (isAllowed) {
             callback(null, true);
         } else {
             console.log(`⚠️  Blocked CORS request from: ${origin}`);
@@ -167,7 +177,15 @@ const readData = () => {
 };
 
 const writeData = (data) => {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    // Atomic write: write to temp file then rename
+    // This prevents file corruption if the server crashes during write
+    const tempFile = `${DATA_FILE}.tmp`;
+    try {
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+        fs.renameSync(tempFile, DATA_FILE);
+    } catch (err) {
+        console.error('Failed to write database:', err);
+    }
 };
 
 // --- ROUTES ---
