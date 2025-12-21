@@ -14,9 +14,9 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
             >
                 {/* Image */}
                 <div className="w-[90px] h-[90px] bg-white rounded-xl border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
-                    {item.imageUrl ? (
+                    {(item.imageUrl || item.image) ? (
                         <img
-                            src={item.imageUrl}
+                            src={item.imageUrl || item.image}
                             alt={item.name}
                             className="w-full h-full object-contain p-2"
                         />
@@ -111,13 +111,13 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
     return (
         <>
             {/* Image Zoom Modal */}
-            {showImageModal && item.imageUrl && (
+            {showImageModal && (item.imageUrl || item.image) && (
                 <div
                     onClick={() => setShowImageModal(false)}
                     className="fixed inset-0 bg-black/85 z-[9999] flex items-center justify-center p-10 cursor-zoom-out backdrop-blur-sm"
                 >
                     <img
-                        src={item.imageUrl}
+                        src={item.imageUrl || item.image}
                         alt={item.name}
                         className="max-w-[90%] max-h-[90%] object-contain rounded-xl shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
@@ -127,13 +127,13 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
 
             {/* Main Card */}
             <div
-                className="group w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-500 hover:-translate-y-1 relative flex flex-col h-full"
+                className="group w-full bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 relative flex flex-col h-full"
                 onMouseLeave={() => setShowActions(false)}
             >
-                {/* Image Container - Adjusted height for 6-up grid */}
+                {/* Image Container - Taller Height */}
                 <div
-                    className="relative w-full h-40 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
-                    onClick={() => item.imageUrl && setShowImageModal(true)}
+                    className="relative w-full h-64 overflow-hidden cursor-zoom-in bg-gray-50 border-b border-gray-50"
+                    onClick={() => (item.imageUrl || item.image) && setShowImageModal(true)}
                 >
                     {/* Category Badge - Top Left Floating */}
                     {item.category && (
@@ -144,11 +144,11 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
 
                     {/* Image Scale Effect */}
                     <div className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-[1.06]">
-                        {item.imageUrl ? (
+                        {(item.imageUrl || item.image) ? (
                             <img
-                                src={item.imageUrl}
+                                src={item.imageUrl || item.image}
                                 alt={item.name}
-                                className="w-full h-full object-contain p-2"
+                                className="w-full h-full object-cover"
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-300">
@@ -159,10 +159,10 @@ const ProductCard = ({ item, onEdit, onDelete, viewMode = 'grid' }) => {
                 </div>
 
                 {/* Content Section */}
-                <div className="px-4 pb-4 pt-2 flex flex-col flex-1">
+                <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
                     {/* Header & Description Grouped Tightly */}
                     <div className="flex flex-col gap-0.5 mb-1">
-                        <h2 className="text-base font-bold text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">
+                        <h2 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">
                             {item.name}
                         </h2>
                         {item.description && (

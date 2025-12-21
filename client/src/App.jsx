@@ -9,34 +9,29 @@ import Payroll from './pages/Payroll';
 import Payslip from './pages/Payslip';
 import ResignedEmployeeHistory from './pages/ResignedEmployeeHistory';
 import Report from './pages/Report';
-import TimesheetPage from './pages/TimesheetPage';
+import SystemDiagnostics from './pages/SystemDiagnostics';
 
 import { ToastProvider } from './context/ToastContext';
-import { DebugProvider } from './context/DebugContext';
-import DebugPopup from './components/DebugPopup';
 
 function App() {
     return (
         <ToastProvider>
-            <DebugProvider>
-                <Router>
-                    <Layout>
-                        <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/inventory" element={<Inventory />} />
-                            <Route path="/vendors" element={<Vendors />} />
-                            <Route path="/employees" element={<Employees />} />
-                            <Route path="/payroll" element={<Payroll />} />
-                            <Route path="/timesheet/:employeeId/:start/:end" element={<TimesheetPage />} />
-                            <Route path="/payslip/:id" element={<Payslip />} />
-                            <Route path="/report" element={<Report />} />
-                            <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                    <DebugPopup />
-                </Router>
-            </DebugProvider>
+            <Router>
+                <Layout>
+                    <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/inventory" element={<Inventory />} />
+                        <Route path="/vendors" element={<Vendors />} />
+                        <Route path="/employees" element={<Employees />} />
+                        <Route path="/payroll" element={<Payroll />} />
+                        <Route path="/payslip/:id" element={<Payslip />} />
+                        <Route path="/report" element={<Report />} />
+                        <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
+                        <Route path="/system-health" element={<SystemDiagnostics />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            </Router>
         </ToastProvider>
     );
 }

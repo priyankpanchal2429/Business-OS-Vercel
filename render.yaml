@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: business-os-server
+    runtime: docker
+    region: singapore
+    plan: free
+    dockerContext: ./server
+    dockerfilePath: ./server/Dockerfile
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      # Instructions:
+      # Add your SUPABASE_URL and SUPABASE_KEY in the Render Dashboard Environment Variables

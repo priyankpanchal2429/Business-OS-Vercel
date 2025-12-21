@@ -15,6 +15,7 @@ package-lock.json
 
 # Development Data (protect production data)
 server/data/data.development.json
+server/data/data.production.json
 
 # Build outputs
 dist/

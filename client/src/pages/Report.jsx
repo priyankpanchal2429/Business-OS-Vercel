@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getBaseUrl } from '../config/api';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, AreaChart, Area
@@ -15,7 +14,7 @@ import '../index.css';
 
 const Report = () => {
     const { addToast } = useToast();
-    const API_URL = getBaseUrl();
+    const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:3000/api');
     const [employees, setEmployees] = useState([]);
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [dateRange, setDateRange] = useState({

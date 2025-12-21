@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getBaseUrl } from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User, Settings } from 'lucide-react';
 import Card from '../components/Card';
-
+import TimesheetModal from '../components/TimesheetModal';
 import DeductionsModal from '../components/DeductionsModal';
 import AdvanceSalaryModal from '../components/AdvanceSalaryModal';
 import BonusSettingsModal from '../components/BonusSettingsModal';
@@ -11,14 +10,13 @@ import { ToastContainer } from '../components/Toast.jsx';
 
 const Payroll = () => {
     const navigate = useNavigate();
-    const API_URL = getBaseUrl();
     const [periodData, setPeriodData] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('All'); // All, Paid, Unpaid
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
-
+    const [timesheetModal, setTimesheetModal] = useState({ isOpen: false, employee: null, item: null });
     const [deductionsModal, setDeductionsModal] = useState({ isOpen: false, employee: null, item: null });
     const [advanceModal, setAdvanceModal] = useState({ isOpen: false, employee: null });
     const [isBonusSettingsOpen, setIsBonusSettingsOpen] = useState(false);
@@ -69,7 +67,7 @@ const Payroll = () => {
         // Fetch locked period first
         const checkLockedPeriod = async () => {
             try {
-                const res = await fetch(`${API_URL}/payroll/locked-period`);
+                const res = await fetch('/api/payroll/locked-period');
                 const data = await res.json();
 
                 if (data.locked && data.period) {
@@ -114,7 +112,7 @@ const Payroll = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch(`${API_URL}/employees`);
+            const res = await fetch('/api/employees');
             const data = await res.json();
             setEmployees(data);
         } catch (err) {
@@ -122,10 +120,10 @@ const Payroll = () => {
         }
     };
 
-    const fetchPeriodData = async (silent = false) => {
+    const fetchPeriodData = async (silent = false, forceRefresh = false) => {
         if (!silent) setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&t=${Date.now()}`);
+            const res = await fetch(`/api/payroll/period?start=${currentPeriod.start}&end=${currentPeriod.end}&refresh=${forceRefresh}&t=${Date.now()}`);
             const data = await res.json();
             console.log('[Payroll] Period data received:', data);
             console.log('[Payroll] First item netPay:', data[0]?.netPay);
@@ -140,7 +138,7 @@ const Payroll = () => {
 
     const handleMarkAsPaid = async (items) => {
         try {
-            const res = await fetch(`${API_URL}/payroll/mark-paid`, {
+            const res = await fetch('/api/payroll/mark-paid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -161,7 +159,7 @@ const Payroll = () => {
 
     const handleMarkAsUnpaid = async (items) => {
         try {
-            const res = await fetch(`${API_URL}/payroll/mark-unpaid`, {
+            const res = await fetch('/api/payroll/mark-unpaid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -210,7 +208,7 @@ const Payroll = () => {
         if (!confirmLock) return;
 
         try {
-            const res = await fetch(`${API_URL}/payroll/lock-period`, {
+            const res = await fetch('/api/payroll/lock-period', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -248,7 +246,7 @@ const Payroll = () => {
         if (!confirmUnlock) return;
 
         try {
-            const res = await fetch(`${API_URL}/payroll/unlock-period`, {
+            const res = await fetch('/api/payroll/unlock-period', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -305,13 +303,44 @@ const Payroll = () => {
     };
 
     const openTimesheet = (item) => {
-        const emp = employees.find(e => String(e.id) === String(item.employeeId));
-        if (!emp) {
-            console.error('Core data mismatch: Employee not found', item);
-            addToast('Cannot open timesheet: Employee not found', 'error');
-            return;
+        const emp = employees.find(e => e.id === item.employeeId);
+        setTimesheetModal({ isOpen: true, employee: emp, item });
+    };
+
+    const handleTimesheetSave = (result) => {
+        // Show enhanced toast
+        let message = 'Timesheet saved';
+        if (result.attendanceChanged) {
+            message += ' — attendance updated';
         }
-        navigate(`/timesheet/${emp.id}/${currentPeriod.start}/${currentPeriod.end}`);
+        if (result.payrollUpdated) {
+            message += result.attendanceChanged ? ' & payroll recalculated' : ' — payroll recalculated';
+
+            // Check if adjustment was made on paid period
+            if (result.payrollUpdated.isAdjusted) {
+                addToast(`${message}. Adjustment: ₹${Math.abs(result.payrollUpdated.adjustmentAmount).toLocaleString('en-IN')} (${result.payrollUpdated.adjustmentAmount > 0 ? '+' : '-'})`, 'success');
+            } else {
+                addToast(message + '.', 'success');
+            }
+
+            // Update the specific row in periodData with new values
+            setPeriodData(prevData => prevData.map(item => {
+                if (item.employeeId === result.payrollUpdated.employeeId) {
+                    return {
+                        ...item,
+                        grossPay: result.payrollUpdated.grossPay,
+                        deductions: result.payrollUpdated.deductions,
+                        advanceDeductions: result.payrollUpdated.advanceDeductions,
+                        netPay: result.payrollUpdated.netPay,
+                        isAdjusted: result.payrollUpdated.isAdjusted
+                    };
+                }
+                return item;
+            }));
+        } else {
+            addToast(message + '.', 'success');
+            fetchPeriodData(); // Fallback to full refresh
+        }
     };
 
     const openDeductions = (item) => {
@@ -419,6 +448,29 @@ const Payroll = () => {
                             </div>
                         )}
                     </div>
+
+                    <button
+                        onClick={() => fetchPeriodData(false, true)}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'var(--color-success)';
+                            e.currentTarget.style.borderColor = 'var(--color-success)';
+                            e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'white';
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        }}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
+                            background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500,
+                            height: '68px',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <Clock size={18} /> Refresh Calculations
+                    </button>
 
                     <button
                         onClick={() => setIsBonusSettingsOpen(true)}
@@ -562,12 +614,12 @@ const Payroll = () => {
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 color: 'var(--color-text-secondary)',
-                                                backgroundImage: employees.find(e => String(e.id) === String(item.employeeId))?.image ? `url(${employees.find(e => String(e.id) === String(item.employeeId)).image})` : 'none',
+                                                backgroundImage: employees.find(e => e.id === item.employeeId)?.image ? `url(${employees.find(e => e.id === item.employeeId).image})` : 'none',
                                                 backgroundSize: 'cover',
                                                 backgroundPosition: 'center',
                                                 overflow: 'hidden'
                                             }}>
-                                                {!employees.find(e => String(e.id) === String(item.employeeId))?.image && (
+                                                {!employees.find(e => e.id === item.employeeId)?.image && (
                                                     <span style={{ fontWeight: 600, fontSize: '1.2rem' }}>
                                                         {getInitials(item.employeeName)}
                                                     </span>
@@ -705,7 +757,16 @@ const Payroll = () => {
                 </table>
             </Card>
 
-
+            {/* Timesheet Modal */}
+            <TimesheetModal
+                isOpen={timesheetModal.isOpen}
+                onClose={() => setTimesheetModal({ isOpen: false, employee: null, item: null })}
+                employee={timesheetModal.employee}
+                periodStart={currentPeriod.start}
+                periodEnd={currentPeriod.end}
+                isPaid={timesheetModal.item?.status === 'Paid'}
+                onSave={handleTimesheetSave}
+            />
 
             {/* Deductions Modal */}
             <DeductionsModal
