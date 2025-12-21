@@ -1,75 +1,57 @@
-
-const supabase = require('../config/supabase');
+const { db } = require('../config/firebase');
 
 const timesheetService = {
     // Get timesheets for an employee in a date range
     async getForEmployee(employeeId, startDate, endDate) {
-        const { data, error } = await supabase
-            .from('timesheet_entries')
-            .select('*')
-            .eq('employeeId', employeeId)
-            .gte('date', startDate)
-            .lte('date', endDate)
-            .order('date', { ascending: true });
+        // Note: Firestore requires an index for compound queries with range + sort.
+        // To allow this to work immediately without manual index creation, 
+        // we'll filter by range and sort in memory.
+        const snapshot = await db.collection('timesheets')
+            .where('employeeId', '==', parseInt(employeeId))
+            .where('date', '>=', startDate)
+            .where('date', '<=', endDate)
+            .get();
 
-        if (error) throw error;
-        return data;
+        if (snapshot.empty) return [];
+
+        let entries = [];
+        snapshot.forEach(doc => {
+            entries.push({ unique_id: doc.id, ...doc.data() });
+        });
+
+        // Sort by date ascending
+        return entries.sort((a, b) => new Date(a.date) - new Date(b.date));
     },
 
     // Create or Update a timesheet entry (Generic Save)
-    // Supports full payload with calculated fields (totalMinutes, etc.)
     async saveEntry(entry) {
-        // entry object should match Supabase schema columns
-        const { unique_id, id, ...payload } = entry; // Remove IDs
+        // entry object should match schema
+        const { unique_id, id, ...payload } = entry; // Remove IDs from payload source
 
         // Proactive Sanitization
         const forbidden = ['lastUpdated', 'last_updated', 'created_at', 'day', 'month', 'year', 'employeeName'];
         forbidden.forEach(field => delete payload[field]);
 
-        let result;
-        if (unique_id) {
-            // Update by unique_id if we have it
-            const { data, error } = await supabase
-                .from('timesheet_entries')
-                .update(payload)
-                .eq('unique_id', unique_id)
-                .select()
-                .single();
-            if (error) throw error;
-            result = data;
-        } else {
-            // Upsert logic: Try to find by employeeId + date
-            const { data: existing } = await supabase
-                .from('timesheet_entries')
-                .select('unique_id')
-                .eq('employeeId', payload.employeeId)
-                .eq('date', payload.date)
-                .maybeSingle();
+        // Ensure numeric type for employeeId to match query
+        if (payload.employeeId) payload.employeeId = parseInt(payload.employeeId);
 
-            if (existing) {
-                const { data, error } = await supabase
-                    .from('timesheet_entries')
-                    .update(payload)
-                    .eq('unique_id', existing.unique_id)
-                    .select()
-                    .single();
-                if (error) throw error;
-                result = data;
-            } else {
-                const { data, error } = await supabase
-                    .from('timesheet_entries')
-                    .insert(payload)
-                    .select()
-                    .single();
-                if (error) throw error;
-                result = data;
-            }
-        }
-        return result;
+        // Generate Composite Doc ID (One entry per day per employee)
+        const docId = `${payload.employeeId}_${payload.date}`;
+
+        const docRef = db.collection('timesheets').doc(docId);
+
+        // Use set with merge to update or create
+        await docRef.set({
+            ...payload,
+            unique_id: docId, // Store specific ID for reference
+            updated_at: new Date().toISOString()
+        }, { merge: true });
+
+        const doc = await docRef.get();
+        return { unique_id: doc.id, ...doc.data() };
     },
 
     // Clock In (Specific helper)
-    // Preserves legacy signature but uses generic save
     async clockIn(employeeId, date, time, shiftStart, shiftEnd) {
         return this.saveEntry({
             employeeId,
@@ -78,57 +60,40 @@ const timesheetService = {
             shiftStart,
             shiftEnd,
             status: 'active'
-            // DB defaults will handle other fields if not provided
         });
     },
 
     // Clock Out
     async clockOut(employeeId, date, time) {
-        // Find entry first
-        const { data: existing } = await supabase
-            .from('timesheet_entries')
-            .select('*')
-            .eq('employeeId', employeeId)
-            .eq('date', date)
-            .maybeSingle();
+        // Calculate Doc ID
+        const docId = `${parseInt(employeeId)}_${date}`;
+        const docRef = db.collection('timesheets').doc(docId);
 
-        if (!existing) {
+        const doc = await docRef.get();
+        if (!doc.exists) {
             throw new Error('No timesheet entry found to clock out');
         }
 
-        const { data, error } = await supabase
-            .from('timesheet_entries')
-            .update({ clockOut: time })
-            .eq('unique_id', existing.unique_id)
-            .select()
-            .single();
+        await docRef.update({ clockOut: time });
 
-        if (error) throw error;
-        return data;
+        const updated = await docRef.get();
+        return { unique_id: updated.id, ...updated.data() };
     },
 
     // Update Break Time
     async updateBreak(employeeId, date, minutes) {
-        const { data: existing } = await supabase
-            .from('timesheet_entries')
-            .select('unique_id')
-            .eq('employeeId', employeeId)
-            .eq('date', date)
-            .maybeSingle();
+        const docId = `${parseInt(employeeId)}_${date}`;
+        const docRef = db.collection('timesheets').doc(docId);
 
-        if (!existing) {
+        const doc = await docRef.get();
+        if (!doc.exists) {
             throw new Error('No timesheet entry found');
         }
 
-        const { data, error } = await supabase
-            .from('timesheet_entries')
-            .update({ breakMinutes: minutes })
-            .eq('unique_id', existing.unique_id)
-            .select()
-            .single();
+        await docRef.update({ breakMinutes: minutes });
 
-        if (error) throw error;
-        return data;
+        const updated = await docRef.get();
+        return { unique_id: updated.id, ...updated.data() };
     }
 };
 

@@ -24,7 +24,7 @@ const loanService = require('./services/loanService');
 const advanceService = require('./services/advanceService');
 const bonusService = require('./services/bonusService');
 const settingsService = require('./services/settingsService');
-const supabase = require('./config/supabase');
+const { db } = require('./config/firebase');
 
 // Global error log for System Diagnostics
 const systemErrorLog = [];
@@ -329,12 +329,12 @@ app.patch('/api/employees/:id', async (req, res) => {
         // 1. Supabase Write
         const updatedEmployee = await employeeService.update(req.params.id, req.body);
 
-        // Create Audit Log in Supabase
-        await supabase.from('audit_logs').insert({
+        // Create Audit Log in Firestore
+        await db.collection('audit_logs').add({
             timestamp: new Date().toISOString(),
             action: 'EMPLOYEE_UPDATE',
             actor: `${req.userRole} (${req.ip})`,
-            details: `Employee profile updated for ID: ${employeeId}`
+            details: `Employee profile updated for ID: ${req.params.id}`
         });
 
         res.json(updatedEmployee);
@@ -353,8 +353,8 @@ app.delete('/api/employees/:id', async (req, res) => {
         // 1. Supabase Write
         await employeeService.delete(employeeId);
 
-        // Create Audit Log in Supabase
-        await supabase.from('audit_logs').insert({
+        // Create Audit Log in Firestore
+        await db.collection('audit_logs').add({
             timestamp: new Date().toISOString(),
             action: 'EMPLOYEE_DELETE',
             actor: `${req.userRole} (${req.ip})`,
@@ -377,7 +377,7 @@ app.post('/api/employees/reorder', async (req, res) => {
         // Update each employee's order in Supabase
         // Note: For simplicity, we'll assume there's a 'sort_order' column or similar.
         // If not, we might need to add one. For now, we'll just log it.
-        await supabase.from('audit_logs').insert({
+        await db.collection('audit_logs').add({
             timestamp: new Date().toISOString(),
             action: 'EMPLOYEES_REORDER',
             actor: `${req.userRole} (${req.ip})`,
@@ -400,8 +400,9 @@ app.get('/api/payroll', async (req, res) => {
     // Checking index.js usage, it seemed to return data.payroll which is all entries.
     try {
         // We can return all history for now
-        const { data, error } = await require('./config/supabase').from('payroll_entries').select('*');
-        if (error) throw error;
+        const snapshot = await db.collection('payroll_entries').get();
+        const data = [];
+        snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
         res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -729,14 +730,14 @@ app.get('/api/reports/leaderboard', async (req, res) => {
         const employees = await employeeService.getAll();
 
         // 2. Get all timesheets for period
-        const { data: allTimesheets, error } = await supabase
-            .from('timesheet_entries')
-            .select('*')
-            .gte('date', startDate)
-            .lte('date', endDate)
-            .eq('status', 'active');
+        const snapshot = await db.collection('timesheets')
+            .where('date', '>=', startDate)
+            .where('date', '<=', endDate)
+            .where('status', '==', 'active')
+            .get();
 
-        if (error) throw error;
+        const allTimesheets = [];
+        snapshot.forEach(doc => allTimesheets.push(doc.data()));
 
         // 3. Process each employee
         const { calculateShiftHours } = require('./utils/timeUtils');
@@ -847,17 +848,16 @@ app.post('/api/payroll/status', async (req, res) => {
         const updates = [];
         if (entryIds && Array.isArray(entryIds)) {
             for (const id of entryIds) {
-                const { data, error } = await require('./config/supabase')
-                    .from('payroll_entries')
-                    .update({
+                for (const id of entryIds) {
+                    const docRef = db.collection('payroll_entries').doc(id);
+                    await docRef.update({
                         status,
                         paidAt: status === 'Paid' ? new Date().toISOString() : null,
                         paymentDetails: status === 'Paid' ? paymentDetails : null
-                    })
-                    .eq('id', id)
-                    .select();
-
-                if (!error && data) updates.push(...data);
+                    });
+                    const docFn = await docRef.get();
+                    if (docFn.exists) updates.push({ id: docFn.id, ...docFn.data() });
+                }
             }
         } else if (singleEntry) {
             // Usually simpler to use ID, but if provided object:
@@ -936,35 +936,27 @@ app.post('/api/payroll/mark-paid', async (req, res) => {
             };
 
             // 3. Update Entry with Frozen Data
-            const { data, error } = await require('./config/supabase')
-                .from('payroll_entries')
-                .update({
-                    status: 'Paid',
-                    paidAt: timestamp,
-                    // Store snapshot as JSONB in 'details' or similar if schema supports. 
-                    // Schema has 'details' column? Assuming yes based on index.js usage `details: calcResult.details`.
-                    // Actually, schema.sql showed `frozen_data` or we put it in `details`.
-                    // For now, let's put it in `details`.
-                    details: {
-                        ...(entry.details || {}),
-                        frozenEmployee: {
-                            name: employee.name,
-                            role: employee.role,
-                            image: employee.image,
-                            salary: employee.salary,
-                            hourlyRate: entry.hourlyRate // Snapshot specific
-                        },
-                        frozenTimesheet: frozenTimesheet,
-                        frozenAdvances: frozenAdvances,
-                        frozenLoans: frozenLoans,
-                        frozenBonus: bonusData
-                    }
-                })
-                .eq('id', entry.id)
-                .select()
-                .single();
-
-            if (!error && data) updates.push(data);
+            const docRef = db.collection('payroll_entries').doc(entry.id);
+            await docRef.update({
+                status: 'Paid',
+                paidAt: timestamp,
+                details: {
+                    ...(entry.details || {}),
+                    frozenEmployee: {
+                        name: employee.name,
+                        role: employee.role,
+                        image: employee.image,
+                        salary: employee.salary,
+                        hourlyRate: entry.hourlyRate // Snapshot specific
+                    },
+                    frozenTimesheet: frozenTimesheet,
+                    frozenAdvances: frozenAdvances,
+                    frozenLoans: frozenLoans,
+                    frozenBonus: bonusData
+                }
+            });
+            const updatedDoc = await docRef.get();
+            if (updatedDoc.exists) updates.push({ id: updatedDoc.id, ...updatedDoc.data() });
         }
 
         res.json({ success: true, updates });
@@ -990,14 +982,18 @@ app.post('/api/payroll/mark-unpaid', async (req, res) => {
         const { employeeIds: ids, periodStart, periodEnd } = req.body;
 
         // Update all matching entries
-        const { error } = await require('./config/supabase')
-            .from('payroll_entries')
-            .update({ status: 'Unpaid', paidAt: null })
-            .in('employeeId', ids)
-            .eq('periodStart', periodStart)
-            .eq('periodEnd', periodEnd);
+        // Update all matching entries
+        const snapshot = await db.collection('payroll_entries')
+            .where('employeeId', 'in', ids)
+            .where('periodStart', '==', periodStart)
+            .where('periodEnd', '==', periodEnd)
+            .get();
 
-        if (error) throw error;
+        const batch = db.batch();
+        snapshot.forEach(doc => {
+            batch.update(doc.ref, { status: 'Unpaid', paidAt: null });
+        });
+        await batch.commit();
 
         res.json({ success: true });
 
@@ -1033,7 +1029,7 @@ app.post('/api/payroll/lock-period', async (req, res) => {
         const lockedPeriod = { start, end, lockedAt: timestamp, lockedBy: actor, locked: true };
         await settingsService.set('lockedPayrollPeriod', lockedPeriod);
 
-        await supabase.from('audit_logs').insert({
+        await db.collection('audit_logs').add({
             timestamp,
             action: 'PAYROLL_PERIOD_LOCKED',
             actor,
@@ -1053,7 +1049,7 @@ app.post('/api/payroll/unlock-period', async (req, res) => {
         const actor = `${req.userRole} (${req.ip})`;
 
         await settingsService.set('lockedPayrollPeriod', null);
-        await supabase.from('audit_logs').insert({
+        await db.collection('audit_logs').add({
             timestamp,
             action: 'PAYROLL_PERIOD_UNLOCKED',
             actor,
@@ -1235,18 +1231,16 @@ app.post('/api/logs', async (req, res) => {
         const timestamp = new Date().toISOString();
         const actor = `${req.userRole || 'User'} (${req.ip})`;
 
-        // 1. Write to Supabase
-        const { error } = await supabase
-            .from('audit_logs')
-            .insert({
+        // 1. Write to Firestore
+        try {
+            await db.collection('audit_logs').add({
                 action: action || 'CLIENT_EVENT',
                 actor: actor,
                 details: details || 'No details provided',
                 timestamp: timestamp
             });
-
-        if (error) {
-            console.error('Supabase Log Error:', error);
+        } catch (error) {
+            console.error('Firestore Log Error:', error);
         }
 
         res.json({ success: true });
@@ -1297,15 +1291,14 @@ app.delete('/api/advance-salary/:id', async (req, res) => {
         // My `advanceService` doesn't have delete yet. I should add it or do it here.
 
         // Let's implement here for now using Supabase
-        const supabase = require('./config/supabase');
-
         // Delete Advance
-        const { error: advError } = await supabase.from('advance_salaries').delete().eq('id', id);
-        if (advError) throw advError;
+        await db.collection('advance_salaries').doc(id).delete();
 
-        // Delete Linked Deduction (assuming cascade or explicit)
-        const { error: dedError } = await supabase.from('deductions').delete().eq('linkedAdvanceId', id);
-        if (dedError && dedError.code !== 'PGRST116') console.error('Error deleting linked deduction:', dedError);
+        // Delete Linked Deduction
+        const snapshot = await db.collection('deductions').where('linkedAdvanceId', '==', id).get();
+        const batch = db.batch();
+        snapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
 
         res.json({ success: true });
 
@@ -1321,19 +1314,16 @@ app.get('/api/audit-logs', async (req, res) => {
     try {
         const { limit } = req.query;
 
-        // Fetch from Supabase
-        let query = supabase
-            .from('audit_logs')
-            .select('*')
-            .order('timestamp', { ascending: false });
+        // Fetch from Firestore
+        let query = db.collection('audit_logs').orderBy('timestamp', 'desc');
 
         if (limit) {
             query = query.limit(parseInt(limit));
         }
 
-        const { data: logs, error } = await query;
-
-        if (error) throw error;
+        const snapshot = await query.get();
+        const logs = [];
+        snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
 
         res.json(logs);
     } catch (err) {
@@ -1358,13 +1348,13 @@ app.get('/api/attendance/today', async (req, res) => {
         const employees = await employeeService.getAll();
         const activeEmployees = employees.filter(emp => emp.status !== 'Resigned');
 
-        // 2. Get today's timesheet entries from Supabase
-        const { data: entries, error } = await supabase
-            .from('timesheet_entries')
-            .select('*')
-            .eq('date', todayStr);
+        // 2. Get today's timesheet entries from Firestore
+        const snapshot = await db.collection('timesheets')
+            .where('date', '==', todayStr)
+            .get();
 
-        if (error) throw error;
+        const entries = [];
+        snapshot.forEach(doc => entries.push({ unique_id: doc.id, ...doc.data() }));
 
         const working = [];
         const notWorking = [];
@@ -1438,14 +1428,18 @@ app.get('/api/attendance/today', async (req, res) => {
 app.get('/api/timesheet', async (req, res) => {
     try {
         const { employeeId } = req.query;
-        let query = supabase.from('timesheet_entries').select('*').order('date', { ascending: false });
+        let query = db.collection('timesheets');
 
         if (employeeId) {
-            query = query.eq('employeeId', parseInt(employeeId));
+            query = query.where('employeeId', '==', parseInt(employeeId));
         }
 
-        const { data: results, error } = await query;
-        if (error) throw error;
+        const snapshot = await query.get();
+        const results = [];
+        snapshot.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+
+        // Manual Sort desc
+        results.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         res.json(results || []);
     } catch (err) {
@@ -1513,8 +1507,8 @@ app.post('/api/timesheet', async (req, res) => {
         // Recalculate Payroll - Stateless service
         const payrollResult = await payrollService.recalculate(employeeId, periodStart, periodEnd);
 
-        // Audit Log in Supabase
-        await supabase.from('audit_logs').insert({
+        // Audit Log in Firestore
+        await db.collection('audit_logs').add({
             timestamp,
             action: 'TIMESHEET_UPDATE',
             actor,
@@ -1621,8 +1615,8 @@ app.post('/api/whatsapp/send', pdfUpload.single('file'), async (req, res) => {
         console.log(`[WhatsApp] Archived: ${req.file.path}`);
         console.log(`[WhatsApp] ---------------------------------------------------`);
 
-        // Create Audit Log in Supabase
-        await supabase.from('audit_logs').insert({
+        // Create Audit Log in Firestore
+        await db.collection('audit_logs').add({
             timestamp: new Date().toISOString(),
             action: 'WHATSAPP_SHARE',
             actor: req.userRole || 'System',
@@ -1665,31 +1659,36 @@ app.get('/api/diagnostics', async (req, res) => {
     };
 
     try {
-        // Test Database Connection
-        const { data, error } = await supabase.from('employees').select('count', { count: 'exact', head: true });
-
-        if (!error) {
+        // Test Database Connection (just read employees)
+        try {
+            const snapshot = await db.collection('employees').limit(1).get();
             results.checks.database = true;
             results.dbInfo.status = 'connected';
             results.dbInfo.latency = 'OK';
-        } else {
+        } catch (error) {
             results.dbInfo.error = error.message;
             addSystemError(error, 'Diagnostics DB Connection');
         }
 
         // Test Table Access
-        const tables = ['employees', 'inventory', 'vendors', 'timesheet_entries', 'payroll_entries'];
+        const tables = ['employees', 'inventory', 'vendors', 'timesheets', 'payroll_entries'];
 
         await Promise.all(tables.map(async (table) => {
-            const { error: tableError } = await supabase.from(table).select('count', { count: 'exact', head: true });
-            results.checks.tables[table] = tableError ? tableError.message : true;
-            if (tableError) addSystemError(tableError, `Table Check: ${table}`);
+            try {
+                const snap = await db.collection(table).limit(1).get();
+                results.checks.tables[table] = true;
+            } catch (tableError) {
+                results.checks.tables[table] = tableError.message;
+                addSystemError(tableError, `Table Check: ${table}`);
+            }
         }));
 
-        // 3. New Check: Data Health (Payroll Integrity)
+        // 3. New Check: Data Health
         try {
-            const { count: empCount } = await supabase.from('employees').select('*', { count: 'exact', head: true });
-            const { count: payCount } = await supabase.from('payroll_entries').select('*', { count: 'exact', head: true });
+            const empSnap = await db.collection('employees').count().get();
+            const paySnap = await db.collection('payroll_entries').count().get();
+            const empCount = empSnap.data().count;
+            const payCount = paySnap.data().count;
 
             results.checks.dataHealth = {
                 activeEmployees: empCount,

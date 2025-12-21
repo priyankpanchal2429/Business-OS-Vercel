@@ -1,35 +1,35 @@
-
-const supabase = require('../config/supabase');
+const { db } = require('../config/firebase');
 
 const bonusService = {
     // Get withdrawals
     async getWithdrawals(employeeId) {
-        let query = supabase.from('bonus_withdrawals').select('*');
+        let query = db.collection('bonus_withdrawals');
 
         if (employeeId) {
-            query = query.eq('employeeId', employeeId);
+            query = query.where('employeeId', '==', parseInt(employeeId));
         }
 
-        const { data, error } = await query.order('date', { ascending: false });
-        if (error) throw error;
-        return data;
+        const snapshot = await query.get();
+        if (snapshot.empty) return [];
+
+        let withdrawals = [];
+        snapshot.forEach(doc => {
+            withdrawals.push({ id: doc.id, ...doc.data() });
+        });
+
+        return withdrawals.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
     // Create withdrawal
     async createWithdrawal(withdrawal) {
+        const id = withdrawal.id || `bw-${Date.now()}`;
         const newWithdrawal = {
-            id: withdrawal.id || `bw-${Date.now()}`,
+            id,
             ...withdrawal
         };
 
-        const { data, error } = await supabase
-            .from('bonus_withdrawals')
-            .insert(newWithdrawal)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+        await db.collection('bonus_withdrawals').doc(id).set(newWithdrawal);
+        return newWithdrawal;
     }
 };
 

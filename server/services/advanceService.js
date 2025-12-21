@@ -1,59 +1,56 @@
-
-const supabase = require('../config/supabase');
+const { db } = require('../config/firebase');
 
 const advanceService = {
     // Get all advance requests
     async getAll() {
-        const { data, error } = await supabase
-            .from('advance_salaries')
-            .select('*')
-            .order('dateIssued', { ascending: false });
+        const snapshot = await db.collection('advance_salaries').get();
+        if (snapshot.empty) return [];
 
-        if (error) throw error;
-        return data;
+        let advances = [];
+        snapshot.forEach(doc => {
+            advances.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort by dateIssued in memory
+        return advances.sort((a, b) => new Date(b.dateIssued) - new Date(a.dateIssued));
     },
 
     // Get for employee
     async getForEmployee(employeeId) {
-        const { data, error } = await supabase
-            .from('advance_salaries')
-            .select('*')
-            .eq('employeeId', employeeId)
-            .order('dateIssued', { ascending: false });
+        const snapshot = await db.collection('advance_salaries')
+            .where('employeeId', '==', parseInt(employeeId))
+            .get();
 
-        if (error) throw error;
-        return data;
+        if (snapshot.empty) return [];
+
+        let advances = [];
+        snapshot.forEach(doc => {
+            advances.push({ id: doc.id, ...doc.data() });
+        });
+
+        return advances.sort((a, b) => new Date(b.dateIssued) - new Date(a.dateIssued));
     },
 
     // Create new advance request
     async create(advance) {
+        const id = advance.id || `adv-${Date.now()}`;
         const newAdvance = {
-            id: advance.id || `adv-${Date.now()}`,
             ...advance,
+            id,
             status: advance.status || 'pending'
         };
 
-        const { data, error } = await supabase
-            .from('advance_salaries')
-            .insert(newAdvance)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+        await db.collection('advance_salaries').doc(id).set(newAdvance);
+        return newAdvance;
     },
 
     // Update status (Approve/Reject)
     async updateStatus(id, status) {
-        const { data, error } = await supabase
-            .from('advance_salaries')
-            .update({ status })
-            .eq('id', id)
-            .select()
-            .single();
+        const docRef = db.collection('advance_salaries').doc(String(id));
+        await docRef.update({ status });
 
-        if (error) throw error;
-        return data;
+        const doc = await docRef.get();
+        return { id: doc.id, ...doc.data() };
     }
 };
 

@@ -1,5 +1,4 @@
-
-const supabase = require('../config/supabase');
+const { db } = require('../config/firebase');
 const employeeService = require('./employeeService');
 const timesheetService = require('./timesheetService');
 const deductionService = require('./deductionService');
@@ -11,42 +10,36 @@ const { calculateShiftHours, countWorkingDays } = require('../utils/timeUtils');
 const payrollService = {
     // Get single payroll entry
     async getEntry(id) {
-        const { data, error } = await supabase
-            .from('payroll_entries')
-            .select('*')
-            .eq('id', id)
-            .single();
+        const doc = await db.collection('payroll_entries').doc(String(id)).get();
+        if (!doc.exists) return null;
 
-        if (error) throw error;
-        if (data?.frozenData) {
-            return {
-                ...data,
-                ...data.frozenData
-            };
+        const data = { id: doc.id, ...doc.data() };
+        if (data.frozenData) {
+            return { ...data, ...data.frozenData };
         }
         return data;
     },
 
     // Get history for employee
     async getHistory(employeeId) {
-        const { data, error } = await supabase
-            .from('payroll_entries')
-            .select('*')
-            .eq('employeeId', employeeId)
-            .eq('status', 'Paid')
-            .order('periodStart', { ascending: false });
+        const snapshot = await db.collection('payroll_entries')
+            .where('employeeId', '==', parseInt(employeeId))
+            .where('status', '==', 'Paid')
+            .get();
 
-        if (error) throw error;
-        return (data || []).map(entry => {
-            if (entry.frozenData) {
-                return { ...entry, ...entry.frozenData };
-            }
-            return entry;
+        if (snapshot.empty) return [];
+
+        let entries = [];
+        snapshot.forEach(doc => {
+            entries.push({ id: doc.id, ...doc.data() });
         });
+
+        // Sort desc
+        return entries.sort((a, b) => new Date(b.periodStart) - new Date(a.periodStart))
+            .map(entry => entry.frozenData ? { ...entry, ...entry.frozenData } : entry);
     },
 
     // RECALCULATE Logic
-    // This replaces the complex function in index.js
     async recalculate(employeeId, periodStart, periodEnd) {
         console.log(`🔄 Recalculating Payroll for ${employeeId} (${periodStart} - ${periodEnd})`);
 
@@ -88,7 +81,7 @@ const payrollService = {
             const clockOut = e.clockOut || e.shiftEnd;
             const breakMins = e.breakMinutes;
             const dayType = e.dayType || 'Work';
-            const shiftEnd = employee.shiftEnd || '18:00'; // OT Cutoff
+            const shiftEnd = employee.shiftEnd || '18:00';
 
             const calc = calculateShiftHours(clockIn, clockOut, breakMins, dayType, shiftEnd);
             return {
@@ -106,12 +99,10 @@ const payrollService = {
         // Calculate Gross Pay
         let grossPay = 0;
         let hourlyRate = 0;
-        // Count ONLY working days (present entries)
         const workingDays = processedTimesheets.filter(e => e.clockIn || e.shiftStart).length;
         const totalRegularHours = totalRegularMinutes / 60;
 
         if (employee.perShiftAmount && workingDays > 0) {
-            // Per Shift Logic
             const standardShiftRaw = calculateShiftHours(
                 employee.shiftStart || '09:00',
                 employee.shiftEnd || '18:00',
@@ -120,7 +111,6 @@ const payrollService = {
             const standardDailyHours = standardShiftRaw.billableMinutes / 60;
             hourlyRate = parseFloat(employee.perShiftAmount) / (standardDailyHours || 8);
 
-            // Regular Pay: Pro-rated
             const expectedTotalMinutes = standardShiftRaw.billableMinutes * workingDays;
 
             if (expectedTotalMinutes > 0) {
@@ -132,54 +122,42 @@ const payrollService = {
             }
 
         } else if (employee.hourlyRate) {
-            // Hourly Logic
             hourlyRate = employee.hourlyRate;
             grossPay = hourlyRate * totalRegularHours;
         } else {
-            // Fixed Salary Logic
             hourlyRate = (employee.salary || 0) / 30 / 8;
             grossPay = employee.salary || 0;
         }
 
-        // Round Basic Salary
         grossPay = Math.round(grossPay);
-
-        // Calculate Overtime Pay
         const overtimePay = Math.round((totalOvertimeMinutes / 60) * hourlyRate * 1.5);
         grossPay += overtimePay;
 
-        // Calculate Deductions
         const totalDeductions = deductions.reduce((sum, d) => sum + (d.amount || 0), 0);
+        const advanceDeductions = deductions.filter(d => d.type === 'advance').reduce((sum, d) => sum + (d.amount || 0), 0);
+        const loanDeductions = deductions.filter(d => d.type === 'loan').reduce((sum, d) => sum + (d.amount || 0), 0);
 
-        const advanceDeductions = deductions
-            .filter(d => d.type === 'advance')
-            .reduce((sum, d) => sum + (d.amount || 0), 0);
-
-        const loanDeductions = deductions
-            .filter(d => d.type === 'loan')
-            .reduce((sum, d) => sum + (d.amount || 0), 0);
-
-        // Net Pay
         const netPay = Math.round(grossPay - totalDeductions);
 
         // --- UPSERT PAYROLL ENTRY ---
-        // Try to find existing entry for this period
-        const { data: existing } = await supabase
-            .from('payroll_entries')
-            .select('id, status')
-            .eq('employeeId', employeeId)
-            .eq('periodStart', periodStart)
-            .maybeSingle();
+        const snapshot = await db.collection('payroll_entries')
+            .where('employeeId', '==', parseInt(employeeId))
+            .where('periodStart', '==', periodStart)
+            .get();
 
-        // If paid, don't recalculate unless specifically handled (usually we don't)
+        let existing = null;
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            existing = { id: doc.id, ...doc.data() };
+        }
+
         if (existing?.status === 'Paid') {
-            // Need to fetch full record to get frozenData
             const fullEntry = await this.getEntry(existing.id);
             return fullEntry;
         }
 
         const payload = {
-            employeeId,
+            employeeId: parseInt(employeeId),
             periodStart,
             periodEnd,
             grossPay,
@@ -188,7 +166,6 @@ const payrollService = {
             loanDeductions,
             netPay,
             status: existing ? existing.status : 'Pending',
-            // totalBillableMinutes and workingDays are not in schema, move to frozenData
             frozenData: {
                 totalBillableMinutes,
                 workingDays,
@@ -196,77 +173,55 @@ const payrollService = {
             },
             overtimePay,
             totalOvertimeMinutes,
-            perShiftAmount: employee.perShiftAmount, // Snapshot rate
+            perShiftAmount: employee.perShiftAmount,
             hourlyRate: hourlyRate
         };
 
-        let result;
-        try {
-            if (existing) {
-                const { data, error } = await supabase
-                    .from('payroll_entries')
-                    .update(payload)
-                    .eq('id', existing.id)
-                    .select()
-                    .single();
-                if (error) throw error;
-                result = data;
-            } else {
-                // Create new
-                const { data, error } = await supabase
-                    .from('payroll_entries')
-                    .insert({
-                        id: `pay-${Date.now()}-${employeeId}`,
-                        ...payload
-                    })
-                    .select()
-                    .single();
-                if (error) throw error;
-                result = data;
-            }
-        } catch (dbErr) {
-            console.error(`❌ DB Error during payroll upsert for ${employee.name}:`, dbErr);
-            throw dbErr;
-        }
+        const id = existing ? existing.id : `pay-${Date.now()}-${employeeId}`;
+        const docRef = db.collection('payroll_entries').doc(id);
 
-        // Merge back non-column data for frontend compatibility
+        await docRef.set({
+            ...payload,
+            id // Ensure ID is in doc
+        }, { merge: true });
+
+        const saved = await docRef.get();
         return {
-            ...result,
+            id: saved.id,
+            ...saved.data(),
             totalBillableMinutes,
             workingDays
         };
     },
 
     // BULK RECALCULATE Logic
-    // Optimizes performance by batching database calls and supporting "Fast-Read" from existing entries
     async recalculateBulk(employeeIds, periodStart, periodEnd, force = false) {
         console.log(`🚀 Bulk Recalculating Payroll for ${employeeIds.length} employees (${periodStart} - ${periodEnd}) | force: ${force}`);
         const startTime = Date.now();
 
-        // 1. Fetch Existing Payroll Entries and Employees first
-        const [employees, existingEntries] = await Promise.all([
-            supabase.from('employees').select('id, name, role, image, perShiftAmount, shiftStart, shiftEnd, hourlyRate, salary').in('id', employeeIds),
-            supabase.from('payroll_entries')
-                .select('*')
-                .in('employeeId', employeeIds)
-                .eq('periodStart', periodStart)
-                .eq('periodEnd', periodEnd)
-        ]);
+        // 1. Fetch Existing Payroll Entries for period
+        const payrollSnapshot = await db.collection('payroll_entries')
+            .where('periodStart', '==', periodStart)
+            .where('periodEnd', '==', periodEnd)
+            .get();
 
-        if (employees.error) throw employees.error;
-        if (existingEntries.error) throw existingEntries.error;
+        const existingEntries = [];
+        payrollSnapshot.forEach(doc => existingEntries.push({ id: doc.id, ...doc.data() }));
+
+        // 2. Fetch Employees
+        const requestEmployeeIds = employeeIds.map(id => parseInt(id));
+        const allEmployees = await employeeService.getAll();
+        const employees = allEmployees.filter(e => requestEmployeeIds.includes(e.id));
 
         const results = [];
         const idsToCalculate = [];
 
-        // Identify who needs calculation
-        for (const employeeId of employeeIds) {
-            const emp = employees.data.find(e => e.id == employeeId);
+        for (const employeeId of requestEmployeeIds) {
+            const emp = employees.find(e => e.id == employeeId);
             if (!emp) continue;
 
-            const existing = existingEntries.data.find(e => e.employeeId == employeeId);
+            const existing = existingEntries.find(e => e.employeeId == employeeId);
 
-            // FAST-READ: If not forced and entry exists, skip heavy calculation
             if (!force && existing) {
                 results.push({
                     ...existing,
@@ -277,7 +232,6 @@ const payrollService = {
                     employeeId: emp.id
                 });
             } else {
-                // If forced, or missing, or entry is NOT 'Paid' (we don't re-calc paid ones usually)
                 if (existing?.status === 'Paid' && !force) {
                     results.push({
                         ...existing,
@@ -300,34 +254,35 @@ const payrollService = {
 
         console.log(`🧮 Recalculating for ${idsToCalculate.length} employees...`);
 
-        // 2. Fetch Data ONLY for those needing calculation
-        const [allTimesheets, allDeductions] = await Promise.all([
-            // Timesheets
-            supabase.from('timesheet_entries')
-                .select('*')
-                .in('employeeId', idsToCalculate)
-                .gte('date', periodStart)
-                .lte('date', periodEnd),
-            // Deductions
-            supabase.from('deductions')
-                .select('*')
-                .in('employeeId', idsToCalculate)
-                .eq('periodStart', periodStart)
-                .eq('periodEnd', periodEnd)
-                .eq('status', 'active')
-        ]);
+        // 3. Fetch Data ONLY for those needing calculation (Fetch all for period to suffice)
+        const timesheetSnapshot = await db.collection('timesheets')
+            .where('date', '>=', periodStart)
+            .where('date', '<=', periodEnd)
+            .get();
 
-        if (allTimesheets.error) throw allTimesheets.error;
-        if (allDeductions.error) throw allDeductions.error;
+        const allTimesheets = [];
+        timesheetSnapshot.forEach(doc => allTimesheets.push(doc.data()));
 
+        const deductionSnapshot = await db.collection('deductions')
+            .where('status', '==', 'active')
+            .get(); // Filter date in memory
+
+        const allDeductions = [];
+        deductionSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.periodStart === periodStart && data.periodEnd === periodEnd) {
+                allDeductions.push(data);
+            }
+        });
+
+        const batch = db.batch();
         const upsertPayloads = [];
 
-        // 3. Process each missing/forced employee
         for (const employeeId of idsToCalculate) {
-            const emp = employees.data.find(e => e.id == employeeId);
-            const existing = existingEntries.data.find(e => e.employeeId == employeeId);
-            const timesheets = allTimesheets.data.filter(t => t.employeeId == employeeId);
-            const deductions = allDeductions.data.filter(d => d.employeeId == employeeId);
+            const emp = employees.find(e => e.id == employeeId);
+            const existing = existingEntries.find(e => e.employeeId == employeeId);
+            const timesheets = allTimesheets.filter(t => t.employeeId == employeeId);
+            const deductions = allDeductions.filter(d => d.employeeId == employeeId);
 
             // --- CALCULATION LOGIC ---
             let totalRegularMinutes = 0;
@@ -391,8 +346,9 @@ const payrollService = {
 
             const netPay = Math.round(grossPay - totalDeductions);
 
+            const id = existing ? existing.id : `pay-${Date.now()}-${employeeId}`;
             const payload = {
-                id: existing ? existing.id : `pay-${Date.now()}-${employeeId}`,
+                id,
                 employeeId,
                 periodStart,
                 periodEnd,
@@ -413,7 +369,9 @@ const payrollService = {
                 }
             };
 
-            upsertPayloads.push(payload);
+            const docRef = db.collection('payroll_entries').doc(id);
+            batch.set(docRef, payload, { merge: true });
+
             results.push({
                 ...payload,
                 totalBillableMinutes,
@@ -424,16 +382,11 @@ const payrollService = {
             });
         }
 
-        // 4. Bulk Upsert only if calculated
-        if (upsertPayloads.length > 0) {
-            const { error: upsertError } = await supabase
-                .from('payroll_entries')
-                .upsert(upsertPayloads, { onConflict: 'id' });
-
-            if (upsertError) console.error('❌ Bulk Upsert Error:', upsertError);
+        if (idsToCalculate.length > 0) {
+            await batch.commit();
         }
 
-        console.log(`✅ Bulk Recalculate Complete. Mode: ${idsToCalculate.length} calculated, ${results.length - idsToCalculate.length} cached. Took ${Date.now() - startTime}ms`);
+        console.log(`✅ Bulk Recalculate Complete.`);
         return results;
     },
 
@@ -441,17 +394,14 @@ const payrollService = {
     async getEntryWithDetails(id) {
         console.log(`📄 Fetching Rich Details for Entry: ${id}`);
 
-        // 1. Get Base Entry
         const entry = await this.getEntry(id);
         if (!entry) return null;
 
-        // 2. If Unpaid, Recalculate to ensure fresh data
         let currentEntry = entry;
         if (entry.status !== 'Paid') {
             currentEntry = await this.recalculate(entry.employeeId, entry.periodStart, entry.periodEnd);
         }
 
-        // 3. Aggregate Details for the Frontend
         const [employee, timesheets, deductions, allWithdrawals, bonusSettings, activeLoan] = await Promise.all([
             employeeService.getById(currentEntry.employeeId),
             timesheetService.getForEmployee(currentEntry.employeeId, currentEntry.periodStart, currentEntry.periodEnd),
@@ -463,7 +413,6 @@ const payrollService = {
 
         const settings = bonusSettings || { startDate: '2025-04-01', endDate: '2026-03-31', amountPerDay: 35 };
 
-        // Process Timesheets enrichment
         const enrichedTimesheets = timesheets.map(e => {
             const clockIn = e.clockIn || e.shiftStart;
             const clockOut = e.clockOut || e.shiftEnd;
@@ -476,18 +425,18 @@ const payrollService = {
             };
         }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        // Loan Summary Logic
         let loanSummary = null;
         if (activeLoan) {
-            // Calculate previous repayments
-            const { data: allLoanDeductions } = await supabase
-                .from('deductions')
-                .select('amount, periodEnd')
-                .eq('employeeId', currentEntry.employeeId)
-                .eq('type', 'loan')
-                .eq('status', 'active');
+            const allLoanDeductionsSnapshot = await db.collection('deductions')
+                .where('employeeId', '==', parseInt(currentEntry.employeeId))
+                .where('type', '==', 'loan')
+                .where('status', '==', 'active')
+                .get();
 
-            const previousRepayments = (allLoanDeductions || [])
+            const allLoanDeductions = [];
+            allLoanDeductionsSnapshot.forEach(doc => allLoanDeductions.push(doc.data()));
+
+            const previousRepayments = allLoanDeductions
                 .filter(d => new Date(d.periodEnd) < new Date(currentEntry.periodStart))
                 .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
 
@@ -505,7 +454,6 @@ const payrollService = {
             };
         }
 
-        // Bonus Stats
         const historicalTimesheets = await timesheetService.getForEmployee(currentEntry.employeeId, settings.startDate, currentEntry.periodEnd);
         const ytdDays = countWorkingDays(historicalTimesheets);
         const ytdAccrued = ytdDays * settings.amountPerDay;
@@ -520,7 +468,6 @@ const payrollService = {
             balance: ytdAccrued - totalWithdrawn
         };
 
-        // Construct final rich payload
         return {
             ...currentEntry,
             employeeName: employee?.name,

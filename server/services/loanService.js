@@ -1,67 +1,68 @@
-
-const supabase = require('../config/supabase');
+const { db } = require('../config/firebase');
 
 const loanService = {
     // Get all loans (optionally filter by employeeId)
     async getAll(employeeId = null) {
-        let query = supabase.from('loans').select('*').order('date', { ascending: false });
+        let query = db.collection('loans');
+
         if (employeeId) {
-            query = query.eq('employeeId', employeeId);
+            query = query.where('employeeId', '==', parseInt(employeeId));
         }
-        const { data, error } = await query;
-        if (error) throw error;
-        return data || [];
+
+        const snapshot = await query.get();
+        if (snapshot.empty) return [];
+
+        let loans = [];
+        snapshot.forEach(doc => {
+            loans.push({ id: doc.id, ...doc.data() });
+        });
+
+        return loans.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
     // Get active loan for employee
     async getActive(employeeId) {
-        const { data, error } = await supabase
-            .from('loans')
-            .select('*')
-            .eq('employeeId', employeeId)
-            .eq('status', 'active')
-            .maybeSingle();
-        if (error) throw error;
-        return data;
+        const snapshot = await db.collection('loans')
+            .where('employeeId', '==', parseInt(employeeId))
+            .where('status', '==', 'active')
+            .limit(1)
+            .get();
+
+        if (snapshot.empty) return null;
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
     },
 
     // Create new loan
     async create(loanData) {
-        const { data, error } = await supabase
-            .from('loans')
-            .insert({
-                ...loanData,
-                status: loanData.status || 'active',
-                createdAt: new Date().toISOString()
-            })
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
+        const id = String(loanData.id || Date.now());
+        const newLoan = {
+            ...loanData,
+            id: parseInt(id),
+            status: loanData.status || 'active',
+            createdAt: new Date().toISOString()
+        };
+
+        await db.collection('loans').doc(id).set(newLoan);
+        return newLoan;
     },
 
     // Update loan
     async update(id, loanData) {
-        const { data, error } = await supabase
-            .from('loans')
-            .update({
-                ...loanData,
-                updatedAt: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
+        const docRef = db.collection('loans').doc(String(id));
+        const updates = {
+            ...loanData,
+            updatedAt: new Date().toISOString()
+        };
+
+        await docRef.update(updates);
+        const doc = await docRef.get();
+        return { id: doc.id, ...doc.data() };
     },
 
     // Delete loan
     async delete(id) {
-        const { error } = await supabase
-            .from('loans')
-            .delete()
-            .eq('id', id);
-        if (error) throw error;
+        await db.collection('loans').doc(String(id)).delete();
         return true;
     }
 };

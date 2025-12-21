@@ -1,88 +1,63 @@
-
-const supabase = require('../config/supabase');
+const { db } = require('../config/firebase');
 
 const employeeService = {
     // Get all active employees
     async getAll() {
-        const { data, error } = await supabase
-            .from('employees')
-            .select('*')
-            .order('name', { ascending: true });
+        const snapshot = await db.collection('employees').get();
+        if (snapshot.empty) return [];
 
-        if (error) throw error;
-        return data;
+        let employees = [];
+        snapshot.forEach(doc => {
+            employees.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Manual sort since Firestore sorting can be complex with mixed types, 
+        // but name should be fine. For now, in-memory sort matches previous behavior.
+        return employees.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     },
 
     // Get employee by ID
     async getById(id) {
-        const { data, error } = await supabase
-            .from('employees')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) throw error;
-        return data;
+        const doc = await db.collection('employees').doc(String(id)).get();
+        if (!doc.exists) return null;
+        return { id: doc.id, ...doc.data() };
     },
 
     // Create new employee
     async create(employeeData) {
+        const id = String(employeeData.id || Date.now());
         const newEmployee = {
             ...employeeData,
-            id: employeeData.id || Date.now(), // Use provided ID or generate
+            id: parseInt(id), // Keep numeric ID in data for compatibility
             joiningDate: employeeData.joiningDate || new Date().toISOString().split('T')[0],
             status: employeeData.status || 'Active'
         };
 
-        const { data, error } = await supabase
-            .from('employees')
-            .insert(newEmployee)
-            .select()
-            .single();
+        // Firestore set (upsert-like, but we use it for creation here)
+        await db.collection('employees').doc(id).set(newEmployee);
 
-        if (error) throw error;
-        return data;
+        return newEmployee;
     },
 
     // Update employee
     async update(id, updates) {
-        // Exclude ID from updates just in case
+        const docRef = db.collection('employees').doc(String(id));
+
+        // Exclude ID from updates
         const { id: _, ...safeUpdates } = updates;
-        // Proactive Sanitization
-        if ('lastUpdated' in safeUpdates) delete safeUpdates.lastUpdated;
-        if ('last_updated' in safeUpdates) delete safeUpdates.last_updated;
-        if ('created_at' in safeUpdates) delete safeUpdates.created_at;
 
-        const { data, error } = await supabase
-            .from('employees')
-            .update(safeUpdates)
-            .eq('id', id)
-            .select()
-            .single();
+        await docRef.update(safeUpdates);
 
-        if (error) throw error;
-        return data;
+        // Return updated data
+        const doc = await docRef.get();
+        return { id: doc.id, ...doc.data() };
     },
 
     // Delete employee
     async delete(id) {
-        // Note: Cascade delete is handled by Foreign Keys in Postgres schema
-        const { error } = await supabase
-            .from('employees')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw error;
+        await db.collection('employees').doc(String(id)).delete();
         return true;
-    },
-
-    // Reorder (update IDs or sort order? - Current JSON uses array order)
-    // SQL doesn't have inherent order. We might need a "sortOrder" column if this is critical.
-    // For now, we'll ignore reorder or implement it if a column exists.
-    // The previous implementation used array reordering.
-    // If user relies on Reorder, we might need to add a column. 
-    // Checking schema... no sortOrder column. 
-    // We will skip reorder logic for DB for now, or just do nothing as "default sort by name".
+    }
 };
 
 module.exports = employeeService;
