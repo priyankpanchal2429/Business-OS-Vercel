@@ -1,19 +1,9 @@
-// Load environment variables based on NODE_ENV
-require('dotenv').config({
-    path: process.env.NODE_ENV === 'production'
-        ? '.env.production'
-        : '.env.development'
-});
-
+const functions = require('firebase-functions/v2');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const fs = require('fs');
-const path = require('path');
-const multer = require('multer');
-const { authMiddleware } = require('./middleware/auth');
 
-// const { performBackup } = require('./utils/backup');
+// Import all services
 const inventoryService = require('./services/inventoryService');
 const vendorService = require('./services/vendorService');
 const employeeService = require('./services/employeeService');
@@ -25,6 +15,11 @@ const advanceService = require('./services/advanceService');
 const bonusService = require('./services/bonusService');
 const settingsService = require('./services/settingsService');
 const { db } = require('./config/firebase');
+const { authMiddleware } = require('./middleware/auth');
+const { calculateShiftHours, countWorkingDays } = require('./utils/timeUtils');
+
+// Initialize Express app
+const app = express();
 
 // Global error log for System Diagnostics
 const systemErrorLog = [];
@@ -39,57 +34,15 @@ const addSystemError = (error, context) => {
     if (systemErrorLog.length > 20) systemErrorLog.pop();
 };
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-// PORT configured from env
-
-// Log environment on startup
-console.log('\n========================================');
-console.log(`🚀 Business-OS Server Starting`);
-console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`🔌 Port: ${PORT}`);
-console.log('========================================\n');
-
-// CORS configuration - Allow frontend from Vercel and local development
-const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [
-        'https://business-os-three.vercel.app',
-        'https://rebusinessos.vercel.app',
-        'https://api.rebusinessos.tk',
-        'https://business-g8bez0b2z-priyank-panchals-projects-6ef04e38.vercel.app'
-    ]
-    : [
-        'http://localhost:5173',
-        'http://localhost:3000'
-    ];
-
+// CORS configuration
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, Postman)
-        if (!origin) return callback(null, true);
-
-        // Check if origin is allowed
-        const isAllowed = allowedOrigins.some(allowed => {
-            if (allowed.includes('*')) {
-                // Handle wildcard: replace * with regex wildcard and test
-                const regex = new RegExp('^' + allowed.replace(/\./g, '\\.').replace('*', '.*') + '$');
-                return regex.test(origin);
-            }
-            return allowed === origin;
-        });
-
-        if (isAllowed) {
-            callback(null, true);
-        } else {
-            console.log(`⚠️  Blocked CORS request from: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: true, // Allow all origins in Cloud Functions (Firebase handles CORS)
     credentials: true
 }));
+
 app.use(bodyParser.json({ limit: '50mb' }));
 
-// STRICT No-Cache Headers for Security
+// No-Cache Headers
 app.use((req, res, next) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
@@ -97,89 +50,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// Simulation Middleware for "Remote Server" delays (optional, for realism)
-// app.use((req, res, next) => setTimeout(next, 200));
+// Auth middleware (modified for Cloud Functions)
+// app.use(authMiddleware);
 
-// Access Control Middleware
-app.use(authMiddleware);
-
-// Configure multer for file uploads
-const UPLOADS_DIR = path.join(__dirname, process.env.UPLOADS_DIR || 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, UPLOADS_DIR);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|webp/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('Only image files are allowed!'));
-        }
-    }
-});
-
-// Configure separate upload for PDFs (Payslips)
-const ARCHIVES_DIR = path.join(__dirname, process.env.ARCHIVES_DIR || 'archives/payslips');
-if (!fs.existsSync(ARCHIVES_DIR)) {
-    fs.mkdirSync(ARCHIVES_DIR, { recursive: true });
-}
-
-const pdfStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, ARCHIVES_DIR);
-    },
-    filename: (req, file, cb) => {
-        // Use original filename (sanitized) to match requirements
-        // e.g., Payslip_Hitesh_2025-11-23.pdf
-        cb(null, file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'));
-    }
-});
-
-const pdfUpload = multer({
-    storage: pdfStorage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per requirement
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        } else {
-            cb(new Error('Only PDF files are allowed!'));
-        }
-    }
-});
-
-// Serve uploaded files statically
-app.use('/uploads', express.static(UPLOADS_DIR));
-
-// Schedule Daily Backups (every 24 hours) - and run one on startup for safety
-setInterval(() => {
-    console.log('[System] Running scheduled backup...');
-    // performBackup();
-}, 24 * 60 * 60 * 1000);
-
-// Run immediate backup on startup
-// performBackup();
-
-
-// --- ROUTES ---
-
-
 // Inventory
 app.get('/api/inventory', async (req, res) => {
     try {
@@ -1714,23 +1591,6 @@ app.get('/api/diagnostics', async (req, res) => {
     res.json(results);
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[System] Main Server STARTED on port ${PORT}`);
-    console.log(`[System] Integrity Check: PASSED. Single source of truth active.`);
-    console.log(`[System] Ready for Office PC connections...`);
-});
 
-server.on('error', (e) => {
-    if (e.code === 'EADDRINUSE') {
-        console.error('\n[CRITICAL SECURITY ALERT] DUPLICATE SERVER INSTANCE DETECTED');
-        console.error('-----------------------------------------------------------');
-        console.error(`Error: Port ${PORT} is strictly locked by the Main Server.`);
-        console.error('System Integrity Rule Violation: Multiple conflicting servers are not allowed.');
-        console.error('BLOCKED: This conflicting instance will now terminate.');
-        console.error('ACTION REQUIRED: Check if the server is already running in another terminal.');
-        console.error('-----------------------------------------------------------\n');
-        process.exit(1);
-    } else {
-        console.error('[System] Server encountered an error:', e);
-    }
-});
+// Export as Cloud Function
+exports.api = functions.https.onRequest(app);
