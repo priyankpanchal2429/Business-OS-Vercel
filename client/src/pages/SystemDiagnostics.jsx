@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Activity, Database, Server, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import PageHeader from '../components/PageHeader';
 
 const SystemDiagnostics = () => {
     const [results, setResults] = useState(null);
@@ -53,20 +54,22 @@ const SystemDiagnostics = () => {
 
     return (
         <div className="space-y-6">
-            <header className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">System Diagnostics</h1>
-                    <p className="text-gray-500">Analyze application health and connectivity</p>
-                </div>
-                <button
-                    onClick={runDiagnostics}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                    <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-                    {loading ? 'Analyzing...' : 'Run System Check'}
-                </button>
-            </header>
+            <PageHeader
+                title="System Diagnostics"
+                subtitle="Analyze application health and connectivity."
+                icon={Activity}
+                actions={
+                    <button
+                        onClick={runDiagnostics}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        style={{ height: 'fit-content' }}
+                    >
+                        <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+                        {loading ? 'Analyzing...' : 'Run System Check'}
+                    </button>
+                }
+            />
 
             {!results && (
                 <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
@@ -114,7 +117,7 @@ const SystemDiagnostics = () => {
                     <div className="md:col-span-2 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                         <h3 className="font-semibold text-gray-900 mb-4">Table Access Status</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            {['employees', 'inventory', 'vendors', 'timesheet_entries', 'payroll_entries'].map(table => (
+                            {['employees', 'inventory', 'vendors', 'timesheets', 'payroll_entries', 'audit_logs', 'settings'].map(table => (
                                 <div key={table} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                                     <span className="font-medium text-gray-700 capitalize">{table.replace('_', ' ')}</span>
                                     {results.checks?.tables?.[table] ? (

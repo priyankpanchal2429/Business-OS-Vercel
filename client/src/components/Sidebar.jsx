@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, Contact, Receipt, FileText, Activity } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Contact, Receipt, FileText, Activity, Calculator } from 'lucide-react';
 import '../index.css';
 
 const Sidebar = () => {
@@ -11,6 +11,7 @@ const Sidebar = () => {
         { to: "/employees", icon: <Contact size={20} />, label: "Employees" },
         { to: "/payroll", icon: <Receipt size={20} />, label: "Payroll" },
         { to: "/report", icon: <FileText size={20} />, label: "Report" },
+        { to: "/tools", icon: <Calculator size={20} />, label: "Utility Hub" },
         { to: "/system-health", icon: <Activity size={20} />, label: "System Health" },
     ];
 

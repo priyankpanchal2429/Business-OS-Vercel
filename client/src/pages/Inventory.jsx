@@ -8,6 +8,7 @@ import InventoryModal from '../components/InventoryModal';
 import ProductCard from '../components/ProductCard';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { useToast } from '../context/ToastContext';
+import PageHeader from '../components/PageHeader';
 
 // Simple Stat Card Component
 const StatCard = ({ title, value, icon: Icon, trend }) => (
@@ -123,19 +124,11 @@ const Inventory = () => {
     return (
         <div style={{ paddingBottom: '40px' }}>
             {/* Header Section */}
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '24px',
-                marginBottom: '32px'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Inventory</h1>
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem' }}>
-                            Track and manage your products, assets, and equipment.
-                        </p>
-                    </div>
+            <PageHeader
+                title="Inventory"
+                subtitle="Track and manage your products, assets, and equipment."
+                icon={Package}
+                actions={
                     <button
                         onClick={() => {
                             setSelectedItem(null);
@@ -157,7 +150,16 @@ const Inventory = () => {
                     >
                         <Plus size={20} /> Add Item
                     </button>
-                </div>
+                }
+            />
+
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px',
+                marginBottom: '32px'
+            }}>
+
 
                 {/* Stats Grid */}
                 <div style={{

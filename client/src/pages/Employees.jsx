@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getBaseUrl } from '../config/api';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, User, Phone, Mail, MapPin, Calendar, Clock, Download, Briefcase, Banknote, GripVertical, Eye, UserX, History, LogOut } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Phone, Mail, MapPin, Calendar, Clock, Download, Briefcase, Banknote, GripVertical, Eye, UserX, History, LogOut, Contact } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import { ToastContainer } from '../components/Toast.jsx';
@@ -9,6 +9,7 @@ import DeleteConfirmationModal from '../components/DeleteConfirmationModal.jsx';
 import BonusWithdrawalModal from '../components/BonusWithdrawalModal';
 import AddLoanModal from '../components/AddLoanModal';
 import EmployeeQuickViewModal from '../components/EmployeeQuickViewModal';
+import PageHeader from '../components/PageHeader';
 import './Employees.css';
 
 const Employees = () => {
@@ -565,28 +566,29 @@ const Employees = () => {
 
 
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
-                <div>
-                    <h1 style={{ marginBottom: 0 }}>Employees</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Manage your team members.</p>
-                </div>
-                <button
-                    onClick={openNewEmployeeForm}
-                    style={{
-                        background: 'var(--color-accent)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: 'var(--radius-md)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontWeight: 500,
-                        cursor: 'pointer'
-                    }}>
-                    <Plus size={18} /> Add Employee
-                </button>
-            </div>
+            <PageHeader
+                title="Employees"
+                subtitle="Manage your team members."
+                icon={Contact}
+                actions={
+                    <button
+                        onClick={openNewEmployeeForm}
+                        style={{
+                            background: 'var(--color-accent)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 16px',
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontWeight: 500,
+                            cursor: 'pointer'
+                        }}>
+                        <Plus size={18} /> Add Employee
+                    </button>
+                }
+            />
 
             {/* Tabs: Active / Resigned */}
             <div style={{

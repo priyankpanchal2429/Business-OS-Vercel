@@ -33,6 +33,19 @@ try {
     // process.exit(1); // Don't crash yet, let it fail gracefully if possible during migration
 }
 
-const db = admin.firestore();
-
-module.exports = { admin, db };
+// Check for Local DB Trigger
+if (process.env.USE_LOCAL_DB === 'true') {
+    const LocalFirestore = require('../utils/localFirestore');
+    console.log('⚠️  USING LOCAL JSON DATABASE (No Firebase) ⚠️');
+    const db = new LocalFirestore();
+    // Admin mock is minimal/empty since auth logic usually needs real admin or bypassed
+    const admin = {
+        messaging: () => ({ send: () => console.log('Mock notification sent') }),
+        auth: () => ({ verifyIdToken: () => Promise.resolve({ uid: 'test-user', email: 'test@local.com' }) })
+    };
+    module.exports = { admin, db };
+} else {
+    // Original Firebase Export
+    const db = admin.firestore();
+    module.exports = { admin, db };
+}

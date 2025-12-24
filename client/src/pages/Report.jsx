@@ -3,13 +3,14 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { Download, Share2, Calendar, User, TrendingUp, Award, MapPin, Clock, Trophy, Crown, Sparkles, ChevronDown } from 'lucide-react';
+import { Download, Share2, Calendar, User, TrendingUp, Award, MapPin, Clock, Trophy, Crown, Sparkles, ChevronDown, FileText } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import confetti from 'canvas-confetti';
 import { useToast } from '../context/ToastContext';
 import Avatar from '../components/Avatar';
+import PageHeader from '../components/PageHeader';
 import '../index.css';
 
 const Report = () => {
@@ -173,42 +174,54 @@ const Report = () => {
     // Render Logic
 
     // Header UI
-    const Header = () => (
-        <header style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)',
-            background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)',
-            padding: '16px 24px', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ display: 'flex', background: '#f0f0f5', borderRadius: '12px', padding: '4px' }}>
-                    <button
-                        onClick={() => setShowLeaderboard(false)}
-                        style={{
-                            padding: '8px 16px', borderRadius: '8px', border: 'none',
-                            background: !showLeaderboard ? 'white' : 'transparent',
-                            color: !showLeaderboard ? 'black' : '#666',
-                            fontWeight: 600, boxShadow: !showLeaderboard ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Report
-                    </button>
-                    <button
-                        onClick={() => setShowLeaderboard(true)}
-                        style={{
-                            padding: '8px 16px', borderRadius: '8px', border: 'none',
-                            background: showLeaderboard ? 'white' : 'transparent',
-                            color: showLeaderboard ? '#D97706' : '#666',
-                            fontWeight: 600, boxShadow: showLeaderboard ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
-                        }}
-                    >
-                        <Trophy size={16} /> Champions
-                    </button>
-                </div>
+    // Header logic moved to PageHeader
 
-                {!showLeaderboard ? (
-                    <div style={{ display: 'flex', gap: '12px' }}>
+
+    const Loading = () => (
+        <div style={{ height: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="spinner"></div>
+            <span style={{ marginLeft: 10, fontWeight: 500, color: '#666' }}>Analyzing Data...</span>
+        </div>
+    );
+
+    // Main Render
+    return (
+        <div style={{ padding: 'var(--spacing-lg)', maxWidth: '1400px', margin: '0 auto', fontFamily: 'var(--font-family)' }}>
+            <PageHeader
+                title="Performance Reports"
+                subtitle="Analyze performance metrics and leaderboard standings."
+                icon={FileText}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    {/* Mode Toggle */}
+                    <div style={{ display: 'flex', background: '#f0f0f5', borderRadius: '12px', padding: '4px', width: 'fit-content' }}>
+                        <button
+                            onClick={() => setShowLeaderboard(false)}
+                            style={{
+                                padding: '8px 16px', borderRadius: '8px', border: 'none',
+                                background: !showLeaderboard ? 'white' : 'transparent',
+                                color: !showLeaderboard ? 'black' : '#666',
+                                fontWeight: 600, boxShadow: !showLeaderboard ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Report
+                        </button>
+                        <button
+                            onClick={() => setShowLeaderboard(true)}
+                            style={{
+                                padding: '8px 16px', borderRadius: '8px', border: 'none',
+                                background: showLeaderboard ? 'white' : 'transparent',
+                                color: showLeaderboard ? '#D97706' : '#666',
+                                fontWeight: 600, boxShadow: showLeaderboard ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                            }}
+                        >
+                            <Trophy size={16} /> Champions
+                        </button>
+                    </div>
+
+                    {!showLeaderboard && (
                         <div className="select-wrapper" style={{ position: 'relative' }}>
                             <User size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
                             <select
@@ -224,51 +237,35 @@ const Report = () => {
                                 ))}
                             </select>
                         </div>
+                    )}
 
-
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f9f9f9', padding: '4px', borderRadius: '12px', border: '1px solid #eee' }}>
+                        <input
+                            type="date"
+                            value={dateRange.start}
+                            onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                            style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
+                        />
+                        <span style={{ color: '#aaa', fontSize: '0.8rem' }}>➔</span>
+                        <input
+                            type="date"
+                            value={dateRange.end}
+                            onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                            style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
+                        />
                     </div>
-                ) : null}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f9f9f9', padding: '4px', borderRadius: '12px', border: '1px solid #eee' }}>
-                    <input
-                        type="date"
-                        value={dateRange.start}
-                        onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
-                    />
-                    <span style={{ color: '#aaa', fontSize: '0.8rem' }}>➔</span>
-                    <input
-                        type="date"
-                        value={dateRange.end}
-                        onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 500 }}
-                    />
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                        <button onClick={handleExportPDF} className="action-btn" style={{ background: 'white', border: '1px solid #eee' }}>
+                            <Download size={18} />
+                        </button>
+                        <button onClick={handleShareWhatsApp} className="action-btn" style={{ background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', color: 'white', border: 'none' }}>
+                            <Share2 size={18} />
+                        </button>
+                    </div>
                 </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-
-                <button onClick={handleExportPDF} className="action-btn" style={{ background: 'white', border: '1px solid #eee' }}>
-                    <Download size={18} /> Export Profile
-                </button>
-                <button onClick={handleShareWhatsApp} className="action-btn" style={{ background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', color: 'white', border: 'none' }}>
-                    <Share2 size={18} /> Share
-                </button>
-            </div>
-        </header>
-    );
-
-    const Loading = () => (
-        <div style={{ height: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="spinner"></div>
-            <span style={{ marginLeft: 10, fontWeight: 500, color: '#666' }}>Analyzing Data...</span>
-        </div>
-    );
-
-    // Main Render
-    return (
-        <div style={{ padding: 'var(--spacing-lg)', maxWidth: '1400px', margin: '0 auto', fontFamily: 'var(--font-family)' }}>
-            <Header />
+            </PageHeader>
             {loading ? <Loading /> :
 
                 showLeaderboard ? (

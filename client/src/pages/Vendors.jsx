@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getBaseUrl } from '../config/api';
-import { Store, Plus, Search, Filter, Edit2, Trash2 } from 'lucide-react';
+import { Store, Plus, Search, Filter, Edit2, Trash2, Users } from 'lucide-react';
 import Card from '../components/Card';
 import VendorModal from '../components/VendorModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { useToast } from '../context/ToastContext';
+import PageHeader from '../components/PageHeader';
 
 const Vendors = () => {
     const { addToast } = useToast();
@@ -71,32 +72,33 @@ const Vendors = () => {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
-                <div>
-                    <h1 style={{ marginBottom: 0 }}>Vendor Management</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Manage your suppliers and partners.</p>
-                </div>
-                <button
-                    onClick={() => {
-                        setSelectedVendor(null);
-                        setIsModalOpen(true);
-                    }}
-                    style={{
-                        background: 'var(--color-accent)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 16px',
-                        borderRadius: 'var(--radius-md)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontWeight: 500,
-                        cursor: 'pointer'
-                    }}
-                >
-                    <Plus size={18} /> Add New Vendor
-                </button>
-            </div>
+            <PageHeader
+                title="Vendor Management"
+                subtitle="Manage your suppliers and partners."
+                icon={Users}
+                actions={
+                    <button
+                        onClick={() => {
+                            setSelectedVendor(null);
+                            setIsModalOpen(true);
+                        }}
+                        style={{
+                            background: 'var(--color-accent)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 16px',
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontWeight: 500,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <Plus size={18} /> Add New Vendor
+                    </button>
+                }
+            />
 
             <Card className="table-container" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ padding: 'var(--spacing-md)', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: 'var(--spacing-md)' }}>

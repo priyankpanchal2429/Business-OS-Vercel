@@ -1672,7 +1672,7 @@ app.get('/api/diagnostics', async (req, res) => {
         }
 
         // Test Table Access
-        const tables = ['employees', 'inventory', 'vendors', 'timesheets', 'payroll_entries'];
+        const tables = ['employees', 'inventory', 'vendors', 'timesheets', 'payroll_entries', 'audit_logs', 'settings'];
 
         await Promise.all(tables.map(async (table) => {
             try {

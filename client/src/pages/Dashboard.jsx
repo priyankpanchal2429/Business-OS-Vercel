@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import BankStatusCard from '../components/BankStatusCard';
 import AttendanceCard from '../components/AttendanceCard';
+import PageHeader from '../components/PageHeader';
 
 
 import {
+    LayoutDashboard,
     TrendingUp,
     AlertCircle,
     CheckCircle2,
@@ -165,16 +167,11 @@ const Dashboard = () => {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <div>
-                    <h1 style={{ marginBottom: 0 }}>Dashboard</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Overview of your business operations.</p>
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-
-
-                </div>
-            </div>
+            <PageHeader
+                title="Dashboard"
+                subtitle="Overview of your business operations."
+                icon={LayoutDashboard}
+            />
 
             <div style={{
                 display: 'grid',

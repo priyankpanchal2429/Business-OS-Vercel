@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User, Settings } from 'lucide-react';
+import { Trash2, Edit2, CheckCircle, Clock, Calendar, CheckSquare, Square, IndianRupee, FileText, ChevronLeft, ChevronRight, Search, User, Settings, Receipt } from 'lucide-react';
 import Card from '../components/Card';
 import TimesheetModal from '../components/TimesheetModal';
 import DeductionsModal from '../components/DeductionsModal';
 import AdvanceSalaryModal from '../components/AdvanceSalaryModal';
 import BonusSettingsModal from '../components/BonusSettingsModal';
 import { ToastContainer } from '../components/Toast.jsx';
+import PageHeader from '../components/PageHeader';
 
 const Payroll = () => {
     const navigate = useNavigate();
@@ -384,118 +385,96 @@ const Payroll = () => {
         <div>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             {/* Header Area */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
-                <div>
-                    <h1 style={{ marginBottom: 0 }}>Payroll Management</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>Track and manage bi-weekly payroll cycles.</p>
-                </div>
-                <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
-                    {/* Current Period Card */}
-                    <div style={{
-                        padding: '12px 20px',
-                        background: 'var(--color-background-subtle)',
-                        border: `2px solid ${isLocked ? '#ff9500' : 'var(--color-accent)'}`,
-                        borderRadius: 'var(--radius-md)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <Calendar size={20} color={isLocked ? '#ff9500' : 'var(--color-accent)'} />
-                            <div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Current Period {isLocked && <span style={{ color: '#ff9500', fontWeight: 600 }}>🔒 LOCKED</span>}
+            <PageHeader
+                title="Payroll Management"
+                subtitle="Track and manage bi-weekly payroll cycles."
+                icon={Receipt}
+                actions={
+                    <>
+                        {/* Current Period Card */}
+                        <div style={{
+                            padding: '12px 20px',
+                            background: 'var(--color-background-subtle)',
+                            border: `2px solid ${isLocked ? '#ff9500' : 'var(--color-accent)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 8
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <Calendar size={20} color={isLocked ? '#ff9500' : 'var(--color-accent)'} />
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Current Period {isLocked && <span style={{ color: '#ff9500', fontWeight: 600 }}>🔒 LOCKED</span>}
+                                    </div>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                        {formatDate(currentPeriod.start)} – {formatDate(currentPeriod.end)}
+                                    </div>
                                 </div>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                    {formatDate(currentPeriod.start)} – {formatDate(currentPeriod.end)}
+
+                                {/* Navigation Buttons */}
+                                <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                                    <button
+                                        onClick={() => changePeriod(-1)}
+                                        style={{
+                                            ...navButtonStyle,
+                                            opacity: isLocked ? 0.5 : 1,
+                                            cursor: isLocked ? 'not-allowed' : 'pointer'
+                                        }}
+                                        disabled={isLocked}
+                                    ><ChevronLeft size={18} /></button>
+                                    <button
+                                        onClick={() => changePeriod(1)}
+                                        style={{
+                                            ...navButtonStyle,
+                                            opacity: isLocked ? 0.5 : 1,
+                                            cursor: isLocked ? 'not-allowed' : 'pointer'
+                                        }}
+                                        disabled={isLocked}
+                                    ><ChevronRight size={18} /></button>
                                 </div>
                             </div>
 
-                            {/* Navigation Buttons */}
-                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                                <button
-                                    onClick={() => changePeriod(-1)}
-                                    style={{
-                                        ...navButtonStyle,
-                                        opacity: isLocked ? 0.5 : 1,
-                                        cursor: isLocked ? 'not-allowed' : 'pointer'
-                                    }}
-                                    disabled={isLocked}
-                                ><ChevronLeft size={18} /></button>
-                                <button
-                                    onClick={() => changePeriod(1)}
-                                    style={{
-                                        ...navButtonStyle,
-                                        opacity: isLocked ? 0.5 : 1,
-                                        cursor: isLocked ? 'not-allowed' : 'pointer'
-                                    }}
-                                    disabled={isLocked}
-                                ><ChevronRight size={18} /></button>
-                            </div>
+                            {/* Admin Notice */}
+                            {isLocked && lockedPeriodInfo && (
+                                <div style={{
+                                    fontSize: '0.75rem',
+                                    color: '#ff9500',
+                                    background: 'rgba(255, 149, 0, 0.1)',
+                                    padding: '6px 10px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 500
+                                }}>
+                                    ⚠️ Period locked by admin — manual change required. Locked by {lockedPeriodInfo.lockedBy} on {new Date(lockedPeriodInfo.lockedAt).toLocaleDateString()}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Admin Notice */}
-                        {isLocked && lockedPeriodInfo && (
-                            <div style={{
-                                fontSize: '0.75rem',
-                                color: '#ff9500',
-                                background: 'rgba(255, 149, 0, 0.1)',
-                                padding: '6px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                fontWeight: 500
-                            }}>
-                                ⚠️ Period locked by admin — manual change required. Locked by {lockedPeriodInfo.lockedBy} on {new Date(lockedPeriodInfo.lockedAt).toLocaleDateString()}
-                            </div>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={() => fetchPeriodData(false, true)}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'var(--color-success)';
-                            e.currentTarget.style.borderColor = 'var(--color-success)';
-                            e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'white';
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                            e.currentTarget.style.color = 'var(--color-text-secondary)';
-                        }}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
-                            background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500,
-                            height: '68px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        <Clock size={18} /> Refresh Calculations
-                    </button>
-
-                    <button
-                        onClick={() => setIsBonusSettingsOpen(true)}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'var(--color-accent)';
-                            e.currentTarget.style.borderColor = 'var(--color-accent)';
-                            e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'white';
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                            e.currentTarget.style.color = 'var(--color-text-secondary)';
-                        }}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
-                            background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500,
-                            height: '68px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        <Settings size={18} /> Bonus Settings
-                    </button>
-                </div>
-            </div>
+                        <button
+                            onClick={() => setIsBonusSettingsOpen(true)}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.background = 'var(--color-accent)';
+                                e.currentTarget.style.borderColor = 'var(--color-accent)';
+                                e.currentTarget.style.color = 'white';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.background = 'white';
+                                e.currentTarget.style.borderColor = 'var(--color-border)';
+                                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                            }}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px',
+                                background: 'white', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                                cursor: 'pointer', color: 'var(--color-text-secondary)', fontWeight: 500,
+                                height: '68px',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <Settings size={18} /> Bonus Settings
+                        </button>
+                    </>
+                }
+            />
 
             {/* Stats Overview */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-2xl)' }}>

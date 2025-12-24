@@ -9,6 +9,7 @@ import Payroll from './pages/Payroll';
 import Payslip from './pages/Payslip';
 import ResignedEmployeeHistory from './pages/ResignedEmployeeHistory';
 import Report from './pages/Report';
+import UtilityHub from './pages/UtilityHub';
 import SystemDiagnostics from './pages/SystemDiagnostics';
 
 import { ToastProvider } from './context/ToastContext';
@@ -28,6 +29,7 @@ function App() {
                             <Route path="/payroll" element={<Payroll />} />
                             <Route path="/payslip/:id" element={<Payslip />} />
                             <Route path="/report" element={<Report />} />
+                            <Route path="/tools" element={<UtilityHub />} />
                             <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
                             <Route path="/system-health" element={<SystemDiagnostics />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
