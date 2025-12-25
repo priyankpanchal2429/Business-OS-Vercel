@@ -790,13 +790,15 @@ app.get('/api/attendance/today', async (req, res) => {
         const employees = await employeeService.getAll();
         const activeEmployees = employees.filter(emp => emp.status !== 'Resigned');
 
-        // 2. Get today's timesheet entries from Firestore
-        const snapshot = await db.collection('timesheets')
-            .where('date', '==', todayStr)
-            .get();
+        // 2. Get today's timesheet entries from Prisma
+        // Ensure prisma is imported or available in scope (usually via require('./services/prisma'))
+        const prisma = require('./services/prisma'); // Local require to ensure scope
 
-        const entries = [];
-        snapshot.forEach(doc => entries.push({ unique_id: doc.id, ...doc.data() }));
+        const entries = await prisma.timesheetEntry.findMany({
+            where: {
+                date: todayStr
+            }
+        });
 
         const working = [];
         const notWorking = [];
@@ -804,7 +806,7 @@ app.get('/api/attendance/today', async (req, res) => {
         activeEmployees.forEach(emp => {
             const todayEntry = entries.find(entry =>
                 entry.employeeId === emp.id &&
-                (entry.clockIn || entry.shiftStart)
+                (entry.clockIn || entry.status === 'working')
             );
 
             if (todayEntry) {
@@ -815,7 +817,7 @@ app.get('/api/attendance/today', async (req, res) => {
                     employeeRole: emp.role,
                     clockIn: todayEntry.clockIn,
                     clockOut: todayEntry.clockOut || null,
-                    timesheetId: todayEntry.unique_id,
+                    timesheetId: todayEntry.id,
                     status: 'working'
                 });
             } else {
