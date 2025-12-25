@@ -1186,23 +1186,32 @@ app.get('/api/diagnostics', async (req, res) => {
     res.json(results);
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[System] Main Server STARTED on port ${PORT}`);
-    console.log(`[System] Integrity Check: PASSED. Single source of truth active.`);
-    console.log(`[System] Ready for Office PC connections...`);
-});
+// Export for Vercel (Serverless)
+module.exports = app;
 
-server.on('error', (e) => {
-    if (e.code === 'EADDRINUSE') {
-        console.error('\n[CRITICAL SECURITY ALERT] DUPLICATE SERVER INSTANCE DETECTED');
-        console.error('-----------------------------------------------------------');
-        console.error(`Error: Port ${PORT} is strictly locked by the Main Server.`);
-        console.error('System Integrity Rule Violation: Multiple conflicting servers are not allowed.');
-        console.error('BLOCKED: This conflicting instance will now terminate.');
-        console.error('ACTION REQUIRED: Check if the server is already running in another terminal.');
-        console.error('-----------------------------------------------------------\n');
-        process.exit(1);
-    } else {
-        console.error('[System] Server encountered an error:', e);
-    }
-});
+// Only listen if not creating a lambda bundle (or locally)
+// Vercel doesn't run this file like a script for lambdas, it imports it.
+// Checking strictly if we are "main" module or just env based.
+if (require.main === module) {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`[System] Main Server STARTED on port ${PORT}`);
+        console.log(`[System] Integrity Check: PASSED. Single source of truth active.`);
+        console.log(`[System] Ready for Office PC connections...`);
+    });
+
+    server.on('error', (e) => {
+        if (e.code === 'EADDRINUSE') {
+            console.error('\n[CRITICAL SECURITY ALERT] DUPLICATE SERVER INSTANCE DETECTED');
+            console.error('-----------------------------------------------------------');
+            console.error(`Error: Port ${PORT} is strictly locked by the Main Server.`);
+            console.error('System Integrity Rule Violation: Multiple conflicting servers are not allowed.');
+            console.error('BLOCKED: This conflicting instance will now terminate.');
+            console.error('ACTION REQUIRED: Check if the server is already running in another terminal.');
+            console.error('-----------------------------------------------------------\n');
+            process.exit(1);
+        } else {
+            console.error('[System] Server encountered an error:', e);
+        }
+    });
+}
+
