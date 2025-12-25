@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Inventory {
+  id                Int      @id @default(autoincrement())
+  name              String
+  category          String?
+  type              String?
+  stock             Int      @default(0)
+  price             Float    @default(0)
+  description       String?
+  vendorName        String?
+  lowStockThreshold Int      @default(5)
+  imageUrl          String?
+  hsnCode           String?
+  lastUpdated       String?  // Keeping as String to match existing date format usage
+
+  @@map("inventory")
+}
+
+model Vendor {
+  id            Int      @id @default(autoincrement())
+  name          String
+  category      String?
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  status        String?  @default("active")
+  logoUrl       String?
+  suppliedItems String?  // JSON string
+  createdAt     String?
+
+  @@map("vendors")
+}
+
+model Employee {
+  id             Int       @id @default(autoincrement())
+  name           String
+  role           String?
+  contact        String?
+  email          String?
+  address        String?
+  salary         Float     @default(0)
+  perShiftAmount Float     @default(0)
+  hourlyRate     Float     @default(0)
+  shiftStart     String?
+  shiftEnd       String?
+  workingDays    String?   // JSON string
+  emergencyContact String? // JSON string
+  documents      String?   // JSON string
+  birthday       String?
+  breakTime      Int       @default(60)
+  status         String?   @default("Active")
+  image          String?
+  lastWorkingDay String?
+  resignationDate String?
+  createdAt      String?
+  updatedAt      String?
+  displayOrder   Int       @default(0)
+
+  loans          Loan[]
+  timesheets     TimesheetEntry[]
+  bonuses        BonusWithdrawal[]
+  payrollHistory PayrollHistory[]
+  deductions     Deduction[]
+
+  @@map("employees")
+}
+
+model Loan {
+  id         Int      @id @default(autoincrement())
+  employeeId Int?
+  amount     Float?
+  date       String?
+  status     String?  @default("active") // active, paid, written_off
+  notes      String?
+  createdAt  String?
+  updatedAt  String?
+
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("loans")
+}
+
+model TimesheetEntry {
+  id           Int      @id @default(autoincrement())
+  employeeId   Int?
+  date         String?
+  clockIn      String?
+  clockOut     String?
+  breakMinutes Int?     @default(0)
+  status       String?
+  dayType      String?
+
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("timesheet_entries")
+}
+
+model BonusWithdrawal {
+  id         String   @id @default(uuid())
+  employeeId Int?
+  amount     Float?
+  date       String?
+  notes      String?
+  status     String?
+  createdAt  String?
+  createdBy  String?
+
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("bonus_withdrawals")
+}
+
+model Setting {
+  key   String @id
+  value String?
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id        Int     @id @default(autoincrement())
+  action    String?
+  targetId  String?
+  actor     String?
+  timestamp String?
+  details   String?
+
+  @@map("audit_logs")
+}
+
+model PayrollHistory {
+  id                Int     @id @default(autoincrement())
+  employeeId        Int?
+  periodStart       String?
+  periodEnd         String?
+  grossPay          Float?
+  deductions        Float?
+  advanceDeductions Float?
+  netPay            Float?
+  paidAt            String?
+  status            String?
+
+  employee          Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("payroll_history")
+}
+
+model Deduction {
+  id         Int     @id @default(autoincrement())
+  employeeId Int?
+  amount     Float?
+  reason     String?
+  date       String?
+  type       String?  // 'advance', 'loan', 'other'
+
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("deductions")
+}

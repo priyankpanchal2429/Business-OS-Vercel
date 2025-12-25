@@ -14,11 +14,17 @@ const multer = require('multer');
 const { authMiddleware } = require('./middleware/auth');
 
 // const { performBackup } = require('./utils/backup');
+const inventoryRouter = require('./routes/inventory');
+const employeeRouter = require('./routes/employees');
+const vendorRouter = require('./routes/vendors');
+const payrollRouter = require('./routes/payroll');
+
+// Legacy Services (Kept for compatibility with remaining inline routes)
 const inventoryService = require('./services/inventoryService');
 const vendorService = require('./services/vendorService');
 const employeeService = require('./services/employeeService');
 const timesheetService = require('./services/timesheetService');
-const payrollService = require('./services/payrollService');
+const payrollService = require('./services/payrollService'); // Legacy service
 const deductionService = require('./services/deductionService');
 const loanService = require('./services/loanService');
 const advanceService = require('./services/advanceService');
@@ -179,51 +185,17 @@ setInterval(() => {
 
 // --- ROUTES ---
 
+// MOUNT NEW ROUTERS
+app.use('/api/inventory', inventoryRouter);
+// app.use('/api/vendors', vendorRouter); // Vendors Logic replaced below
+app.use('/api/employees', employeeRouter); // Handles CRUD. Reorder kept below.
+app.use('/api/payroll', payrollRouter); // Handles History, basic calc. Complex logic kept below if not fully ported.
+app.use('/api/vendors', vendorRouter);
 
-// Inventory
-app.get('/api/inventory', async (req, res) => {
-    try {
-        const items = await inventoryService.getAll();
-        res.json(items);
-    } catch (err) {
-        console.error('Inventory GET error:', err);
-        addSystemError(err, 'Inventory GET');
-        res.status(500).json({ error: 'Failed to fetch inventory' });
-    }
-});
 
-app.post('/api/inventory', async (req, res) => {
-    try {
-        const newItem = await inventoryService.create(req.body);
-        res.json(newItem);
-    } catch (err) {
-        console.error('Inventory POST error:', err);
-        addSystemError(err, 'Inventory POST');
-        res.status(500).json({ error: 'Failed to create item' });
-    }
-});
+// Inventory Routes - REPLACED by Router
+// Legacy routes removed to avoid conflict
 
-app.patch('/api/inventory/:id', async (req, res) => {
-    try {
-        const updatedItem = await inventoryService.update(req.params.id, req.body);
-        res.json(updatedItem);
-    } catch (err) {
-        console.error('Inventory PATCH error:', err);
-        addSystemError(err, 'Inventory PATCH (Edit)');
-        res.status(500).json({ error: 'Failed to update item' });
-    }
-});
-
-app.delete('/api/inventory/:id', async (req, res) => {
-    try {
-        await inventoryService.delete(req.params.id);
-        res.json({ success: true, message: 'Item deleted' });
-    } catch (err) {
-        console.error('Inventory DELETE error:', err);
-        addSystemError(err, 'Inventory DELETE');
-        res.status(500).json({ error: 'Failed to delete item' });
-    }
-});
 
 
 // Image Upload Endpoint
@@ -246,129 +218,13 @@ app.post('/api/upload/image', upload.single('image'), (req, res) => {
 });
 
 // Vendors
-app.get('/api/vendors', async (req, res) => {
-    try {
-        const vendors = await vendorService.getAll();
-        res.json(vendors);
-    } catch (err) {
-        console.error('Vendors GET error:', err);
-        res.status(500).json({ error: 'Failed to fetch vendors' });
-    }
-});
-
-app.post('/api/vendors', async (req, res) => {
-    try {
-        const newVendor = await vendorService.create(req.body);
-        res.json(newVendor);
-    } catch (err) {
-        console.error('Vendors POST error:', err);
-        res.status(500).json({ error: 'Failed to create vendor' });
-    }
-});
-
-app.patch('/api/vendors/:id', async (req, res) => {
-    try {
-        const updatedVendor = await vendorService.update(req.params.id, req.body);
-        res.json(updatedVendor);
-    } catch (err) {
-        console.error('Vendors PATCH error:', err);
-        res.status(500).json({ error: 'Failed to update vendor' });
-    }
-});
-
-app.delete('/api/vendors/:id', async (req, res) => {
-    try {
-        await vendorService.delete(req.params.id);
-        res.json({ success: true, message: 'Vendor deleted' });
-    } catch (err) {
-        console.error('Vendors DELETE error:', err);
-        res.status(500).json({ error: 'Failed to delete vendor' });
-    }
-});
+// Vendors Routes - REPLACED by Router
 
 // Employees
 // Employees
-app.get('/api/employees', async (req, res) => {
-    try {
-        const employees = await employeeService.getAll();
-        res.json(employees);
-    } catch (err) {
-        console.error('Employees GET error:', err);
-        res.status(500).json({ error: 'Failed to fetch employees' });
-    }
-});
+// Employees Routes - CRUD REPLACED by Router
+// Keeping Reorder below
 
-// Get single employee by ID
-app.get('/api/employees/:id', async (req, res) => {
-    try {
-        const employee = await employeeService.getById(req.params.id);
-        if (!employee) {
-            return res.status(404).json({ error: 'Employee not found' });
-        }
-        res.json(employee);
-    } catch (err) {
-        console.error('Employee GET error:', err);
-        res.status(500).json({ error: 'Failed to fetch employee' });
-    }
-});
-
-app.post('/api/employees', async (req, res) => {
-    try {
-        // 1. Supabase Write
-        const newEmployee = await employeeService.create(req.body);
-
-        res.json(newEmployee);
-    } catch (err) {
-        console.error('Employee POST error:', err);
-        addSystemError(err, 'Employee POST');
-        res.status(500).json({ error: 'Failed to create employee' });
-    }
-});
-
-app.patch('/api/employees/:id', async (req, res) => {
-    try {
-        // 1. Supabase Write
-        const updatedEmployee = await employeeService.update(req.params.id, req.body);
-
-        // Create Audit Log in Firestore
-        await db.collection('audit_logs').add({
-            timestamp: new Date().toISOString(),
-            action: 'EMPLOYEE_UPDATE',
-            actor: `${req.userRole} (${req.ip})`,
-            details: `Employee profile updated for ID: ${req.params.id}`
-        });
-
-        res.json(updatedEmployee);
-
-    } catch (err) {
-        console.error('Employee PATCH error:', err);
-        addSystemError(err, 'Employee PATCH (Edit)');
-        res.status(500).json({ error: 'Failed to update employee' });
-    }
-});
-
-app.delete('/api/employees/:id', async (req, res) => {
-    try {
-        const employeeId = parseInt(req.params.id);
-
-        // 1. Supabase Write
-        await employeeService.delete(employeeId);
-
-        // Create Audit Log in Firestore
-        await db.collection('audit_logs').add({
-            timestamp: new Date().toISOString(),
-            action: 'EMPLOYEE_DELETE',
-            actor: `${req.userRole} (${req.ip})`,
-            details: `Deleted employee with ID: ${employeeId}`
-        });
-
-        res.json({ success: true, message: 'Employee deleted permanently' });
-
-    } catch (err) {
-        console.error('Employee DELETE error:', err);
-        res.status(500).json({ error: 'Failed to delete employee' });
-    }
-});
 
 app.post('/api/employees/reorder', async (req, res) => {
     try {
@@ -393,35 +249,12 @@ app.post('/api/employees/reorder', async (req, res) => {
 
 // Payroll
 // Payroll
-app.get('/api/payroll', async (req, res) => {
-    // Note: getHistory handles "Paid" list.
-    // Ideally we want general payroll data or use specific endpoints. 
-    // Usually frontend uses /history or /period.
-    // We'll return empty or deprecated message if this generic one isn't used.
-    // Checking index.js usage, it seemed to return data.payroll which is all entries.
-    try {
-        // We can return all history for now
-        const snapshot = await db.collection('payroll_entries').get();
-        const data = [];
-        snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
-        res.json(data);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// Payroll routes (Generic) REPLACED by Router
 
 // [DEPRECATED] Old simple payroll run - Removed
 
 // Get payroll history for a specific employee
-app.get('/api/payroll/history/:employeeId', async (req, res) => {
-    try {
-        const history = await payrollService.getHistory(req.params.employeeId);
-        res.json(history);
-    } catch (err) {
-        console.error('Payroll History Error:', err);
-        res.status(500).json({ error: 'Failed to fetch payroll history' });
-    }
-});
+// Payroll History REPLACED by Router
 
 // --- BONUS SYSTEM ---
 
@@ -429,93 +262,7 @@ app.get('/api/payroll/history/:employeeId', async (req, res) => {
 // --- BONUS SYSTEM ---
 
 // Get Bonus Settings
-app.get('/api/settings/bonus', async (req, res) => {
-    try {
-        const settings = await settingsService.get('bonus');
-        const defaults = {
-            startDate: '2025-04-01',
-            endDate: '2026-03-31',
-            amountPerDay: 35
-        };
-        res.json(settings || defaults);
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch bonus settings' });
-    }
-});
-
-// Update Bonus Settings
-app.post('/api/settings/bonus', async (req, res) => {
-    try {
-        const { startDate, endDate, amountPerDay } = req.body;
-        const value = { startDate, endDate, amountPerDay: parseFloat(amountPerDay) };
-
-        await settingsService.update('bonus', value);
-
-        // Audit handled by service or we add here?
-        // Basic logging
-        console.log('Bonus settings updated by ' + req.ip);
-
-        res.json(value);
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to update bonus settings' });
-    }
-});
-
-
-// Withdraw Bonus
-app.post('/api/bonus/withdraw', async (req, res) => {
-    try {
-        const { employeeId, amount, date, notes } = req.body;
-
-        // Validate employee exists
-        const employee = await employeeService.getById(employeeId);
-        if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-        // Get Settings
-        let settings = await settingsService.get('bonus');
-        if (!settings) {
-            settings = { startDate: '2025-04-01', endDate: '2026-03-31', amountPerDay: 35 };
-        }
-
-        // Calculate Accrued
-        // Need timesheets for the bonus period
-        // Note: Using a large date range query might be heavy, but okay for single employee action
-        const timesheets = await timesheetService.getForEmployee(employeeId, settings.startDate, settings.endDate);
-        const { countWorkingDays } = require('./utils/timeUtils');
-        const accruedDays = countWorkingDays(timesheets);
-        const totalAccrued = accruedDays * settings.amountPerDay;
-
-        // Calculate Withdrawn
-        const withdrawals = await bonusService.getWithdrawals(employeeId);
-        const totalWithdrawn = withdrawals.reduce((sum, w) => sum + (w.status !== 'rejected' ? w.amount : 0), 0);
-
-        const availableBalance = totalAccrued - totalWithdrawn;
-        const withdrawalAmount = parseFloat(amount);
-
-        if (withdrawalAmount <= 0) return res.status(400).json({ error: 'Amount must be > 0' });
-        if (withdrawalAmount > availableBalance) {
-            return res.status(400).json({
-                error: 'Insufficient bonus balance',
-                details: `Available: ₹${availableBalance}, Requested: ₹${withdrawalAmount}`
-            });
-        }
-
-        const withdrawal = await bonusService.createWithdrawal({
-            employeeId: parseInt(employeeId),
-            amount: withdrawalAmount,
-            date: date || new Date().toISOString().split('T')[0],
-            notes,
-            status: 'pending', // Default status?
-            createdAt: new Date().toISOString()
-        });
-
-        res.json({ success: true, withdrawal, newBalance: availableBalance - withdrawalAmount });
-
-    } catch (err) {
-        console.error('Bonus Withdraw Error:', err);
-        res.status(500).json({ error: 'Failed to withdraw bonus' });
-    }
-});
+// Bonus Settings/Withdraw REPLACED by Router
 
 // Get Bonus Stats (Calculated)
 // Get Bonus Stats (Calculated)
@@ -568,43 +315,7 @@ app.get('/api/bonus/stats', async (req, res) => {
 });
 
 // Get Bonus Details for Employee
-app.get('/api/bonus/:id', async (req, res) => {
-    try {
-        const employeeId = parseInt(req.params.id);
-
-        // 1. Validate employee
-        const employee = await employeeService.getById(employeeId);
-        if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-        // 2. Get Settings
-        let settings = await settingsService.get('bonus');
-        if (!settings) settings = { startDate: '2025-01-01', endDate: '2025-12-31', amountPerDay: 35 };
-
-        // 3. Calculate Accrued
-        const timesheets = await timesheetService.getForEmployee(employeeId, settings.startDate, settings.endDate);
-        const { countWorkingDays } = require('./utils/timeUtils');
-        const totalDays = countWorkingDays(timesheets);
-        const totalAccrued = totalDays * settings.amountPerDay;
-
-        // 4. Get withdrawals
-        const withdrawals = await bonusService.getWithdrawals(employeeId);
-        const activeWithdrawals = withdrawals.filter(w => w.status !== 'rejected');
-        const totalWithdrawn = activeWithdrawals.reduce((sum, w) => sum + w.amount, 0);
-
-        res.json({
-            employeeId,
-            settings,
-            totalDays,
-            totalAccrued,
-            totalWithdrawn,
-            balance: totalAccrued - totalWithdrawn,
-            withdrawals
-        });
-    } catch (err) {
-        console.error('Bonus Details Error:', err);
-        res.status(500).json({ error: 'Failed to fetch bonus details' });
-    }
-});
+// Bonus Details REPLACED by Router
 
 
 // --- REPORTING & ANALYTICS ---
@@ -793,180 +504,9 @@ app.get('/api/reports/leaderboard', async (req, res) => {
 
 // Get Payroll Status for a Specific Period
 // Get Payroll Status for a Specific Period
-app.get('/api/payroll/period', async (req, res) => {
-    try {
-        const { start, end, refresh } = req.query;
-        if (!start || !end) return res.status(400).json({ error: 'Start and End dates required' });
+// Payroll Calc/Status/MarkPaid REPLACED by Router
+// Mark Unpaid below KEPT
 
-        // 1. Get Active Employees
-        const allEmployees = await employeeService.getAll();
-        const activeEmployees = allEmployees.filter(emp => {
-            if (emp.status !== 'Resigned') return true;
-            if (!emp.lastWorkingDay) return false;
-            const lastDay = new Date(emp.lastWorkingDay);
-            const periodStartObj = new Date(start);
-            return lastDay >= periodStartObj;
-        });
-
-        // 2. Recalculate Payroll in Bulk (with force refresh support)
-        const results = await payrollService.recalculateBulk(
-            activeEmployees.map(emp => emp.id),
-            start,
-            end,
-            refresh === 'true'
-        );
-
-        res.json(results);
-
-    } catch (err) {
-        console.error('Payroll Period Error:', err);
-        res.status(500).json({ error: 'Failed to fetch payroll period' });
-    }
-});
-
-// Calculate Single Payroll Entry (Preview)
-// Calculate Single Payroll Entry (Preview)
-app.get('/api/payroll/calculate', async (req, res) => {
-    try {
-        const { employeeId, start, end } = req.query;
-        if (!employeeId || !start || !end) return res.status(400).json({ error: 'Missing params' });
-
-        const result = await payrollService.recalculate(employeeId, start, end);
-        res.json(result);
-    } catch (err) {
-        console.error('Payroll Calculate Error:', err);
-        res.status(500).json({ error: 'Failed to calculate payroll' });
-    }
-});
-
-// Update/Create Payroll Status (Mark as Paid)
-// Update/Create Payroll Status (Mark as Paid/Partial)
-app.post('/api/payroll/status', async (req, res) => {
-    try {
-        const { entryIds, singleEntry, status, paymentDetails } = req.body;
-        // Support bulk (entryIds) or single
-
-        const updates = [];
-        if (entryIds && Array.isArray(entryIds)) {
-            for (const id of entryIds) {
-                for (const id of entryIds) {
-                    const docRef = db.collection('payroll_entries').doc(id);
-                    await docRef.update({
-                        status,
-                        paidAt: status === 'Paid' ? new Date().toISOString() : null,
-                        paymentDetails: status === 'Paid' ? paymentDetails : null
-                    });
-                    const docFn = await docRef.get();
-                    if (docFn.exists) updates.push({ id: docFn.id, ...docFn.data() });
-                }
-            }
-        } else if (singleEntry) {
-            // Usually simpler to use ID, but if provided object:
-            // Verify ID exists or ... 
-            // The frontend usually calls this with an ID for existent rows.
-            // If virtual row, it's not saved yet... but frontend flow saves before pay now?
-            // "Recalculate" endpoint saves/upserts pending entries. So IDs should exist.
-            // Let's assume ID exists.
-        }
-
-        res.json(updates);
-
-    } catch (err) {
-        console.error('Payroll Status Update Error:', err);
-        res.status(500).json({ error: 'Failed to update payroll status' });
-    }
-});
-
-// Mark employees as Paid - Creates a FROZEN SNAPSHOT of all payslip data
-// Mark employees as Paid - Creates FROZEN SNAPSHOT and uses Supabase
-app.post('/api/payroll/mark-paid', async (req, res) => {
-    try {
-        const { employeeIds, periodStart, periodEnd } = req.body;
-        const timestamp = new Date().toISOString();
-        const { countWorkingDays, calculateShiftHours } = require('./utils/timeUtils');
-
-        const updates = [];
-
-        for (const employeeId of employeeIds) {
-            // 1. Force Recalculate to ensure latest state
-            let entry = await payrollService.recalculate(employeeId, periodStart, periodEnd);
-
-            // 2. Gather Frozen Data
-            // Employee
-            const employee = await employeeService.getById(employeeId);
-
-            // Timesheets
-            const timesheets = await timesheetService.getForEmployee(employeeId, periodStart, periodEnd);
-            const frozenTimesheet = timesheets.map(e => {
-                const clockIn = e.clockIn || e.shiftStart || '';
-                const clockOut = e.clockOut || e.shiftEnd || '';
-                const dayType = e.dayType || 'Work';
-                const calc = calculateShiftHours(clockIn, clockOut, e.breakMinutes || 0, dayType, employee?.shiftEnd);
-                return {
-                    date: e.date,
-                    clockIn: clockIn || '-',
-                    clockOut: clockOut || '-',
-                    breakMinutes: e.breakMinutes,
-                    dayType: dayType,
-                    totalMinutes: calc.totalMinutes,
-                    billableMinutes: calc.billableMinutes,
-                    overtimeMinutes: calc.overtimeMinutes,
-                    nightStatus: calc.nightStatus
-                };
-            });
-
-            // Deductions
-            const deductions = await deductionService.getForEmployee(employeeId, periodStart, periodEnd);
-            const frozenAdvances = deductions.filter(d => d.type === 'advance');
-            const frozenLoans = deductions.filter(d => d.type === 'loan');
-
-            // Bonus (Logic simplified: fetch settings, calc)
-            let bonusData = {};
-            const settings = await settingsService.get('bonus') || { startDate: '2025-04-01', endDate: '2026-03-31', amountPerDay: 35 };
-            // Ensure valid dates
-            const bonusEntries = await timesheetService.getForEmployee(employeeId, settings.startDate, periodEnd);
-            const days = countWorkingDays(bonusEntries);
-            const accrued = days * settings.amountPerDay;
-            const withdrawals = await bonusService.getWithdrawals(employeeId);
-            const withdrawn = withdrawals.reduce((sum, w) => sum + (w.status !== 'rejected' ? w.amount : 0), 0);
-            bonusData = {
-                ytdDays: days,
-                ytdAccrued: accrued,
-                totalWithdrawn: withdrawn,
-                balance: accrued - withdrawn
-            };
-
-            // 3. Update Entry with Frozen Data
-            const docRef = db.collection('payroll_entries').doc(entry.id);
-            await docRef.update({
-                status: 'Paid',
-                paidAt: timestamp,
-                details: {
-                    ...(entry.details || {}),
-                    frozenEmployee: {
-                        name: employee.name,
-                        role: employee.role,
-                        image: employee.image,
-                        salary: employee.salary,
-                        hourlyRate: entry.hourlyRate // Snapshot specific
-                    },
-                    frozenTimesheet: frozenTimesheet,
-                    frozenAdvances: frozenAdvances,
-                    frozenLoans: frozenLoans,
-                    frozenBonus: bonusData
-                }
-            });
-            const updatedDoc = await docRef.get();
-            if (updatedDoc.exists) updates.push({ id: updatedDoc.id, ...updatedDoc.data() });
-        }
-
-        res.json({ success: true, updates });
-
-    } catch (err) {
-        console.error('Mark Paid Error:', err);
-        res.status(500).json({ error: 'Failed to mark as paid' });
-    }
-});
 
 // Mark employees as Unpaid (reverse payment)
 // Mark employees as Unpaid (reverse payment)
@@ -1066,75 +606,7 @@ app.post('/api/payroll/unlock-period', async (req, res) => {
 // --- DEDUCTIONS MANAGEMENT ---
 
 // Get Deductions for Employee in Period
-app.get('/api/deductions/:employeeId/:periodStart/:periodEnd', async (req, res) => {
-    try {
-        const { employeeId, periodStart, periodEnd } = req.params;
-        const deductions = await deductionService.getForEmployee(employeeId, periodStart, periodEnd);
-        res.json(deductions);
-    } catch (err) {
-        console.error('Deductions GET error:', err);
-        res.status(500).json({ error: 'Failed to fetch deductions' });
-    }
-});
-
-// Save/Update Deductions
-// Save/Update Deductions
-app.post('/api/deductions', async (req, res) => {
-    try {
-        const { employeeId, periodStart, periodEnd, deductions } = req.body;
-
-        // 1. We need to handle "Update" which typically means removing old active ones for this period and adding new ones
-        // OR we can just add new ones if the UI sends only new ones.
-        // Legacy logic: Removed old deductions for this employee/period and added NEW list.
-        // We will replicate this behavior: "Sync" deductions for this period.
-
-        // Fetch existing first to delete/invalidate?
-        const existing = await deductionService.getForEmployee(employeeId, periodStart, periodEnd);
-        for (const d of existing) {
-            await deductionService.delete(d.id);
-        }
-
-        const savedDeductions = [];
-        for (const ded of deductions) {
-            const newDed = await deductionService.create({
-                employeeId: parseInt(employeeId),
-                periodStart,
-                periodEnd,
-                type: ded.type,
-                description: ded.description,
-                amount: parseFloat(ded.amount),
-                createdAt: new Date().toISOString()
-            });
-            savedDeductions.push(newDed);
-        }
-
-        // Recalculate Payroll
-        await payrollService.recalculate(employeeId, periodStart, periodEnd);
-
-        // Calculate total for response
-        const totalDeductions = savedDeductions.reduce((sum, d) => sum + d.amount, 0);
-
-        res.json({ success: true, deductions: savedDeductions, totalDeductions });
-
-    } catch (err) {
-        console.error('Deductions POST error:', err);
-        res.status(500).json({ error: 'Failed to update deductions' });
-    }
-});
-
-// Delete Deduction
-// Delete Deduction
-app.delete('/api/deductions/:id', async (req, res) => {
-    try {
-        await deductionService.delete(req.params.id);
-        res.json({ success: true });
-        // Ideally trigger recalc, but without ID details we can't easily. 
-        // Frontend refresh should handle it.
-    } catch (err) {
-        console.error('Delete Deduction Error:', err);
-        res.status(500).json({ error: 'Failed to delete deduction' });
-    }
-});
+// Deductions REPLACED by Router
 
 // Issue Advance Salary
 // Issue Advance Salary
