@@ -56,42 +56,11 @@ console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔌 Port: ${PORT}`);
 console.log('========================================\n');
 
-// CORS configuration - Allow frontend from Vercel and local development
-const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [
-        'https://business-os-three.vercel.app',
-        'https://rebusinessos.vercel.app',
-        'https://api.rebusinessos.tk',
-        'https://business-g8bez0b2z-priyank-panchals-projects-6ef04e38.vercel.app'
-    ]
-    : [
-        'http://localhost:5173',
-        'http://localhost:3000'
-    ];
-
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, Postman)
-        if (!origin) return callback(null, true);
-
-        // Check if origin is allowed
-        const isAllowed = allowedOrigins.some(allowed => {
-            if (allowed.includes('*')) {
-                // Handle wildcard: replace * with regex wildcard and test
-                const regex = new RegExp('^' + allowed.replace(/\./g, '\\.').replace('*', '.*') + '$');
-                return regex.test(origin);
-            }
-            return allowed === origin;
-        });
-
-        if (isAllowed) {
-            callback(null, true);
-        } else {
-            console.log(`⚠️  Blocked CORS request from: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
+    origin: true, // Allow all origins for now to fix connection issues
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(bodyParser.json({ limit: '50mb' }));
 
