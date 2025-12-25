@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import PageHeader from '../components/PageHeader';
 import PlantLayoutVisualPlanner from '../components/PlantLayoutVisualPlanner';
 import ElectricalPanelBoardPlanner from '../components/ElectricalPanelBoardPlanner';
+import LabelPrintPlanner from '../components/LabelPrintPlanner';
 
 const labelStyle = { display: 'block', marginBottom: 8, fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text-secondary)' };
 const inputWrapperStyle = { position: 'relative', display: 'flex', alignItems: 'center' };
@@ -63,6 +64,7 @@ const UtilityHub = () => {
                 <SplitBillingCard />
                 <PlantLayoutVisualPlanner />
                 <ElectricalPanelBoardPlanner />
+                <LabelPrintPlanner />
             </div>
         </div>
     );

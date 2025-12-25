@@ -445,7 +445,7 @@ const Payroll = () => {
                                     borderRadius: 'var(--radius-sm)',
                                     fontWeight: 500
                                 }}>
-                                    ⚠️ Period locked by admin — manual change required. Locked by {lockedPeriodInfo.lockedBy} on {new Date(lockedPeriodInfo.lockedAt).toLocaleDateString()}
+                                    ⚠️ Period locked by admin — manual change required. Locked by {lockedPeriodInfo.lockedBy} on {new Date(lockedPeriodInfo.lockedAt).toLocaleDateString('en-GB')}
                                 </div>
                             )}
                         </div>
@@ -819,7 +819,7 @@ const thStyle = {
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+    return date.toLocaleDateString('en-GB'); // DD/MM/YYYY
 };
 
 export default Payroll;

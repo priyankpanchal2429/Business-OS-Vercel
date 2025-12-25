@@ -11,6 +11,7 @@ import ResignedEmployeeHistory from './pages/ResignedEmployeeHistory';
 import Report from './pages/Report';
 import UtilityHub from './pages/UtilityHub';
 import SystemDiagnostics from './pages/SystemDiagnostics';
+import JobCard from './pages/JobCard';
 
 import { ToastProvider } from './context/ToastContext';
 import { DebugProvider } from './context/DebugContext';
@@ -32,6 +33,7 @@ function App() {
                             <Route path="/tools" element={<UtilityHub />} />
                             <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
                             <Route path="/system-health" element={<SystemDiagnostics />} />
+                            <Route path="/job-cards" element={<JobCard />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                     </Layout>

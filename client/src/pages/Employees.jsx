@@ -1107,10 +1107,10 @@ const Employees = () => {
                                         <td style={{ padding: '16px', verticalAlign: 'middle', color: 'var(--color-text-secondary)' }}>{emp.role}</td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{emp.contact || '-'}</td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center', color: 'var(--color-error)' }}>
-                                            {emp.resignationDate ? new Date(emp.resignationDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                                            {emp.resignationDate ? new Date(emp.resignationDate).toLocaleDateString('en-GB') : '-'}
                                         </td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                                            {emp.lastWorkingDay ? new Date(emp.lastWorkingDay).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                                            {emp.lastWorkingDay ? new Date(emp.lastWorkingDay).toLocaleDateString('en-GB') : '-'}
                                         </td>
                                         <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
