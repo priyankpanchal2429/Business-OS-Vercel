@@ -2,127 +2,144 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const LabelRenderer = ({
     labelData,
-    labelSize = 'a4',
-    orientation = 'landscape',
-    showTechDetails = false,
-    forcedPartNameSize = null // Optional prop to override auto-scaling (e.g. from slider)
+    scale = 1,
+    fontScale = 1 // New prop: 0.1 to 2.0 (standard 1)
 }) => {
     const partNameRef = useRef(null);
-    const [partNameSize, setPartNameSize] = useState(120);
 
-    // Auto-resize font for Part Name
+    // Auto-fit Part Name text
     useEffect(() => {
-        if (forcedPartNameSize) {
-            setPartNameSize(forcedPartNameSize);
-            return;
-        }
+        if (!partNameRef.current) return;
 
-        if (partNameRef.current) {
-            const containerWidth = partNameRef.current.parentElement.offsetWidth;
-            const textWidth = partNameRef.current.scrollWidth;
+        const fitText = () => {
+            const container = partNameRef.current;
+            const content = container.firstChild;
+            if (!content) return;
 
-            if (textWidth > containerWidth) {
-                // Reduce size if it overflows
-                setPartNameSize(prev => Math.max(50, prev - 10));
-            } else if (textWidth < containerWidth * 0.9 && partNameSize < 1500) {
-                // Increase size aggressively if there's space
-                setPartNameSize(prev => Math.min(1500, prev + 20));
+            // Start large
+            let size = 300;
+            content.style.fontSize = `${size}%`;
+            content.style.lineHeight = '0.9';
+
+            // Shrink to fit container
+            while (
+                (content.scrollWidth > container.clientWidth || content.scrollHeight > container.clientHeight) &&
+                size > 20
+            ) {
+                size -= 5;
+                content.style.fontSize = `${size}%`;
             }
-        }
-    }, [labelData.partName, orientation, labelSize, partNameSize, forcedPartNameSize]);
 
-    // Styles
-    const getContainerStyle = () => ({
-        width: orientation === 'landscape' ? (labelSize === 'sticker' ? '600px' : '800px') : '500px',
-        height: orientation === 'landscape' ? 'auto' : '700px',
-        aspectRatio: orientation === 'landscape' ? (labelSize === 'sticker' ? '2/1' : '1.414/1') : '1/1.414',
-        background: 'white',
-        border: '4px solid black', // Approx 1mm
-        padding: '24px',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative' // For absolute positioning if needed
-    });
+            // Apply User Scale Multiplier
+            const finalSize = Math.floor(size * fontScale);
+            content.style.fontSize = `${finalSize}%`;
+        };
+
+        fitText();
+    }, [labelData.partName, scale, fontScale]);
 
     return (
-        <div style={getContainerStyle()}>
-            {/* Company Header */}
-            <div style={{ textAlign: 'center', borderBottom: '3px solid black', paddingBottom: 16, marginBottom: 20 }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 900, margin: 0, textTransform: 'uppercase', letterSpacing: '2px', lineHeight: 1 }}>{labelData.companyName}</h1>
+        <div style={{
+            width: '100%',
+            height: '100%',
+            background: 'white',
+            border: '5px solid black', // Thicker border
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            fontFamily: '"Arial Black", "Arial", sans-serif', // Bold Industrial Font
+            color: 'black',
+            overflow: 'hidden',
+            position: 'relative',
+            padding: '12px' // Inner gutter
+        }}>
+            {/* Top Section: Company Name */}
+            <div style={{
+                textAlign: 'center',
+                paddingBottom: '8px',
+                borderBottom: '3px solid black', // Bold separator
+                marginBottom: '8px'
+            }}>
+                <h1 style={{
+                    margin: 0,
+                    fontSize: '1em',
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                }}>
+                    {labelData.companyName || 'COMPANY NAME'}
+                </h1>
             </div>
 
-            {/* Secondary Info: Customer & Location */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ccc', paddingBottom: 12, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#555' }}>CUSTOMER / PROJECT</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{labelData.customerName} - {labelData.plantName}</div>
-                </div>
-                {labelData.location && (
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#555' }}>LOCATION</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{labelData.location}</div>
-                    </div>
-                )}
+            {/* Customer / Project Info */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end', // Align bottom so larger text sits well
+                borderBottom: '2px solid black', // Divider
+                paddingBottom: '8px',
+                marginBottom: '8px'
+            }}>
+                <span style={{
+                    fontSize: '1em', // Bigger Customer Name
+                    fontWeight: 900,
+                    color: 'black',
+                    textTransform: 'uppercase',
+                    textAlign: 'left'
+                }}>
+                    {labelData.customerName || 'CUSTOMER NAME'}
+                </span>
+                <span style={{
+                    fontSize: '0.7em',
+                    fontWeight: 700,
+                    textAlign: 'right',
+                    textTransform: 'uppercase'
+                }}>
+                    {labelData.plantName || labelData.location || 'PROJECT / LOCATION'}
+                </span>
             </div>
 
-            {/* BIG PART NAME HERO SECTION */}
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '3px solid black', overflow: 'hidden', padding: '0 10px' }}>
-                <div
-                    ref={partNameRef}
-                    style={{
-                        fontSize: `${partNameSize}%`,
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        textAlign: 'center',
-                        lineHeight: 0.8, // Tighten line height for Caps
-                        width: '100%',
-                        wordBreak: 'break-word',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: '100%',
-                        paddingBottom: '0.1em' // Visual offset to lift text
-                    }}
-                >
+            {/* Main Content: Part Name */}
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'hidden'
+            }} ref={partNameRef}>
+                <div style={{
+                    textAlign: 'center',
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
+                    width: '100%',
+                    wordBreak: 'break-word'
+                }}>
                     {labelData.partName || 'PART NAME'}
                 </div>
             </div>
 
-            {/* Model & Specs Footer */}
-            <div style={{ paddingTop: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#555' }}>MODEL NUMBER</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'monospace' }}>{labelData.modelNumber || '-'}</div>
-                    </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#555' }}>DATE</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 600 }}>{labelData.mfgDate}</div>
-                    </div>
+            {/* Bottom Section: Footer Info */}
+            <div style={{
+                borderTop: '3px solid black', // Bold separator
+                paddingTop: '8px',
+                marginTop: '8px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end'
+            }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.5em', fontWeight: 700, color: '#333', textTransform: 'uppercase', marginBottom: 2 }}>Model Number</span>
+                    <span style={{ fontSize: '0.8em', fontWeight: 700 }}>
+                        {labelData.modelNumber || '-'}
+                    </span>
                 </div>
-
-                {showTechDetails && (
-                    <div style={{ marginTop: 20, borderTop: '2px solid black', paddingTop: 12, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, textAlign: 'center' }}>
-                        <div style={{ borderRight: '1px solid #ccc' }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#555' }}>POWER / HP</div>
-                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{labelData.motorHP || '-'}</div>
-                        </div>
-                        <div style={{ borderRight: '1px solid #ccc' }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#555' }}>VOLTAGE</div>
-                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{labelData.voltage || '-'}</div>
-                        </div>
-                        <div style={{ borderRight: '1px solid #ccc' }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#555' }}>RPM</div>
-                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{labelData.rpm || '-'}</div>
-                        </div>
-                        <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#555' }}>PHASE</div>
-                            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{labelData.phase || '-'}</div>
-                        </div>
-                    </div>
-                )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <span style={{ fontSize: '0.5em', fontWeight: 700, color: '#333', textTransform: 'uppercase', marginBottom: 2 }}>Date</span>
+                    <span style={{ fontSize: '0.8em', fontWeight: 700 }}>
+                        {labelData.mfgDate || new Date().toISOString().split('T')[0]}
+                    </span>
+                </div>
             </div>
         </div>
     );
