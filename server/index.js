@@ -56,6 +56,12 @@ console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔌 Port: ${PORT}`);
 console.log('========================================\n');
 
+// DEBUG: Log all incoming requests
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
+    next();
+});
+
 app.use(cors({
     origin: true, // Allow all origins for now to fix connection issues
     credentials: true,
@@ -1088,25 +1094,37 @@ if (require.main === module) {
     const server = app.listen(PORT, '0.0.0.0', () => {
         console.log(`[System] Main Server STARTED on port ${PORT}`);
         console.log(`[System] Integrity Check: PASSED. Single source of truth active.`);
-        console.log(`[System] Ready for Office PC connections...`);
-    });
+        // 404 Handler - DEBUG
+        app.use((req, res) => {
+            console.error(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+            res.status(404).json({
+                error: 'Route not found',
+                path: req.path,
+                originalUrl: req.originalUrl,
+                method: req.method
+            });
+        });
 
-    server.on('error', (e) => {
-        if (e.code === 'EADDRINUSE') {
-            console.error('\n[CRITICAL SECURITY ALERT] DUPLICATE SERVER INSTANCE DETECTED');
-            console.error('-----------------------------------------------------------');
-            console.error(`Error: Port ${PORT} is strictly locked by the Main Server.`);
-            console.error('System Integrity Rule Violation: Multiple conflicting servers are not allowed.');
-            console.error('BLOCKED: This conflicting instance will now terminate.');
-            console.error('ACTION REQUIRED: Check if the server is already running in another terminal.');
-            console.error('-----------------------------------------------------------\n');
-            process.exit(1);
-        } else {
-            console.error('[System] Server encountered an error:', e);
+        // Export for Vercel Serverless
+        module.exports = app;
+
+        // START SERVER (Conditional for Vercel)
+        if (process.env.NODE_ENV !== 'production') {
+            app.listen(PORT, () => {
+                console.log(`\n========================================`);
+                console.log(`🚀 Server is running on port ${PORT}`);
+                console.log(`   URL: http://localhost:${PORT}`);
+                console.log(`========================================\n`);
+            }).on('error', (e) => {
+                if (e.code === 'EADDRINUSE') {
+                    console.error('-----------------------------------------------------------');
+                    console.error(`❌ ERROR: Port ${PORT} is already in use!`);
+                    console.error('BLOCKED: This conflicting instance will now terminate.');
+                    console.error('ACTION REQUIRED: Check if the server is already running in another terminal.');
+                    console.error('-----------------------------------------------------------\n');
+                    process.exit(1);
+                } else {
+                    console.error('[System] Server encountered an error:', e);
+                }
+            });
         }
-    });
-}
-
-// Export for Vercel Serverless
-module.exports = app;
-
