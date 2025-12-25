@@ -1107,3 +1107,6 @@ if (require.main === module) {
     });
 }
 
+// Export for Vercel Serverless
+module.exports = app;
+
