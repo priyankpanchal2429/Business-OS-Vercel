@@ -23,7 +23,12 @@ export const getBaseUrl = () => {
         return envUrl;
     }
 
-    // 3. Fallback to Localhost (Development)
+    // 3. Fallback: Check if we are in production
+    if (import.meta.env.PROD) {
+        return '/api';
+    }
+
+    // 4. Fallback to Localhost (Development)
     return 'http://localhost:3000/api';
 };
 
