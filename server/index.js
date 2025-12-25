@@ -869,23 +869,26 @@ app.get('/api/attendance/today', async (req, res) => {
 // --- TIMESHEET MANAGEMENT ---
 
 // Get all timesheet entries (optional: filter by employeeId)
+// Get all timesheet entries (optional: filter by employeeId)
 app.get('/api/timesheet', async (req, res) => {
     try {
         const { employeeId } = req.query;
-        let query = db.collection('timesheets');
+        // Ensure prisma is imported (local require to be safe if not at top level)
+        const prisma = require('./services/prisma');
 
+        let where = {};
         if (employeeId) {
-            query = query.where('employeeId', '==', parseInt(employeeId));
+            where.employeeId = parseInt(employeeId);
         }
 
-        const snapshot = await query.get();
-        const results = [];
-        snapshot.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+        const entries = await prisma.timesheetEntry.findMany({
+            where,
+            orderBy: {
+                date: 'desc'
+            }
+        });
 
-        // Manual Sort desc
-        results.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        res.json(results || []);
+        res.json(entries || []);
     } catch (err) {
         console.error('Timesheet GET Error:', err);
         res.status(500).json({ error: 'Failed to fetch timesheet entries' });
@@ -951,12 +954,15 @@ app.post('/api/timesheet', async (req, res) => {
         // Recalculate Payroll - Stateless service
         const payrollResult = await payrollService.recalculate(employeeId, periodStart, periodEnd);
 
-        // Audit Log in Firestore
-        await db.collection('audit_logs').add({
-            timestamp,
-            action: 'TIMESHEET_UPDATE',
-            actor,
-            details: `Updated ${entries.length} timesheet entries for ${employee.name}`
+        // Audit Log in Prisma
+        const prisma = require('./services/prisma');
+        await prisma.auditLog.create({
+            data: {
+                timestamp,
+                action: 'TIMESHEET_UPDATE',
+                actor,
+                details: `Updated ${entries.length} timesheet entries for ${employee.name}`
+            }
         });
 
         // Attendance change detection for live refresh
