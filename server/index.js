@@ -166,10 +166,27 @@ app.use('/api/inventory', inventoryRouter);
 app.use('/api/employees', employeeRouter); // Handles CRUD. Reorder kept below.
 app.use('/api/payroll', payrollRouter); // Handles History, basic calc. Complex logic kept below if not fully ported.
 app.use('/api/vendors', vendorRouter);
-const attendanceRouter = require('./routes/attendance');
-app.use('/api/attendance', attendanceRouter);
-const attendanceRouter = require('./routes/attendance');
-app.use('/api/attendance', attendanceRouter);
+// Health Check Endpoint for Dashboard Widget
+app.get('/api/health', async (req, res) => {
+    try {
+        // Simple DB check
+        const userCount = await prisma.employee.count();
+        res.json({
+            status: 'ok',
+            ip: req.ip,
+            timestamp: new Date().toISOString(),
+            db: 'connected',
+            stats: { userCount }
+        });
+    } catch (error) {
+        console.error('Health Check Failed:', error);
+        res.status(500).json({
+            status: 'error',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
 
 
 // Inventory Routes - REPLACED by Router
@@ -1128,3 +1145,6 @@ if (require.main === module) {
                 }
             });
         }
+    }
+    );
+}
