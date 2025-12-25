@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Power, Zap, Activity, Settings, AlertCircle, CheckCircle2,
-    ArrowRight, Printer, AlertTriangle, Box, Layers, Maximize2,
+    Printer, AlertTriangle, Box, Layers, Maximize2,
     Cpu, Spline, Ruler, Octagon, Grid, Trash2, X, Maximize
 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -184,15 +184,26 @@ const ElectricalPanelBoardPlanner = () => {
 
     if (!isOpen) {
         return (
-            <div onClick={() => setIsOpen(true)} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer p-5 flex items-center gap-4 group">
-                <div className="w-12 h-12 rounded-xl bg-slate-900 group-hover:bg-blue-600 transition-colors flex items-center justify-center text-white">
-                    <Layers size={24} />
+            <div
+                onClick={() => setIsOpen(true)}
+                style={{
+                    background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0',
+                    overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                    transition: 'all 0.2s ease', cursor: 'pointer', height: '100%',
+                    display: 'flex', flexDirection: 'column'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.borderColor = '#2563EB'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+            >
+                <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 12, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A' }}>
+                        <Layers size={28} />
+                    </div>
+                    <div>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0F172A' }}>PanelMaster</h3>
+                        <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: '0.9rem' }}>Industrial Schematics</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 className="m-0 text-lg font-bold text-slate-800">PanelMaster</h3>
-                    <p className="m-0 text-slate-500 text-sm">Industrial Schematics & Layout</p>
-                </div>
-                <div className="ml-auto text-slate-400 group-hover:translate-x-1 transition-transform"><ArrowRight /></div>
             </div>
         );
     }

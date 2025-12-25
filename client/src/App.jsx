@@ -13,6 +13,14 @@ import UtilityHub from './pages/UtilityHub';
 import SystemDiagnostics from './pages/SystemDiagnostics';
 import JobCard from './pages/JobCard';
 
+// Tools
+import MotorCalculator from './components/MotorCalculator';
+import SplitBilling from './components/SplitBilling';
+import PlantLayoutVisualPlanner from './components/PlantLayoutVisualPlanner';
+import ElectricalPanelBoardPlanner from './components/ElectricalPanelBoardPlanner';
+import LabelPrintPlanner from './components/LabelPrintPlanner';
+
+
 import { ToastProvider } from './context/ToastContext';
 import { DebugProvider } from './context/DebugContext';
 
@@ -31,6 +39,14 @@ function App() {
                             <Route path="/payslip/:id" element={<Payslip />} />
                             <Route path="/report" element={<Report />} />
                             <Route path="/tools" element={<UtilityHub />} />
+
+                            {/* Tools Routes */}
+                            <Route path="/tools/motor-calculator" element={<MotorCalculator />} />
+                            <Route path="/tools/split-billing" element={<SplitBilling />} />
+                            <Route path="/tools/plant-layout" element={<PlantLayoutVisualPlanner />} />
+                            <Route path="/tools/panel-master" element={<ElectricalPanelBoardPlanner />} />
+                            <Route path="/tools/label-printer" element={<LabelPrintPlanner />} />
+
                             <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
                             <Route path="/system-health" element={<SystemDiagnostics />} />
                             <Route path="/job-cards" element={<JobCard />} />

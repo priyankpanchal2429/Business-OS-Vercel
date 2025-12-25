@@ -43,7 +43,7 @@ const LabelRenderer = ({
             width: '100%',
             height: '100%',
             background: 'white',
-            border: '5px solid black', // Thicker border
+            border: '1pt solid black',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
@@ -137,7 +137,11 @@ const LabelRenderer = ({
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                     <span style={{ fontSize: '0.5em', fontWeight: 700, color: '#333', textTransform: 'uppercase', marginBottom: 2 }}>Date</span>
                     <span style={{ fontSize: '0.8em', fontWeight: 700 }}>
-                        {labelData.mfgDate || new Date().toISOString().split('T')[0]}
+                        {(() => {
+                            const dateStr = labelData.mfgDate || new Date().toISOString().split('T')[0];
+                            const [y, m, d] = dateStr.split('-');
+                            return `${d}/${m}/${y ? y.slice(-2) : '24'}`;
+                        })()}
                     </span>
                 </div>
             </div>

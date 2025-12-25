@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calculator, Zap, Save, Trash2, ArrowRight, IndianRupee, Download, X } from 'lucide-react';
+import { Calculator, Zap, Save, Trash2, IndianRupee, Download, X } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import PageHeader from '../components/PageHeader';
 import PlantLayoutVisualPlanner from '../components/PlantLayoutVisualPlanner';
@@ -47,18 +47,18 @@ const UtilityModal = ({ isOpen, onClose, title, children }) => {
 
 const UtilityHub = () => {
     return (
-        <div>
+        <div style={{ padding: '40px', maxWidth: '1600px', margin: '0 auto' }}>
             <PageHeader
                 title="Utility Hub"
-                subtitle="Essential tools and planners for your business."
+                subtitle="Essential tools and planners for your business operations."
                 icon={Calculator}
             />
 
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: 'var(--spacing-lg)',
-                alignItems: 'start'
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '20px',
+                alignItems: 'stretch'
             }}>
                 <MotorCalculatorCard />
                 <SplitBillingCard />
@@ -198,19 +198,22 @@ const MotorCalculatorCard = () => {
     return (
         <>
             <div style={{
-                background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)',
-                overflow: 'hidden', boxShadow: 'var(--shadow-sm)', transition: 'all 0.3s ease', cursor: 'pointer',
-                ':hover': { boxShadow: 'var(--shadow-md)' }
-            }} onClick={() => setIsOpen(true)}>
-                <div style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: '#007aff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', overflow: 'hidden' }}>
-                        {motorImage ? <img src={motorImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Calculator size={24} />}
+                background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0',
+                overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.2s ease', cursor: 'pointer', height: '100%',
+                display: 'flex', flexDirection: 'column'
+            }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.borderColor = '#3B82F6'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                onClick={() => setIsOpen(true)}>
+                <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 12, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', overflow: 'hidden' }}>
+                        {motorImage ? <img src={motorImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Calculator size={28} />}
                     </div>
                     <div>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{motorName || 'Motor Price Calculator'}</h3>
-                        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Quick Estimator</p>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0F172A' }}>{motorName || 'Motor Price'}</h3>
+                        <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: '0.9rem' }}>Quick Estimator</p>
                     </div>
-                    <div style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)' }}><ArrowRight size={20} /></div>
                 </div>
             </div>
 
@@ -394,19 +397,22 @@ const SplitBillingCard = () => {
     return (
         <>
             <div style={{
-                background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)',
-                overflow: 'hidden', boxShadow: 'var(--shadow-sm)', transition: 'all 0.3s ease', cursor: 'pointer',
-                ':hover': { boxShadow: 'var(--shadow-md)' }
-            }} onClick={() => setIsOpen(true)}>
-                <div style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: '#ff9500', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                        <Zap size={24} />
+                background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0',
+                overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.2s ease', cursor: 'pointer', height: '100%',
+                display: 'flex', flexDirection: 'column'
+            }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.borderColor = '#F59E0B'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                onClick={() => setIsOpen(true)}>
+                <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 12, background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D97706' }}>
+                        <Zap size={28} />
                     </div>
                     <div>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Split Billing Adjuster</h3>
-                        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Cash vs Bill</p>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0F172A' }}>Split Billing</h3>
+                        <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: '0.9rem' }}>Cash vs Bill Adjuster</p>
                     </div>
-                    <div style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)' }}><ArrowRight size={20} /></div>
                 </div>
             </div>
 
