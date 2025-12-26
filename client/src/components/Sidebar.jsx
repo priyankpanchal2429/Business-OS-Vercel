@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, Contact, Receipt, FileText, Activity, Calculator, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Contact, Receipt, FileText, Activity, Calculator, ClipboardList, Megaphone, TrendingUp } from 'lucide-react';
 import '../index.css';
 
 const Sidebar = () => {

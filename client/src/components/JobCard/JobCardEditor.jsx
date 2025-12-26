@@ -118,52 +118,54 @@ const SortablePartItem = ({ part, updatePart, removePart }) => {
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        display: 'flex',
-        alignItems: 'center',
+        display: 'grid',
+        gridTemplateColumns: '40px 2fr 1fr 1fr 80px 40px',
         gap: 12,
-        marginBottom: 8,
-        background: 'white',
-        padding: '8px',
-        borderRadius: 6,
-        border: '1px solid #F1F5F9'
+        alignItems: 'center',
+        padding: '8px 12px',
+        borderBottom: '1px solid #F1F5F9',
+        background: 'white'
     };
 
     return (
         <div ref={setNodeRef} style={style}>
-            <div {...attributes} {...listeners} style={{ cursor: 'grab', color: '#CBD5E1' }}>
+            <div {...attributes} {...listeners} style={{ cursor: 'grab', color: '#CBD5E1', display: 'flex', alignItems: 'center' }}>
                 <GripVertical size={16} />
             </div>
             <input
                 value={part.name}
                 onChange={(e) => updatePart(part.guid, 'name', e.target.value)}
                 placeholder="Part Name"
-                style={{ flex: 2, border: 'none', background: 'transparent', fontWeight: 500, outline: 'none' }}
+                style={{ width: '100%', border: 'none', background: 'transparent', fontWeight: 600, outline: 'none', fontSize: '0.9rem', color: '#334155' }}
             />
             <input
                 value={part.model}
                 onChange={(e) => updatePart(part.guid, 'model', e.target.value)}
                 placeholder="Model"
-                style={{ flex: 1, border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', color: '#64748B' }}
+                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', color: '#64748B', fontSize: '0.9rem' }}
             />
             <input
                 value={part.size}
                 onChange={(e) => updatePart(part.guid, 'size', e.target.value)}
                 placeholder="Size"
-                style={{ flex: 1, border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', color: '#64748B' }}
+                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', color: '#64748B', fontSize: '0.9rem' }}
             />
             <input
                 value={part.qty}
                 onChange={(e) => updatePart(part.guid, 'qty', e.target.value)}
-                placeholder="Qty"
+                placeholder="0"
                 type="number"
-                style={{ width: 60, border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', fontWeight: 600 }}
+                style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: 4, padding: '4px', textAlign: 'center', outline: 'none', fontWeight: 600, fontSize: '0.9rem' }}
             />
-            <button
-                onClick={() => removePart(part.guid)}
-                style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 }}
-            >
-                <Trash2 size={14} />
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button
+                    onClick={() => removePart(part.guid)}
+                    style={{ border: 'none', background: 'white', cursor: 'pointer', color: '#EF4444', padding: 6, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    title="Remove Part"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
         </div>
     );
 }
@@ -490,10 +492,15 @@ const JobCardEditor = ({ initialData, onSave, onCancel }) => {
                                         removeMachine={removeMachine}
                                     >
                                         {/* Nested Parts List */}
-                                        <div style={{ background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9', padding: '12px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, padding: '0 8px' }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Parts List</span>
-                                                <button onClick={() => addPart(machine.id)} style={{ border: 'none', background: 'none', color: '#2563EB', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>+ Add Part</button>
+                                        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+                                            {/* Table Header */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr 80px 40px', gap: 12, padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                                                <div></div>
+                                                <div>Part Name</div>
+                                                <div style={{ textAlign: 'right' }}>Model</div>
+                                                <div style={{ textAlign: 'right' }}>Size</div>
+                                                <div style={{ textAlign: 'right' }}>Qty</div>
+                                                <div></div>
                                             </div>
 
                                             <DndContext
@@ -502,19 +509,47 @@ const JobCardEditor = ({ initialData, onSave, onCancel }) => {
                                                 onDragEnd={onDragEndParts(machine.id)}
                                             >
                                                 <SortableContext
-                                                    items={machine.parts.map(p => p.id)} // Using id for sortable key
+                                                    items={machine.parts.map(p => p.id)}
                                                     strategy={verticalListSortingStrategy}
                                                 >
-                                                    {machine.parts.map(part => (
-                                                        <SortablePartItem
-                                                            key={part.id}
-                                                            part={part}
-                                                            updatePart={(guid, field, val) => updatePart(machine.id, guid, field, val)}
-                                                            removePart={(guid) => removePart(machine.id, guid)}
-                                                        />
-                                                    ))}
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        {machine.parts.map(part => (
+                                                            <SortablePartItem
+                                                                key={part.id}
+                                                                part={part}
+                                                                updatePart={(guid, field, val) => updatePart(machine.id, guid, field, val)}
+                                                                removePart={(guid) => removePart(machine.id, guid)}
+                                                            />
+                                                        ))}
+                                                        {machine.parts.length === 0 && (
+                                                            <div style={{ padding: 20, textAlign: 'center', color: '#CBD5E1', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                                                No parts added.
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </SortableContext>
                                             </DndContext>
+
+                                            {/* Footer Add Button */}
+                                            <div style={{ padding: '8px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+                                                <button
+                                                    onClick={() => addPart(machine.id)}
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '8px',
+                                                        border: '1px dashed #CBD5E1',
+                                                        background: 'white',
+                                                        color: '#2563EB',
+                                                        fontSize: '0.9rem',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        borderRadius: 6,
+                                                        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6
+                                                    }}
+                                                >
+                                                    <Plus size={16} /> Add Part
+                                                </button>
+                                            </div>
                                         </div>
                                     </SortableMachineItem>
                                 ))}

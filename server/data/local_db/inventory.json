@@ -3,6 +3,22 @@
     "id": "1766566449645usgzz",
     "name": "Test Item",
     "price": 100,
-    "stock": 10
+    "stock": 10,
+    "category": "Bearings",
+    "type": "Ball Bearing",
+    "description": "",
+    "image": "https://cdn.skfmediahub.skf.com/api/public/0901d19680ae63de/png_highpreview/0901d19680ae63de_png_highpreview.png",
+    "quantity": 10,
+    "lastUpdated": "2025-12-25T18:05:54.742Z"
+  },
+  "1766727362076": {
+    "name": "10 HP 1440 RPM 3-Phase",
+    "category": "REG1012",
+    "type": "Motor",
+    "price": 0,
+    "description": "",
+    "id": "1766727362076",
+    "vendor": "Swastik Electric PVT LTD",
+    "lastUpdated": "2025-12-26T05:36:02.076Z"
   }
 }

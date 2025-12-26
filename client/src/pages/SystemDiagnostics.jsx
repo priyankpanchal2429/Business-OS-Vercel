@@ -117,7 +117,7 @@ const SystemDiagnostics = () => {
                     <div className="md:col-span-2 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                         <h3 className="font-semibold text-gray-900 mb-4">Table Access Status</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            {['employees', 'inventory', 'vendors', 'timesheets', 'payroll_entries', 'audit_logs', 'settings'].map(table => (
+                            {['employees', 'inventory', 'vendors', 'job_cards', 'timesheets', 'payroll_entries', 'audit_logs', 'settings'].map(table => (
                                 <div key={table} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                                     <span className="font-medium text-gray-700 capitalize">{table.replace('_', ' ')}</span>
                                     {results.checks?.tables?.[table] ? (

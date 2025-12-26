@@ -1,0 +1,28 @@
+{
+  "1766686061425": {
+    "name": "priyank panchal",
+    "role": "staff",
+    "salary": "",
+    "email": "",
+    "image": null,
+    "category": "",
+    "contact": "0987654321",
+    "birthday": "1991-12-25",
+    "age": 34,
+    "address": "",
+    "status": "Active",
+    "emergencyName": "",
+    "emergencyPhone": "",
+    "shiftStart": "08:15",
+    "shiftEnd": "18:00",
+    "breakTime": 60,
+    "perShiftAmount": "800",
+    "payType": "Hourly",
+    "emergencyContact": {
+      "name": "",
+      "phone": ""
+    },
+    "id": "1766686061425",
+    "joiningDate": "2025-12-25"
+  }
+}

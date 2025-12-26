@@ -24,6 +24,8 @@ const loanService = require('./services/loanService');
 const advanceService = require('./services/advanceService');
 const bonusService = require('./services/bonusService');
 const settingsService = require('./services/settingsService');
+
+
 const { db } = require('./config/firebase');
 
 // Global error log for System Diagnostics
@@ -285,6 +287,10 @@ app.delete('/api/vendors/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete vendor' });
     }
 });
+
+
+
+
 
 // Employees
 // Employees
@@ -1672,7 +1678,7 @@ app.get('/api/diagnostics', async (req, res) => {
         }
 
         // Test Table Access
-        const tables = ['employees', 'inventory', 'vendors', 'timesheets', 'payroll_entries', 'audit_logs', 'settings'];
+        const tables = ['employees', 'inventory', 'vendors', 'job_cards', 'timesheets', 'payroll_entries', 'audit_logs', 'settings'];
 
         await Promise.all(tables.map(async (table) => {
             try {
