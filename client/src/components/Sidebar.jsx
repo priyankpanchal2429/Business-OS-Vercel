@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, Contact, Receipt, FileText, Activity, Calculator, ClipboardList, Megaphone, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Contact, Receipt, FileText, Activity, Calculator, ClipboardList, Megaphone, TrendingUp, Factory } from 'lucide-react';
 import '../index.css';
 
 const Sidebar = () => {
     const navItems = [
         { to: "/", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+        { to: "/machine-progress", icon: <Factory size={20} />, label: "Machine Progress" },
         { to: "/inventory", icon: <Package size={20} />, label: "Inventory" },
         { to: "/vendors", icon: <Users size={20} />, label: "Vendors" },
         { to: "/employees", icon: <Contact size={20} />, label: "Employees" },

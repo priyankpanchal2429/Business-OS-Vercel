@@ -22,6 +22,68 @@ import {
 import BirthdayBanner from '../components/BirthdayBanner';
 import { useDebug } from '../context/DebugContext';
 import { getBaseUrl } from '../config/api';
+import { Factory } from 'lucide-react';
+
+const MachineProgressSummary = () => {
+    const navigate = useNavigate();
+    const [stats, setStats] = React.useState({ total: 0, activeMachines: [] });
+
+    React.useEffect(() => {
+        const loadStats = () => {
+            const saved = localStorage.getItem('manufacturing_machines');
+            if (saved) {
+                const machines = JSON.parse(saved);
+                // Filter out completed machines (100% progress)
+                const active = machines.filter(m => m.overallProgress < 100);
+                setStats({
+                    total: active.length,
+                    activeMachines: active.sort((a, b) => new Date(a.deliveryDate) - new Date(b.deliveryDate)).slice(0, 3) // Show top 3 urgent
+                });
+            }
+        };
+
+        loadStats();
+        // Listen for storage events in case it updates in another tab/component
+        window.addEventListener('storage', loadStats);
+        return () => window.removeEventListener('storage', loadStats);
+    }, []);
+
+    if (stats.total === 0) return null;
+
+    return (
+        <Card title="Factory Floor Status" icon={Factory}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1 }}>{stats.total}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Active Jobs</div>
+                    </div>
+                    <button
+                        onClick={() => navigate('/machine-progress')}
+                        style={{ fontSize: '0.85rem', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        View All →
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {stats.activeMachines.map(machine => (
+                        <div key={machine.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '12px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+                                <span>{machine.name}</span>
+                                <span style={{ color: machine.overallProgress > 80 ? 'var(--color-success)' : 'var(--color-text-primary)' }}>{machine.overallProgress}%</span>
+                            </div>
+                            <div style={{ height: '6px', background: 'var(--color-background-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${machine.overallProgress}%`, height: '100%', background: 'var(--color-accent)', borderRadius: '3px' }}></div>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Stage: {machine.currentStage}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </Card>
+    );
+};
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -231,59 +293,65 @@ const Dashboard = () => {
                     </div>
 
 
-                    {/* Quick Actions */}
-                    <Card title="Quick Actions">
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(5, 1fr)', // Force 5 columns for buttons
-                            gap: 'var(--spacing-md)'
-                        }}>
-                            {[
-                                { label: 'Inventory', path: '/inventory', icon: Package },
-                                { label: 'Vendors', path: '/vendors', icon: Store },
-                                { label: 'Employees', path: '/employees', icon: Users },
-                                { label: 'Payroll', path: '/payroll', icon: CreditCard },
-                                { label: 'Payslips', path: '/payslips', icon: FileText }
-                            ].map((action) => (
-                                <button
-                                    key={action.label}
-                                    onClick={() => navigate(action.path)}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '10px',
-                                        background: 'var(--color-background-subtle)',
-                                        border: '1px solid transparent',
-                                        borderRadius: 'var(--radius-md)',
-                                        padding: '12px var(--spacing-md)',
-                                        color: 'var(--color-text-primary)',
-                                        fontSize: '0.9rem',
-                                        fontWeight: 500,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    }}
-                                    onMouseOver={(e) => {
-                                        e.currentTarget.style.background = 'var(--color-surface)';
-                                        e.currentTarget.style.borderColor = 'var(--color-accent)';
-                                        e.currentTarget.style.color = 'var(--color-accent)';
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.background = 'var(--color-background-subtle)';
-                                        e.currentTarget.style.borderColor = 'transparent';
-                                        e.currentTarget.style.color = 'var(--color-text-primary)';
-                                        e.currentTarget.style.transform = 'none';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                >
-                                    <action.icon size={18} strokeWidth={2} />
-                                    <span>{action.label}</span>
-                                </button>
-                            ))}
+                    {/* Side-by-Side: Quick Actions & Factory Status */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--spacing-lg)' }}>
+                        <Card title="Quick Actions" style={{ height: '100%' }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', // Auto fit for responsiveness
+                                gap: 'var(--spacing-md)'
+                            }}>
+                                {[
+                                    { label: 'Inventory', path: '/inventory', icon: Package },
+                                    { label: 'Vendors', path: '/vendors', icon: Store },
+                                    { label: 'Employees', path: '/employees', icon: Users },
+                                    { label: 'Payroll', path: '/payroll', icon: CreditCard },
+                                    { label: 'Payslips', path: '/payslips', icon: FileText }
+                                ].map((action) => (
+                                    <button
+                                        key={action.label}
+                                        onClick={() => navigate(action.path)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '10px',
+                                            background: 'var(--color-background-subtle)',
+                                            border: '1px solid transparent',
+                                            borderRadius: 'var(--radius-md)',
+                                            padding: '12px var(--spacing-md)',
+                                            color: 'var(--color-text-primary)',
+                                            fontSize: '0.9rem',
+                                            fontWeight: 500,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.background = 'var(--color-surface)';
+                                            e.currentTarget.style.borderColor = 'var(--color-accent)';
+                                            e.currentTarget.style.color = 'var(--color-accent)';
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.background = 'var(--color-background-subtle)';
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                            e.currentTarget.style.color = 'var(--color-text-primary)';
+                                            e.currentTarget.style.transform = 'none';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    >
+                                        <action.icon size={18} strokeWidth={2} />
+                                        <span>{action.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </Card>
+
+                        <div style={{ height: '100%' }}>
+                            <MachineProgressSummary />
                         </div>
-                    </Card>
+                    </div>
 
                     {/* Today's Attendance */}
                     <AttendanceCard />

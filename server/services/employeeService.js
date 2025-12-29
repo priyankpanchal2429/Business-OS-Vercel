@@ -28,7 +28,7 @@ const employeeService = {
         const id = String(employeeData.id || Date.now());
         const newEmployee = {
             ...employeeData,
-            id: parseInt(id), // Keep numeric ID in data for compatibility
+            id: String(id), // Store ID as string for flexibility
             joiningDate: employeeData.joiningDate || new Date().toISOString().split('T')[0],
             status: employeeData.status || 'Active'
         };

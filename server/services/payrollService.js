@@ -23,7 +23,7 @@ const payrollService = {
     // Get history for employee
     async getHistory(employeeId) {
         const snapshot = await db.collection('payroll_entries')
-            .where('employeeId', '==', parseInt(employeeId))
+            .where('employeeId', '==', String(employeeId))
             .where('status', '==', 'Paid')
             .get();
 
@@ -141,7 +141,7 @@ const payrollService = {
 
         // --- UPSERT PAYROLL ENTRY ---
         const snapshot = await db.collection('payroll_entries')
-            .where('employeeId', '==', parseInt(employeeId))
+            .where('employeeId', '==', String(employeeId))
             .where('periodStart', '==', periodStart)
             .get();
 
@@ -157,7 +157,7 @@ const payrollService = {
         }
 
         const payload = {
-            employeeId: parseInt(employeeId),
+            employeeId: String(employeeId),
             periodStart,
             periodEnd,
             grossPay,
@@ -209,9 +209,9 @@ const payrollService = {
         payrollSnapshot.forEach(doc => existingEntries.push({ id: doc.id, ...doc.data() }));
 
         // 2. Fetch Employees
-        const requestEmployeeIds = employeeIds.map(id => parseInt(id));
+        const requestEmployeeIds = employeeIds.map(id => String(id));
         const allEmployees = await employeeService.getAll();
-        const employees = allEmployees.filter(e => requestEmployeeIds.includes(e.id));
+        const employees = allEmployees.filter(e => requestEmployeeIds.includes(String(e.id)));
 
         const results = [];
         const idsToCalculate = [];
@@ -349,7 +349,7 @@ const payrollService = {
             const id = existing ? existing.id : `pay-${Date.now()}-${employeeId}`;
             const payload = {
                 id,
-                employeeId,
+                employeeId: String(employeeId),
                 periodStart,
                 periodEnd,
                 grossPay,

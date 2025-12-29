@@ -4,12 +4,12 @@
     "name": "Test Item",
     "price": 100,
     "stock": 10,
-    "category": "Bearings",
+    "category": "Iron",
     "type": "Ball Bearing",
     "description": "",
     "image": "https://cdn.skfmediahub.skf.com/api/public/0901d19680ae63de/png_highpreview/0901d19680ae63de_png_highpreview.png",
     "quantity": 10,
-    "lastUpdated": "2025-12-25T18:05:54.742Z"
+    "lastUpdated": "2025-12-29T11:31:32.257Z"
   },
   "1766727362076": {
     "name": "10 HP 1440 RPM 3-Phase",

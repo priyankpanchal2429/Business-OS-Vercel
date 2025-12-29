@@ -1,11 +1,14 @@
 import { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Eye, Edit2, Printer, Download, X, Phone, MapPin, FileText } from 'lucide-react';
+import { Eye, Edit2, Printer, Download, X, FileText, Copy, MoreHorizontal, Trash2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import JobCardPrint from './JobCardPrint';
+import DeleteConfirmationModal from '../DeleteConfirmationModal';
 
-const JobCardList = ({ history, onEditJob }) => {
+const JobCardList = ({ history, onEditJob, onDuplicateJob, onDeleteJob, onStatusUpdate }) => {
     const [quickViewJob, setQuickViewJob] = useState(null);
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, item: null });
     const printRef = useRef(null);
 
     // Status color mapping
@@ -55,10 +58,25 @@ const JobCardList = ({ history, onEditJob }) => {
         }, 500);
     };
 
+    const handleDeleteClick = (job) => {
+        console.log('Delete Clicked for job:', job);
+        setDeleteModal({ isOpen: true, item: job });
+    };
+
+    const handleConfirmDelete = () => {
+        if (deleteModal.item && onDeleteJob) {
+            onDeleteJob(deleteModal.item);
+            setDeleteModal({ isOpen: false, item: null });
+        }
+    };
+
     return (
         <>
             {/* Print Styles */}
             <style>{`
+                @media screen {
+                    .print-only { display: none; }
+                }
                 @media print {
                     body * { visibility: hidden; }
                     .job-card-print-area, .job-card-print-area * { visibility: visible; }
@@ -93,45 +111,96 @@ const JobCardList = ({ history, onEditJob }) => {
                             <td style={{ padding: 16, fontWeight: 500 }}>{job.customer || job.customerName || '-'}</td>
                             <td style={{ padding: 16, color: 'var(--color-text-secondary)' }}>{job.plant || job.plantName || '-'}</td>
                             <td style={{ padding: 16 }}>
-                                <span style={{
-                                    padding: '6px 12px',
-                                    borderRadius: 20,
-                                    fontSize: '0.8rem',
-                                    fontWeight: 600,
-                                    ...getStatusStyle(job.status)
-                                }}>
-                                    {job.status}
-                                </span>
+                                <div style={{ position: 'relative', display: 'inline-block' }}>
+                                    <select
+                                        value={job.status}
+                                        onChange={(e) => onStatusUpdate && onStatusUpdate(job.id, e.target.value)}
+                                        style={{
+                                            appearance: 'none',
+                                            padding: '6px 28px 6px 12px',
+                                            borderRadius: 20,
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            outline: 'none',
+                                            ...getStatusStyle(job.status),
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 8px center'
+                                        }}
+                                    >
+                                        <option value="Pending">Pending</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
                             </td>
                             <td style={{ padding: '12px 16px' }}>
-                                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                                    {/* Quick View */}
-                                    <ActionButton
-                                        icon={Eye}
-                                        label="Quick View"
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                                    {/* Primary: View */}
+                                    <button
                                         onClick={() => setQuickViewJob(job)}
-                                        color="var(--color-text-secondary)"
-                                    />
-                                    {/* Edit */}
-                                    <ActionButton
-                                        icon={Edit2}
-                                        label="Edit"
+                                        title="Quick View"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: '6px 12px',
+                                            borderRadius: 6,
+                                            border: '1px solid var(--color-border)',
+                                            background: 'white',
+                                            cursor: 'pointer',
+                                            color: 'var(--color-text-primary)',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 500,
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.background = 'var(--color-background-subtle)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.background = 'white';
+                                        }}
+                                    >
+                                        <Eye size={14} /> View
+                                    </button>
+
+                                    {/* Primary: Edit */}
+                                    <button
                                         onClick={() => onEditJob(job)}
-                                        color="var(--color-accent)"
-                                    />
-                                    {/* Print */}
-                                    <ActionButton
-                                        icon={Printer}
-                                        label="Print"
-                                        onClick={() => handlePrint(job)}
-                                        color="#8B5CF6"
-                                    />
-                                    {/* Download */}
-                                    <ActionButton
-                                        icon={Download}
-                                        label="Download"
-                                        onClick={() => handleDownloadPDF(job)}
-                                        color="#10B981"
+                                        title="Edit"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: '6px 12px',
+                                            borderRadius: 6,
+                                            border: 'none',
+                                            background: 'var(--color-accent)',
+                                            cursor: 'pointer',
+                                            color: 'white',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 500,
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.opacity = '0.9';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.opacity = '1';
+                                        }}
+                                    >
+                                        <Edit2 size={14} /> Edit
+                                    </button>
+
+                                    {/* More Actions Dropdown */}
+                                    <ActionDropdown
+                                        job={job}
+                                        onDuplicate={onDuplicateJob ? () => onDuplicateJob(job) : null}
+                                        onPrint={() => handlePrint(job)}
+                                        onDownload={() => handleDownloadPDF(job)}
+                                        onDelete={onDeleteJob ? () => handleDeleteClick(job) : null}
                                     />
                                 </div>
                             </td>
@@ -149,85 +218,196 @@ const JobCardList = ({ history, onEditJob }) => {
                 </tbody>
             </table>
 
-            {/* Quick View Modal - Using Portal to render at body level */}
+            {/* Quick View & Print Portal */}
             {quickViewJob && ReactDOM.createPortal(
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.6)',
+                <>
+                    {/* Screen Modal (Hidden on Print) */}
+                    <div className="no-print" style={{
+                        position: 'fixed',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.6)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: 24
+                    }} onClick={() => setQuickViewJob(null)}>
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                background: 'white',
+                                borderRadius: 16,
+                                width: '100%',
+                                maxWidth: 900,
+                                maxHeight: '90vh',
+                                overflow: 'auto',
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                            }}
+                        >
+                            {/* Modal Header */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '16px 24px',
+                                borderBottom: '1px solid var(--color-border)',
+                                background: 'var(--color-background-subtle)'
+                            }}>
+                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
+                                    Job Card Preview - {quickViewJob.jobNo}
+                                </h2>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                        onClick={() => handlePrint(quickViewJob)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            padding: '8px 16px', borderRadius: 8,
+                                            border: '1px solid var(--color-border)',
+                                            background: 'white', cursor: 'pointer',
+                                            fontWeight: 500, fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        <Printer size={16} /> Print
+                                    </button>
+                                    <button
+                                        onClick={() => handleDownloadPDF(quickViewJob)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            padding: '8px 16px', borderRadius: 8,
+                                            border: 'none',
+                                            background: 'var(--color-accent)', color: 'white',
+                                            cursor: 'pointer', fontWeight: 500, fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        <Download size={16} /> Download PDF
+                                    </button>
+                                    <button
+                                        onClick={() => setQuickViewJob(null)}
+                                        style={{
+                                            padding: 8, borderRadius: 8,
+                                            border: 'none', background: 'transparent',
+                                            cursor: 'pointer', color: 'var(--color-text-secondary)'
+                                        }}
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* View Only Content */}
+                            <div style={{ padding: 24 }}>
+                                <JobCardPrint data={quickViewJob} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Print Only Content (Hidden on Screen) */}
+                    <div className="job-card-print-area print-only" style={{ padding: 24, background: 'white' }}>
+                        <JobCardPrint ref={printRef} data={quickViewJob} />
+                    </div>
+                </>,
+                document.body
+            )}
+
+            {/* Custom Delete Confirmation Modal */}
+            <DeleteConfirmationModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, item: null })}
+                onConfirm={handleConfirmDelete}
+                itemName={deleteModal.item?.jobNo}
+                itemType="Job Card"
+                message="Are you sure you want to delete this job card? This action cannot be undone."
+            />
+        </>
+    );
+};
+
+// Action Dropdown Component for secondary actions - Using Portal
+const ActionDropdown = ({ job, onDuplicate, onPrint, onDownload, onDelete }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    const handleClickOutside = (e) => {
+        if (buttonRef.current && !buttonRef.current.contains(e.target)) {
+            setIsOpen(false);
+        }
+    };
+
+    // Update position when opening
+    const handleToggle = () => {
+        if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPosition({
+                top: rect.bottom + 4,
+                left: rect.right - 160 // Align right edge
+            });
+        }
+        setIsOpen(!isOpen);
+    };
+
+    // Add/remove event listener
+    if (typeof window !== 'undefined' && isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return (
+        <>
+            <button
+                ref={buttonRef}
+                onClick={handleToggle}
+                title="More Actions"
+                style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    zIndex: 9999,
-                    padding: 24
-                }} onClick={() => setQuickViewJob(null)}>
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            background: 'white',
-                            borderRadius: 16,
-                            width: '100%',
-                            maxWidth: 900,
-                            maxHeight: '90vh',
-                            overflow: 'auto',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-                        }}
-                    >
-                        {/* Modal Header */}
-                        <div className="no-print" style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '16px 24px',
-                            borderBottom: '1px solid var(--color-border)',
-                            background: 'var(--color-background-subtle)'
-                        }}>
-                            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
-                                Job Card Preview - {quickViewJob.jobNo}
-                            </h2>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <button
-                                    onClick={() => handlePrint(quickViewJob)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: 6,
-                                        padding: '8px 16px', borderRadius: 8,
-                                        border: '1px solid var(--color-border)',
-                                        background: 'white', cursor: 'pointer',
-                                        fontWeight: 500, fontSize: '0.9rem'
-                                    }}
-                                >
-                                    <Printer size={16} /> Print
-                                </button>
-                                <button
-                                    onClick={() => handleDownloadPDF(quickViewJob)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: 6,
-                                        padding: '8px 16px', borderRadius: 8,
-                                        border: 'none',
-                                        background: 'var(--color-accent)', color: 'white',
-                                        cursor: 'pointer', fontWeight: 500, fontSize: '0.9rem'
-                                    }}
-                                >
-                                    <Download size={16} /> Download PDF
-                                </button>
-                                <button
-                                    onClick={() => setQuickViewJob(null)}
-                                    style={{
-                                        padding: 8, borderRadius: 8,
-                                        border: 'none', background: 'transparent',
-                                        cursor: 'pointer', color: 'var(--color-text-secondary)'
-                                    }}
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-                        </div>
+                    width: 32,
+                    height: 32,
+                    borderRadius: 6,
+                    border: '1px solid var(--color-border)',
+                    background: isOpen ? 'var(--color-background-subtle)' : 'white',
+                    cursor: 'pointer',
+                    color: 'var(--color-text-secondary)',
+                    transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                    if (!isOpen) e.currentTarget.style.background = 'var(--color-background-subtle)';
+                }}
+                onMouseOut={(e) => {
+                    if (!isOpen) e.currentTarget.style.background = 'white';
+                }}
+            >
+                <MoreHorizontal size={16} />
+            </button>
 
-                        {/* Printable Job Card Content */}
-                        <div ref={printRef} className="job-card-print-area" style={{ padding: 24 }}>
-                            <JobCardPrintView job={quickViewJob} />
-                        </div>
-                    </div>
+            {isOpen && ReactDOM.createPortal(
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: position.top,
+                        left: position.left,
+                        background: 'white',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 8,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                        minWidth: 160,
+                        zIndex: 99999,
+                        overflow: 'hidden'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {onDuplicate && (
+                        <DropdownItem icon={Copy} label="Duplicate" onClick={() => { onDuplicate(); setIsOpen(false); }} />
+                    )}
+                    <DropdownItem icon={Printer} label="Print" onClick={() => { onPrint(); setIsOpen(false); }} />
+                    <DropdownItem icon={Download} label="Download PDF" onClick={() => { onDownload(); setIsOpen(false); }} />
+                    {onDelete && (
+                        <>
+                            <div style={{ height: 1, background: '#E2E8F0', margin: '4px 0' }} />
+                            <DropdownItem icon={Trash2} label="Delete" onClick={() => { onDelete(); setIsOpen(false); }} danger />
+                        </>
+                    )}
                 </div>,
                 document.body
             )}
@@ -235,176 +415,32 @@ const JobCardList = ({ history, onEditJob }) => {
     );
 };
 
-// Action Button Component
-const ActionButton = ({ icon: Icon, label, onClick, color }) => (
+// Dropdown Item Component
+const DropdownItem = ({ icon: Icon, label, onClick, danger }) => (
     <button
         onClick={onClick}
-        title={label}
         style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            border: '1px solid var(--color-border)',
-            background: 'white',
+            gap: 10,
+            width: '100%',
+            padding: '10px 14px',
+            border: 'none',
+            background: 'transparent',
             cursor: 'pointer',
-            color: color,
-            transition: 'all 0.2s'
+            color: danger ? '#EF4444' : 'var(--color-text-primary)',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            textAlign: 'left',
+            transition: 'background 0.15s'
         }}
-        onMouseOver={(e) => {
-            e.currentTarget.style.background = color + '10';
-            e.currentTarget.style.borderColor = color;
-        }}
-        onMouseOut={(e) => {
-            e.currentTarget.style.background = 'white';
-            e.currentTarget.style.borderColor = 'var(--color-border)';
-        }}
+        onMouseOver={(e) => e.currentTarget.style.background = danger ? '#FEE2E2' : 'var(--color-background-subtle)'}
+        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
     >
-        <Icon size={18} />
+        <Icon size={16} style={{ color: danger ? '#EF4444' : 'var(--color-text-secondary)' }} />
+        {label}
     </button>
 );
-
-// Job Card Print View - Matches Reference Design
-const JobCardPrintView = ({ job }) => {
-    const darkBlue = '#0D3B8F';
-
-    return (
-        <div style={{ fontFamily: 'Inter, sans-serif', color: '#1E293B' }}>
-            {/* Company Header Banner - Using actual image */}
-            <img
-                src="/rajesh-engineering-header.jpg"
-                alt="Rajesh Engineering"
-                style={{
-                    width: '100%',
-                    borderRadius: 8,
-                    marginBottom: 24
-                }}
-            />
-
-            {/* Job Card Title */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: darkBlue, margin: 0 }}>JOB CARD</h1>
-                <div style={{
-                    background: darkBlue,
-                    color: 'white',
-                    padding: '8px 16px',
-                    borderRadius: 6,
-                    fontWeight: 700,
-                    fontSize: '0.95rem'
-                }}>{job.jobNo}</div>
-            </div>
-
-
-            {/* Customer Info Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                {/* Invoice To */}
-                <div style={{ border: '1px solid #E2E8F0', borderRadius: 8, padding: 16 }}>
-                    <div style={{ fontSize: '0.75rem', color: '#64748B', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Invoice to.</div>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: 8 }}>{job.customerName || job.customer || 'N/A'}</div>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6, color: '#64748B', fontSize: '0.9rem' }}>
-                        <MapPin size={14} style={{ marginTop: 2, flexShrink: 0 }} />
-                        <span>{job.address || 'Address not provided'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748B', fontSize: '0.9rem' }}>
-                        <Phone size={14} />
-                        <span>{job.phone || 'Phone not provided'}</span>
-                    </div>
-                </div>
-
-                {/* Shipping To */}
-                <div style={{ border: '1px solid #E2E8F0', borderRadius: 8, padding: 16 }}>
-                    <div style={{ fontSize: '0.75rem', color: '#64748B', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Shipping to.</div>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: 8 }}>{job.plantName || job.plant || job.customerName || 'Same as Invoice'}</div>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6, color: '#64748B', fontSize: '0.9rem' }}>
-                        <MapPin size={14} style={{ marginTop: 2, flexShrink: 0 }} />
-                        <span>{job.shippingAddress || 'Same as Invoice'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748B', fontSize: '0.9rem' }}>
-                        <Phone size={14} />
-                        <span>{job.shippingPhone || '-'}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Job Details */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-                <InfoBox label="Job No" value={job.jobNo} />
-                <InfoBox label="Date" value={new Date(job.jobDate || job.date).toLocaleDateString('en-GB')} />
-                <InfoBox label="Status" value={job.status} />
-                <InfoBox label="Priority" value={job.priority || 'Normal'} />
-            </div>
-
-            {/* Order Details Grid */}
-            {job.orderDetails && job.orderDetails.filter(o => o.name).length > 0 && (
-                <div style={{ marginBottom: 24 }}>
-                    <div style={{ background: headerBlue, color: 'white', padding: '10px 16px', fontWeight: 700, fontSize: '0.9rem', borderRadius: '8px 8px 0 0' }}>
-                        ORDER DETAILS
-                    </div>
-                    <div style={{ border: '1px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: '#E2E8F0' }}>
-                            {job.orderDetails.filter(o => o.name).map((order, idx) => (
-                                <div key={idx} style={{ background: 'white', padding: 12, textAlign: 'center' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.8rem', color: headerBlue, marginBottom: 4 }}>
-                                        {idx + 1}. {order.name.toUpperCase()}
-                                    </div>
-                                    <div style={{ fontSize: '0.85rem', color: '#64748B' }}>{order.model || '-'}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Machines & Parts */}
-            {job.machines && job.machines.length > 0 && job.machines.map((machine, mIdx) => (
-                <div key={machine.id || mIdx} style={{ marginBottom: 20 }}>
-                    {/* Machine Header */}
-                    <div style={{
-                        background: headerBlue, color: 'white',
-                        padding: '10px 16px',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        borderRadius: '8px 8px 0 0'
-                    }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                            {mIdx + 1}. {machine.type?.toUpperCase() || 'MACHINE'}
-                        </span>
-                        <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                            MODEL NO: {machine.model || 'N/A'}
-                        </span>
-                    </div>
-
-                    {/* Parts Table */}
-                    {machine.parts && machine.parts.length > 0 && (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #E2E8F0', borderTop: 'none' }}>
-                            <thead>
-                                <tr style={{ background: '#F8FAFC' }}>
-                                    <th style={{ padding: 10, textAlign: 'left', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B', borderBottom: '1px solid #E2E8F0' }}>
-                                        {machine.type?.toUpperCase() || 'MACHINE'} PARTS DETAILS
-                                    </th>
-                                    <th style={{ padding: 10, textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B', borderBottom: '1px solid #E2E8F0' }}>MODEL NO.</th>
-                                    <th style={{ padding: 10, textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B', borderBottom: '1px solid #E2E8F0' }}>SIZE</th>
-                                    <th style={{ padding: 10, textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B', borderBottom: '1px solid #E2E8F0' }}>QUANTITY</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {machine.parts.filter(p => p.name).map((part, pIdx) => (
-                                    <tr key={part.guid || pIdx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                        <td style={{ padding: 10, fontSize: '0.9rem' }}>{part.name}</td>
-                                        <td style={{ padding: 10, textAlign: 'center', fontSize: '0.9rem', color: '#64748B' }}>{part.model || '-'}</td>
-                                        <td style={{ padding: 10, textAlign: 'center', fontSize: '0.9rem', color: '#64748B' }}>{part.size || '-'}</td>
-                                        <td style={{ padding: 10, textAlign: 'center', fontSize: '0.9rem', fontWeight: 600 }}>{part.qty || 1}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            ))}
-        </div>
-    );
-};
 
 // Info Box Component
 const InfoBox = ({ label, value }) => (
@@ -415,3 +451,4 @@ const InfoBox = ({ label, value }) => (
 );
 
 export default JobCardList;
+

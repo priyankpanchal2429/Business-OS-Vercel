@@ -4,7 +4,7 @@ const deductionService = {
     // Get deductions for an employee in a period
     async getForEmployee(employeeId, periodStart, periodEnd) {
         const snapshot = await db.collection('deductions')
-            .where('employeeId', '==', parseInt(employeeId))
+            .where('employeeId', '==', String(employeeId))
             .where('status', '==', 'active')
             .get();
 

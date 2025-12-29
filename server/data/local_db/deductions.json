@@ -1,0 +1,13 @@
+{
+  "ded-1767008443617-2wdn6j9o9": {
+    "employeeId": 1766686061425,
+    "periodStart": "2025-12-22",
+    "periodEnd": "2026-01-04",
+    "type": "advance",
+    "description": "Advance Salary - 2025-12-23",
+    "amount": 500,
+    "linkedAdvanceId": "adv-1767008443616",
+    "id": "ded-1767008443617-2wdn6j9o9",
+    "status": "active"
+  }
+}

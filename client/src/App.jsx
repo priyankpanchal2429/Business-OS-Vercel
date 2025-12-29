@@ -12,6 +12,7 @@ import Report from './pages/Report';
 import UtilityHub from './pages/UtilityHub';
 import SystemDiagnostics from './pages/SystemDiagnostics';
 import JobCard from './pages/JobCard';
+import MachineManufacturing from './pages/MachineManufacturing';
 
 
 // Tools
@@ -51,6 +52,7 @@ function App() {
                             <Route path="/resigned-employee" element={<ResignedEmployeeHistory />} />
                             <Route path="/system-health" element={<SystemDiagnostics />} />
                             <Route path="/job-cards" element={<JobCard />} />
+                            <Route path="/machine-progress" element={<MachineManufacturing />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                     </Layout>

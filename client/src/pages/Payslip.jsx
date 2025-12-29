@@ -267,7 +267,7 @@ const Payslip = () => {
                 </div>
 
                 {/* Timesheet Details */}
-                {entry.details?.timesheet?.length > 0 && (
+                {entry.periodStart && entry.periodEnd && (
                     <section style={{ marginBottom: '20px' }}>
                         <h3 className="sub-header" style={{ marginBottom: '10px' }}>Timesheet Details</h3>
                         <table className="compact-table">
@@ -284,53 +284,89 @@ const Payslip = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {entry.details.timesheet.map((row, idx) => {
-                                    const isSunday = new Date(row.date).getDay() === 0;
-                                    const isTravel = row.dayType === 'Travel';
-                                    const hasOvertime = row.overtimeMinutes > 0;
-                                    const showNightStatus = row.nightStatus && hasOvertime;
-                                    const highlightOvertime = hasOvertime; // Apply highlighting logic to ANY overtime as requested
+                                {(() => {
+                                    // Helper to generate date range
+                                    const getDatesInRange = (startDate, endDate) => {
+                                        const date = new Date(startDate);
+                                        const end = new Date(endDate);
+                                        const dates = [];
+                                        while (date <= end) {
+                                            dates.push(new Date(date).toISOString().split('T')[0]);
+                                            date.setDate(date.getDate() + 1);
+                                        }
+                                        return dates;
+                                    };
 
-                                    return (
-                                        <tr key={idx} style={{
-                                            background: isTravel ? '#E6F4FF' : (highlightOvertime ? '#fffde7' : 'transparent'),
-                                            color: isSunday ? '#d32f2f' : 'inherit'
-                                        }}>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    {new Date(row.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                                    {isTravel && <Plane size={12} fill="#0ea5e9" color="#0ea5e9" title="Travel Day" />}
-                                                    {highlightOvertime && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
-                                                </div>
-                                            </td>
-                                            <td>{formatTime12h(row.clockIn)}</td>
-                                            <td>{formatTime12h(row.clockOut)}</td>
-                                            <td>{row.breakMinutes > 0 ? `${row.breakMinutes}m` : '-'}</td>
-                                            <td>
-                                                {isTravel ? 'Travel' : (showNightStatus ? 'Night' : '-')}
-                                            </td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                {row.overtimeMinutes > 0 ? `${Math.floor(row.overtimeMinutes / 60)}h ${row.overtimeMinutes % 60}m` : '-'}
-                                            </td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                {Math.floor(row.billableMinutes / 60)}h {(row.billableMinutes % 60)}m
-                                            </td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                                                {(() => {
-                                                    const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
-                                                    const amount = hourlyRate * (row.billableMinutes / 60);
-                                                    return hourlyRate ? '₹' + Math.round(amount).toLocaleString('en-IN') : '-';
-                                                })()}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                    const allDates = getDatesInRange(entry.periodStart, entry.periodEnd);
+                                    const timesheetMap = new Map();
+                                    (entry.details?.timesheet || []).forEach(t => {
+                                        timesheetMap.set(t.date, t);
+                                    });
+
+                                    return allDates.map((dateStr, idx) => {
+                                        const row = timesheetMap.get(dateStr);
+                                        const dateObj = new Date(dateStr);
+                                        const isSunday = dateObj.getDay() === 0;
+
+                                        // Default Values for Missing Days
+                                        let displayRow = row || {
+                                            date: dateStr,
+                                            clockIn: '-',
+                                            clockOut: '-',
+                                            breakMinutes: 0,
+                                            dayType: isSunday ? 'Weekend' : 'Absent',
+                                            overtimeMinutes: 0,
+                                            billableMinutes: 0
+                                        };
+
+                                        // Status Logic
+                                        const isTravel = displayRow.dayType === 'Travel';
+                                        const hasOvertime = displayRow.overtimeMinutes > 0;
+                                        const highlightOvertime = hasOvertime;
+                                        const showNightStatus = displayRow.nightStatus && hasOvertime;
+                                        const isAbsent = !row && !isSunday;
+
+                                        return (
+                                            <tr key={idx} style={{
+                                                background: isTravel ? '#E6F4FF' : (highlightOvertime ? '#fffde7' : (isAbsent ? '#FFF5F5' : 'transparent')),
+                                                color: isSunday ? '#d32f2f' : (isAbsent ? '#C53030' : 'inherit')
+                                            }}>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        {dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                                        {isTravel && <Plane size={12} fill="#0ea5e9" color="#0ea5e9" title="Travel Day" />}
+                                                        {highlightOvertime && <Moon size={12} fill="#f59e0b" color="#f59e0b" />}
+                                                    </div>
+                                                </td>
+                                                <td style={{ opacity: !row ? 0.5 : 1 }}>{displayRow.clockIn !== '-' ? formatTime12h(displayRow.clockIn) : '-'}</td>
+                                                <td style={{ opacity: !row ? 0.5 : 1 }}>{displayRow.clockOut !== '-' ? formatTime12h(displayRow.clockOut) : '-'}</td>
+                                                <td style={{ opacity: !row ? 0.5 : 1 }}>{displayRow.breakMinutes > 0 ? `${displayRow.breakMinutes}m` : '-'}</td>
+                                                <td>
+                                                    {isTravel ? 'Travel' : (showNightStatus ? 'Night' : (isAbsent ? 'Absent' : (isSunday && !row ? 'Sunday' : '-')))}
+                                                </td>
+                                                <td style={{ textAlign: 'right', opacity: !row ? 0.5 : 1 }}>
+                                                    {displayRow.overtimeMinutes > 0 ? `${Math.floor(displayRow.overtimeMinutes / 60)}h ${displayRow.overtimeMinutes % 60}m` : '-'}
+                                                </td>
+                                                <td style={{ textAlign: 'right', opacity: !row ? 0.5 : 1 }}>
+                                                    {Math.floor(displayRow.billableMinutes / 60)}h {(displayRow.billableMinutes % 60)}m
+                                                </td>
+                                                <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                    {(() => {
+                                                        const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
+                                                        const amount = hourlyRate * (displayRow.billableMinutes / 60);
+                                                        return amount > 0 ? '₹' + Math.round(amount).toLocaleString('en-IN') : '-';
+                                                    })()}
+                                                </td>
+                                            </tr>
+                                        );
+                                    });
+                                })()}
                             </tbody>
                             <tfoot>
                                 <tr>
                                     <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, paddingTop: '10px', borderTop: '2px solid #eee' }}>Total Amount</td>
                                     <td style={{ textAlign: 'right', fontWeight: 700, paddingTop: '10px', borderTop: '2px solid #eee' }}>
-                                        {'₹' + entry.details.timesheet.reduce((sum, row) => {
+                                        {'₹' + (entry.details?.timesheet || []).reduce((sum, row) => {
                                             const hourlyRate = entry.hourlyRate || (entry.perShiftAmount ? parseFloat(entry.perShiftAmount) / 8 : 0);
                                             const dailyAmount = hourlyRate * (row.billableMinutes / 60);
                                             return sum + Math.round(dailyAmount);

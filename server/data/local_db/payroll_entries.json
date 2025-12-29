@@ -1,0 +1,209 @@
+{
+  "pay-1767008371861-1766686061425": {
+    "id": "pay-1767008371861-1766686061425",
+    "employeeId": "1766686061425",
+    "periodStart": "2025-12-22",
+    "periodEnd": "2026-01-04",
+    "grossPay": 4800,
+    "deductions": 500,
+    "advanceDeductions": 500,
+    "loanDeductions": 0,
+    "netPay": 4300,
+    "status": "Paid",
+    "overtimePay": 0,
+    "totalOvertimeMinutes": 0,
+    "perShiftAmount": "800",
+    "hourlyRate": 91.42857142857143,
+    "frozenData": {
+      "totalBillableMinutes": 3150,
+      "workingDays": 6,
+      "calculatedAt": "2025-12-29T11:41:26.760Z"
+    },
+    "paidAt": "2025-12-29T11:47:38.536Z",
+    "details": {
+      "frozenEmployee": {
+        "name": "priyank panchal",
+        "role": "staff",
+        "image": null,
+        "salary": "",
+        "hourlyRate": 91.42857142857143
+      },
+      "frozenTimesheet": [
+        {
+          "date": "2025-12-22",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-23",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-24",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-25",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-26",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-27",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-28",
+          "clockIn": "-",
+          "clockOut": "-",
+          "breakMinutes": 0,
+          "dayType": "Work",
+          "totalMinutes": 0,
+          "billableMinutes": 0,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-29",
+          "clockIn": "08:15",
+          "clockOut": "18:00",
+          "breakMinutes": 60,
+          "dayType": "Work",
+          "totalMinutes": 585,
+          "billableMinutes": 525,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-30",
+          "clockIn": "09:00",
+          "clockOut": "18:00",
+          "breakMinutes": "60",
+          "dayType": "Work",
+          "totalMinutes": 540,
+          "billableMinutes": 480,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2025-12-31",
+          "clockIn": "-",
+          "clockOut": "-",
+          "breakMinutes": 0,
+          "dayType": "Work",
+          "totalMinutes": 0,
+          "billableMinutes": 0,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2026-01-01",
+          "clockIn": "-",
+          "clockOut": "-",
+          "breakMinutes": 0,
+          "dayType": "Work",
+          "totalMinutes": 0,
+          "billableMinutes": 0,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2026-01-02",
+          "clockIn": "-",
+          "clockOut": "-",
+          "breakMinutes": 0,
+          "dayType": "Work",
+          "totalMinutes": 0,
+          "billableMinutes": 0,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2026-01-03",
+          "clockIn": "-",
+          "clockOut": "-",
+          "breakMinutes": 0,
+          "dayType": "Work",
+          "totalMinutes": 0,
+          "billableMinutes": 0,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        },
+        {
+          "date": "2026-01-04",
+          "clockIn": "-",
+          "clockOut": "-",
+          "breakMinutes": 0,
+          "dayType": "Work",
+          "totalMinutes": 0,
+          "billableMinutes": 0,
+          "overtimeMinutes": 0,
+          "nightStatus": null
+        }
+      ],
+      "frozenAdvances": [
+        {
+          "id": "ded-1767008443617-2wdn6j9o9",
+          "employeeId": 1766686061425,
+          "periodStart": "2025-12-22",
+          "periodEnd": "2026-01-04",
+          "type": "advance",
+          "description": "Advance Salary - 2025-12-23",
+          "amount": 500,
+          "linkedAdvanceId": "adv-1767008443616",
+          "status": "active"
+        }
+      ],
+      "frozenLoans": [],
+      "frozenBonus": {
+        "ytdDays": 8,
+        "ytdAccrued": 280,
+        "totalWithdrawn": 0,
+        "balance": 280
+      }
+    }
+  }
+}

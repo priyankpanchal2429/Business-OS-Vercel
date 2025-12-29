@@ -7,7 +7,7 @@ const timesheetService = {
         // To allow this to work immediately without manual index creation, 
         // we'll filter by range and sort in memory.
         const snapshot = await db.collection('timesheets')
-            .where('employeeId', '==', parseInt(employeeId))
+            .where('employeeId', '==', String(employeeId))
             .where('date', '>=', startDate)
             .where('date', '<=', endDate)
             .get();
@@ -32,8 +32,8 @@ const timesheetService = {
         const forbidden = ['lastUpdated', 'last_updated', 'created_at', 'day', 'month', 'year', 'employeeName'];
         forbidden.forEach(field => delete payload[field]);
 
-        // Ensure numeric type for employeeId to match query
-        if (payload.employeeId) payload.employeeId = parseInt(payload.employeeId);
+        // Ensure string type for employeeId
+        if (payload.employeeId) payload.employeeId = String(payload.employeeId);
 
         // Generate Composite Doc ID (One entry per day per employee)
         const docId = `${payload.employeeId}_${payload.date}`;
@@ -66,7 +66,7 @@ const timesheetService = {
     // Clock Out
     async clockOut(employeeId, date, time) {
         // Calculate Doc ID
-        const docId = `${parseInt(employeeId)}_${date}`;
+        const docId = `${String(employeeId)}_${date}`;
         const docRef = db.collection('timesheets').doc(docId);
 
         const doc = await docRef.get();
@@ -82,7 +82,7 @@ const timesheetService = {
 
     // Update Break Time
     async updateBreak(employeeId, date, minutes) {
-        const docId = `${parseInt(employeeId)}_${date}`;
+        const docId = `${String(employeeId)}_${date}`;
         const docRef = db.collection('timesheets').doc(docId);
 
         const doc = await docRef.get();

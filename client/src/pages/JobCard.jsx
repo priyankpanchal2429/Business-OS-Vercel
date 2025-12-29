@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Clipboard } from 'lucide-react';
+import { Plus, Search, Clipboard, Layers, Clock, Loader, CheckCircle } from 'lucide-react';
 import JobCardList from '../components/JobCard/JobCardList';
 import JobCardEditor from '../components/JobCard/JobCardEditor';
 import PageHeader from '../components/PageHeader';
@@ -130,7 +130,7 @@ const JobCard = () => {
     const initialFormState = {
         id: '', jobNo: `JC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
         jobDate: new Date().toISOString().split('T')[0], customerName: '', plantName: '', status: 'Pending', priority: 'Normal',
-        orderDetails: Array(5).fill(null).map((_, i) => ({ id: i, name: '', model: '' })),
+        orderDetails: Array(4).fill(null).map((_, i) => ({ id: i, name: '', model: '' })),
         machines: [{ id: `m-${Date.now()}`, type: '', model: '', parts: [{ id: `p-${Date.now()}`, guid: `g-${Date.now()}`, name: '', model: '', size: '', qty: 1 }] }]
     };
 
@@ -159,6 +159,26 @@ const JobCard = () => {
             return [newRecord, ...prev];
         });
         setIsEditorOpen(false);
+    };
+
+    // Duplicate job card for repeat customers
+    const handleDuplicateJob = (job) => {
+        const duplicatedJob = {
+            ...job,
+            id: null, // Will be assigned new ID on save
+            jobNo: `JC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+            jobDate: new Date().toISOString().split('T')[0],
+            status: 'Pending',
+            internalNotes: ''
+        };
+        setCurrentJob(duplicatedJob);
+        setIsEditorOpen(true);
+    };
+
+    // Delete job card with confirmation
+    // Delete job card - Confirmation handled in JobCardList
+    const handleDeleteJob = (job) => {
+        setHistory(prev => prev.filter(j => j.id !== job.id));
     };
 
     // --- STATS ---
@@ -223,10 +243,10 @@ const JobCard = () => {
 
             {/* Stats Overview */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                <StatCard label="Total Jobs" value={stats.total} color="var(--color-text-primary)" />
-                <StatCard label="Pending" value={stats.pending} color="#FF9500" />
-                <StatCard label="In Progress" value={stats.inProgress} color="var(--color-accent)" />
-                <StatCard label="Completed" value={stats.completed} color="var(--color-success)" />
+                <StatCard label="Total Jobs" value={stats.total} color="#1E293B" icon={Layers} />
+                <StatCard label="Pending" value={stats.pending} color="#FF9500" icon={Clock} />
+                <StatCard label="In Progress" value={stats.inProgress} color="#2563EB" icon={Loader} />
+                <StatCard label="Completed" value={stats.completed} color="#10B981" icon={CheckCircle} />
             </div>
 
             {/* Filters & Table */}
@@ -296,41 +316,89 @@ const JobCard = () => {
 
                 {/* Job List */}
                 <div style={{ flex: 1, overflow: 'auto' }}>
-                    <JobCardList history={filteredHistory} onEditJob={handleEditJob} onNewJob={handleNewJob} />
+                    <JobCardList history={filteredHistory} onEditJob={handleEditJob} onNewJob={handleNewJob} onDuplicateJob={handleDuplicateJob} onDeleteJob={handleDeleteJob} />
                 </div>
             </Card>
         </div>
     );
 };
 
-// Stat Card Component
-const StatCard = ({ label, value, color }) => (
-    <Card style={{ padding: 'var(--spacing-md)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+// Stat Card Component - Modern Premium Design
+const StatCard = ({ label, value, color, icon: Icon }) => (
+    <div style={{
+        background: 'white',
+        borderRadius: 16,
+        padding: '24px',
+        border: '1px solid rgba(226, 232, 240, 0.8)',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'default',
+        position: 'relative',
+        overflow: 'hidden'
+    }}
+        onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            e.currentTarget.style.borderColor = color;
+        }}
+        onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)';
+            e.currentTarget.style.borderColor = 'rgba(226, 232, 240, 0.8)';
+        }}
+    >
+        <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: `${color}15`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                fontSize: '2.5rem',
+                fontWeight: 800,
+                color: '#0F172A',
+                lineHeight: 1,
+                marginBottom: 8,
+                letterSpacing: '-1px'
             }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 700, color }}>{value}</span>
+                {value}
             </div>
-            <div>
-                <div style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    color: 'var(--color-text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                }}>
-                    {label}
-                </div>
+            <div style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#64748B',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+            }}>
+                {label}
             </div>
         </div>
-    </Card>
+
+        <div style={{
+            width: 64,
+            height: 64,
+            borderRadius: 20,
+            background: `linear-gradient(135deg, ${color}15 0%, ${color}25 100%)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: color,
+            transition: 'transform 0.3s ease'
+        }}>
+            {Icon && <Icon size={32} strokeWidth={2} />}
+        </div>
+
+        {/* Decorative background blob */}
+        <div style={{
+            position: 'absolute',
+            right: -20,
+            top: -20,
+            width: 100,
+            height: 100,
+            background: color,
+            opacity: 0.03,
+            borderRadius: '50%',
+            pointerEvents: 'none'
+        }} />
+    </div>
 );
 
 export default JobCard;

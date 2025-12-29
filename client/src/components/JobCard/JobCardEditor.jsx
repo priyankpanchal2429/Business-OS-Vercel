@@ -62,6 +62,7 @@ const SortableMachineItem = ({ machine, updateMachine, removeMachine, activeId, 
                         value={machine.type}
                         onChange={(e) => updateMachine(machine.id, 'type', e.target.value)}
                         placeholder="Machine Name (e.g. Lathe)"
+                        list="machine-types"
                         style={{
                             flex: 2,
                             padding: '8px 12px',
@@ -71,6 +72,15 @@ const SortableMachineItem = ({ machine, updateMachine, removeMachine, activeId, 
                             fontWeight: 600
                         }}
                     />
+                    <datalist id="machine-types">
+                        <option value="Grinder" />
+                        <option value="Screw Conveyor" />
+                        <option value="Ribbon Mixer" />
+                        <option value="Store Tank" />
+                        <option value="Motors" />
+                        <option value="Elevator A" />
+                        <option value="Elevator B" />
+                    </datalist>
                     <input
                         value={machine.model}
                         onChange={(e) => updateMachine(machine.id, 'model', e.target.value)}
@@ -119,7 +129,7 @@ const SortablePartItem = ({ part, updatePart, removePart }) => {
         transform: CSS.Transform.toString(transform),
         transition,
         display: 'grid',
-        gridTemplateColumns: '40px 2fr 1fr 1fr 80px 40px',
+        gridTemplateColumns: '40px 3fr 1fr 1fr 0.5fr 40px',
         gap: 12,
         alignItems: 'center',
         padding: '8px 12px',
@@ -142,20 +152,20 @@ const SortablePartItem = ({ part, updatePart, removePart }) => {
                 value={part.model}
                 onChange={(e) => updatePart(part.guid, 'model', e.target.value)}
                 placeholder="Model"
-                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', color: '#64748B', fontSize: '0.9rem' }}
+                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'center', outline: 'none', color: '#64748B', fontSize: '0.9rem' }}
             />
             <input
                 value={part.size}
                 onChange={(e) => updatePart(part.guid, 'size', e.target.value)}
                 placeholder="Size"
-                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'right', outline: 'none', color: '#64748B', fontSize: '0.9rem' }}
+                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'center', outline: 'none', color: '#64748B', fontSize: '0.9rem' }}
             />
             <input
                 value={part.qty}
                 onChange={(e) => updatePart(part.guid, 'qty', e.target.value)}
                 placeholder="0"
                 type="number"
-                style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: 4, padding: '4px', textAlign: 'center', outline: 'none', fontWeight: 600, fontSize: '0.9rem' }}
+                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'center', outline: 'none', fontWeight: 600, fontSize: '0.9rem' }}
             />
             <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
@@ -169,6 +179,18 @@ const SortablePartItem = ({ part, updatePart, removePart }) => {
         </div>
     );
 }
+
+// ... (in Table Header section)
+
+{/* Table Header */ }
+<div style={{ display: 'grid', gridTemplateColumns: '40px 3fr 1fr 1fr 0.5fr 40px', gap: 12, padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+    <div></div>
+    <div>Part Name</div>
+    <div style={{ textAlign: 'center' }}>Model</div>
+    <div style={{ textAlign: 'center' }}>Size</div>
+    <div style={{ textAlign: 'center' }}>Qty</div>
+    <div></div>
+</div>
 
 
 // --- Main Editor Component ---
@@ -260,12 +282,70 @@ const JobCardEditor = ({ initialData, onSave, onCancel }) => {
         }));
     };
 
+    const DEFAULT_GRINDER_PARTS = [
+        'Beater Blade',
+        'Beater Rod',
+        'Bearing',
+        'Hopper',
+        'Motor',
+        'Foundation Rubber',
+        'Flanch',
+        'Net'
+    ];
+
+    const DEFAULT_SCREW_CONVEYOR_PARTS = [
+        'Bearing',
+        'Pulley',
+        'Belt'
+    ];
+
+    const DEFAULT_STORE_TANK_PARTS = [
+        'Bearing'
+    ];
+
     const updateMachine = (id, field, value) => {
         setFormData(prev => ({
             ...prev,
-            machines: prev.machines.map(m => m.id === id ? { ...m, [field]: value } : m)
+            machines: prev.machines.map(m => {
+                if (m.id !== id) return m;
+
+                const updatedMachine = { ...m, [field]: value };
+
+                // Auto-populate parts if machine type matches a default and parts are empty/default
+                if (field === 'type') {
+                    const typeLower = value.toLowerCase().trim();
+                    const isDefaultParts = m.parts.length <= 1 && (!m.parts[0]?.name);
+
+                    if (isDefaultParts) {
+                        let partsList = null;
+
+                        if (typeLower === 'grinder') {
+                            partsList = DEFAULT_GRINDER_PARTS;
+                        } else if (typeLower === 'screw conveyor') {
+                            partsList = DEFAULT_SCREW_CONVEYOR_PARTS;
+                        } else if (typeLower === 'store tank') {
+                            partsList = DEFAULT_STORE_TANK_PARTS;
+                        }
+
+                        if (partsList) {
+                            updatedMachine.parts = partsList.map((name, idx) => ({
+                                id: `p-${Date.now()}-${idx}`,
+                                guid: `g-${Date.now()}-${idx}`,
+                                name,
+                                model: '',
+                                size: '',
+                                qty: 1
+                            }));
+                        }
+                    }
+                }
+
+                return updatedMachine;
+            })
         }));
     }
+
+
 
     const removeMachine = (id) => {
         setFormData(prev => ({
@@ -417,51 +497,99 @@ const JobCardEditor = ({ initialData, onSave, onCancel }) => {
                     margin: '0 auto',
                     width: '100%'
                 }}>
-                    {/* General Info Card */}
+                    {/* Company Header - Fixed & Locked */}
+                    <div style={{ marginBottom: 24 }}>
+                        <img
+                            src="/rajesh-engineering-header.jpg"
+                            alt="Company Header"
+                            style={{
+                                width: '100%',
+                                borderRadius: 12,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                        />
+                    </div>
+
+                    {/* Customer Information Card */}
                     <div style={{ background: 'white', padding: 24, borderRadius: 12, border: '1px solid #E2E8F0', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1rem', color: '#1E293B', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            General Information
+                        <h3 style={{ marginTop: 0, marginBottom: 20, fontSize: '1rem', color: '#1E293B', fontWeight: 700, borderBottom: '2px solid #2563EB', paddingBottom: 8, display: 'inline-block' }}>
+                            Customer Information
                         </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+
+                        {/* Row 1: Job No & Date */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
                             <div>
-                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Job No</label>
-                                <input name="jobNo" value={formData.jobNo} onChange={handleInputChange} style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #CBD5E1', fontWeight: 600 }} />
+                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Job Card No.</label>
+                                <input name="jobNo" value={formData.jobNo} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #CBD5E1', fontWeight: 700, fontSize: '1rem', background: '#F8FAFC' }} readOnly />
                             </div>
                             <div>
-                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Date</label>
-                                <input type="date" name="jobDate" value={formData.jobDate} onChange={handleInputChange} style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #CBD5E1' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Customer Name</label>
-                                <input name="customerName" value={formData.customerName} onChange={handleInputChange} style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #CBD5E1' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Plant / Project</label>
-                                <input name="plantName" value={formData.plantName} onChange={handleInputChange} style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #CBD5E1' }} />
+                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Job Date</label>
+                                <input type="date" name="jobDate" value={formData.jobDate} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.95rem' }} />
                             </div>
                         </div>
 
-                        {/* Order Details Mini-Grid */}
-                        <div>
-                            <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Order Details</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
-                                {formData.orderDetails && formData.orderDetails.map((item, index) => (
-                                    <div key={index} style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 8 }}>
-                                        <input
-                                            value={item.name}
-                                            onChange={(e) => updateOrderDetail(index, 'name', e.target.value)}
-                                            placeholder="Name"
-                                            style={{ width: '100%', fontSize: '0.85rem', fontWeight: 600, border: 'none', marginBottom: 4, background: 'transparent' }}
-                                        />
-                                        <input
-                                            value={item.model}
-                                            onChange={(e) => updateOrderDetail(index, 'model', e.target.value)}
-                                            placeholder="Model"
-                                            style={{ width: '100%', fontSize: '0.8rem', color: '#64748B', border: 'none', background: 'transparent' }}
-                                        />
-                                    </div>
-                                ))}
+                        {/* Row 2: Customer Name & Company/Farm Name */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Customer Name</label>
+                                <input name="customerName" value={formData.customerName} onChange={handleInputChange} placeholder="Enter customer name" style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.95rem' }} />
                             </div>
+                            <div>
+                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Company / Farm Name</label>
+                                <input name="plantName" value={formData.plantName} onChange={handleInputChange} placeholder="Enter company or farm name" style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.95rem' }} />
+                            </div>
+                        </div>
+
+                        {/* Row 3: Mobile Number & Location */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Mobile Number</label>
+                                <input name="phone" value={formData.phone || ''} onChange={handleInputChange} placeholder="+91 XXXXX XXXXX" style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.95rem' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Location / Site Address</label>
+                                <input name="address" value={formData.address || ''} onChange={handleInputChange} placeholder="Enter site address" style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.95rem' }} />
+                            </div>
+                        </div>
+
+                        {/* Internal Notes (hidden from print) */}
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed #E2E8F0' }}>
+                            <label style={{ display: 'block', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
+                                Internal Notes <span style={{ fontWeight: 400, textTransform: 'none' }}>(hidden from customer/print)</span>
+                            </label>
+                            <textarea
+                                name="internalNotes"
+                                value={formData.internalNotes || ''}
+                                onChange={handleInputChange}
+                                placeholder="Add internal notes here..."
+                                rows={2}
+                                style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: '0.9rem', background: '#FFFBEB', resize: 'vertical' }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Order Details Card */}
+                    <div style={{ background: 'white', padding: 24, borderRadius: 12, border: '1px solid #E2E8F0', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                        <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1rem', color: '#1E293B', fontWeight: 700 }}>
+                            Order Details
+                        </h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                            {formData.orderDetails && formData.orderDetails.map((item, index) => (
+                                <div key={index} style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 12 }}>
+                                    <input
+                                        value={item.name}
+                                        onChange={(e) => updateOrderDetail(index, 'name', e.target.value)}
+                                        placeholder="Machine Name"
+                                        style={{ width: '100%', fontSize: '0.9rem', fontWeight: 600, border: 'none', marginBottom: 6, background: 'transparent', outline: 'none' }}
+                                    />
+                                    <input
+                                        value={item.model}
+                                        onChange={(e) => updateOrderDetail(index, 'model', e.target.value)}
+                                        placeholder="Model / Size"
+                                        style={{ width: '100%', fontSize: '0.8rem', color: '#64748B', border: 'none', background: 'transparent', outline: 'none' }}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -494,12 +622,12 @@ const JobCardEditor = ({ initialData, onSave, onCancel }) => {
                                         {/* Nested Parts List */}
                                         <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
                                             {/* Table Header */}
-                                            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr 80px 40px', gap: 12, padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '40px 3fr 1fr 1fr 0.5fr 40px', gap: 12, padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
                                                 <div></div>
                                                 <div>Part Name</div>
-                                                <div style={{ textAlign: 'right' }}>Model</div>
-                                                <div style={{ textAlign: 'right' }}>Size</div>
-                                                <div style={{ textAlign: 'right' }}>Qty</div>
+                                                <div style={{ textAlign: 'center' }}>Model</div>
+                                                <div style={{ textAlign: 'center' }}>Size</div>
+                                                <div style={{ textAlign: 'center' }}>Qty</div>
                                                 <div></div>
                                             </div>
 
@@ -585,6 +713,16 @@ const JobCardEditor = ({ initialData, onSave, onCancel }) => {
                     .hidden-on-screen { position: static !important; left: auto !important; display: block !important; }
                     .print-container { display: block !important; width: 100%; }
                     body { margin: 0; background: white; }
+                }
+                
+                /* Hide Number Input Spinners */
+                input[type=number]::-webkit-inner-spin-button, 
+                input[type=number]::-webkit-outer-spin-button { 
+                    -webkit-appearance: none; 
+                    margin: 0; 
+                }
+                input[type=number] {
+                    -moz-appearance: textfield;
                 }
             `}</style>
         </div>

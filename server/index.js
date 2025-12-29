@@ -1368,7 +1368,7 @@ app.get('/api/attendance/today', async (req, res) => {
 
         activeEmployees.forEach(emp => {
             const todayEntry = entries.find(entry =>
-                entry.employeeId === emp.id &&
+                String(entry.employeeId) === String(emp.id) &&
                 (entry.clockIn || entry.shiftStart)
             );
 
