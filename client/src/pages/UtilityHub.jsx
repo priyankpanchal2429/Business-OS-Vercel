@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import PlantLayoutVisualPlanner from '../components/PlantLayoutVisualPlanner';
 import ElectricalPanelBoardPlanner from '../components/ElectricalPanelBoardPlanner';
 import LabelPrintPlanner from '../components/LabelPrintPlanner';
+import ChequePrinterPlanner from '../components/ChequePrinterPlanner';
 
 const labelStyle = { display: 'block', marginBottom: 8, fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text-secondary)' };
 const inputWrapperStyle = { position: 'relative', display: 'flex', alignItems: 'center' };
@@ -65,6 +66,7 @@ const UtilityHub = () => {
                 <PlantLayoutVisualPlanner />
                 <ElectricalPanelBoardPlanner />
                 <LabelPrintPlanner />
+                <ChequePrinterPlanner />
             </div>
         </div>
     );

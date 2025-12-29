@@ -1,10 +1,8 @@
-import React from 'react';
-import { Truck, AlertTriangle, CheckCircle, Clock, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Truck, CheckCircle, Clock, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const COLUMNS = [
     { id: 'Pending', label: 'Pending', color: 'var(--color-text-secondary)', bg: 'var(--color-background-subtle)', icon: Clock },
-    { id: 'In Progress', label: 'In Progress', color: 'var(--color-info)', bg: '#E0F2FE', icon: Truck }, // Using literal here for distinct shade
-    { id: 'Quality Check', label: 'Quality Check', color: 'var(--color-warning)', bg: '#FEF3C7', icon: AlertTriangle },
+    { id: 'In Progress', label: 'In Progress', color: 'var(--color-info)', bg: '#E0F2FE', icon: Truck },
     { id: 'Completed', label: 'Completed', color: 'var(--color-success)', bg: '#DCFCE7', icon: CheckCircle },
 ];
 
@@ -30,7 +28,7 @@ const JobCardKanban = ({ history, onEdit, onStatusChange }) => {
     return (
         <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap: 'var(--spacing-lg)',
             height: 'calc(100vh - 220px)', // Adjusted for header
             paddingBottom: 'var(--spacing-lg)'

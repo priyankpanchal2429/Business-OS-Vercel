@@ -13,6 +13,10 @@ class LocalFirestore {
     collection(name) {
         return new LocalCollection(this.dbPath, name);
     }
+
+    batch() {
+        return new LocalBatch(this.dbPath);
+    }
 }
 
 class LocalCollection {
@@ -21,6 +25,8 @@ class LocalCollection {
         this.name = name;
         this.filters = [];
         this.limitVal = null;
+        this.orderByField = null;
+        this.orderByDirection = 'asc';
     }
 
     _read() {
@@ -54,6 +60,12 @@ class LocalCollection {
         return this;
     }
 
+    orderBy(field, direction = 'asc') {
+        this.orderByField = field;
+        this.orderByDirection = direction;
+        return this;
+    }
+
     async add(data) {
         const allData = this._read();
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
@@ -77,8 +89,20 @@ class LocalCollection {
                     case '>=': return itemVal >= filter.value;
                     case '<=': return itemVal <= filter.value;
                     case 'array-contains': return Array.isArray(itemVal) && itemVal.includes(filter.value);
+                    case 'in': return Array.isArray(filter.value) && filter.value.includes(itemVal);
                     default: return true;
                 }
+            });
+        }
+
+        // Apply orderBy (sorting)
+        if (this.orderByField) {
+            results.sort((a, b) => {
+                const aVal = a[this.orderByField];
+                const bVal = b[this.orderByField];
+                if (aVal < bVal) return this.orderByDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.orderByDirection === 'asc' ? 1 : -1;
+                return 0;
             });
         }
 
@@ -103,6 +127,14 @@ class LocalCollection {
                     });
                 });
             }
+        };
+    }
+
+    async count() {
+        const allData = this._read();
+        const totalCount = Object.keys(allData).length;
+        return {
+            data: () => ({ count: totalCount })
         };
     }
 }
@@ -151,6 +183,41 @@ class LocalDoc {
         if (allData[this.id]) {
             delete allData[this.id];
             this.collection._write(allData);
+        }
+        return { success: true };
+    }
+}
+
+class LocalBatch {
+    constructor(dbPath) {
+        this.dbPath = dbPath;
+        this.operations = [];
+    }
+
+    set(docRef, data) {
+        this.operations.push({ type: 'set', docRef, data });
+        return this;
+    }
+
+    update(docRef, data) {
+        this.operations.push({ type: 'update', docRef, data });
+        return this;
+    }
+
+    delete(docRef) {
+        this.operations.push({ type: 'delete', docRef });
+        return this;
+    }
+
+    async commit() {
+        for (const op of this.operations) {
+            if (op.type === 'set') {
+                await op.docRef.set(op.data);
+            } else if (op.type === 'update') {
+                await op.docRef.update(op.data);
+            } else if (op.type === 'delete') {
+                await op.docRef.delete();
+            }
         }
         return { success: true };
     }

@@ -1,7 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { Hexagon } from 'lucide-react';
 
-const JobCardPrint = forwardRef(({ data }, ref) => {
+const JobCardPrint = forwardRef(function JobCardPrint({ data }, ref) {
     // Determine number of machines to decide on page breaks or spacing if needed.
     // For now, we follow the standard single-page-first approach.
 
